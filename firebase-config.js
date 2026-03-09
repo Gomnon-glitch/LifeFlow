@@ -5,12 +5,13 @@
 // ⚠️ REMPLACE CES VALEURS par celles de ton projet Firebase
 // (Tu les trouveras dans Console Firebase > Paramètres du projet > Général > Tes applications)
 const firebaseConfig = {
-    apiKey: "VOTRE_API_KEY",
-    authDomain: "VOTRE_PROJET.firebaseapp.com",
-    projectId: "VOTRE_PROJET",
-    storageBucket: "VOTRE_PROJET.firebasestorage.app",
-    messagingSenderId: "VOTRE_SENDER_ID",
-    appId: "VOTRE_APP_ID"
+    apiKey: "AIzaSyClve-uqDvoyT4MdmjSNKqTDBsEVeQeC7Q",
+    authDomain: "lifeflow-61d9c.firebaseapp.com",
+    projectId: "lifeflow-61d9c",
+    storageBucket: "lifeflow-61d9c.firebasestorage.app",
+    messagingSenderId: "888515442764",
+    appId: "1:888515442764:web:67aac367b8708dbb275ce9",
+    measurementId: "G-88ZFT6EVQJ"
 };
 
 // ============================================
