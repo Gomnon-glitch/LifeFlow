@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description"
+    content="Dashboard personnel d'optimisation de vie - Suivi de planning, habitudes, KPIs et objectifs">
+  <meta name="theme-color" content="#0a0e1a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="LifeFlow">
+  <title>LifeFlow — Dashboard Personnel</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="icon" href="icon-192.png" type="image/png">
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+</head>
+
+<body>
+  <div class="app-container">
+
+    <!-- ========== NAVBAR ========== -->
+    <nav class="navbar" id="navbar">
+      <div class="navbar-brand">
+        <span class="logo">⚡ LifeFlow</span>
+        <span class="subtitle">Optimise ta vie</span>
+      </div>
+
+      <ul class="nav-tabs" id="navTabs">
+        <li class="nav-tab active" data-tab="dashboard" id="tab-dashboard">
+          <span class="tab-icon">📊</span>
+          <span class="tab-label">Dashboard</span>
+        </li>
+        <li class="nav-tab" data-tab="planning" id="tab-planning">
+          <span class="tab-icon">📅</span>
+          <span class="tab-label">Planning</span>
+        </li>
+        <li class="nav-tab" data-tab="habits" id="tab-habits">
+          <span class="tab-icon">✅</span>
+          <span class="tab-label">Habitudes</span>
+        </li>
+        <li class="nav-tab" data-tab="config" id="tab-config">
+          <span class="tab-icon">⚙️</span>
+          <span class="tab-label">Config</span>
+        </li>
+        <li class="nav-tab" data-tab="install" id="tab-install">
+          <span class="tab-icon">📲</span>
+          <span class="tab-label">Installer</span>
+        </li>
+      </ul>
+
+      <div class="nav-actions">
+        <div class="sync-indicator" id="syncIndicator" title="Statut de synchronisation : Mode local">☁️</div>
+        <span class="date-display" id="dateDisplay"></span>
+      </div>
+    </nav>
+
+    <!-- ========== MAIN CONTENT ========== -->
+    <main class="main-content">
+
+      <!-- ========== DASHBOARD TAB ========== -->
+      <section class="tab-content active" id="content-dashboard">
+
+        <!-- NOW Banner -->
+        <div class="now-banner" id="nowBanner">
+          <div class="greeting" id="greeting">Bonsoir Jason 👋</div>
+          <div class="current-activity" id="currentActivity">C'est l'heure de se détendre.</div>
+          <div class="next-up" id="nextUp">
+            <span>⏭️</span>
+            <span id="nextUpText">Prochain : Japonais à 20h30</span>
+          </div>
+        </div>
+
+        <!-- Quick Daily Log -->
+        <div class="card mb-lg" id="quickLogCard">
+          <div class="card-header">
+            <div class="card-title">📝 Journal du jour</div>
+            <button class="btn btn-primary" id="saveLogBtn" onclick="app.saveDailyLog()">💾 Sauvegarder</button>
+          </div>
+          <div class="quick-log" id="quickLog">
+            <div class="log-input-group">
+              <label>🏃 Km courus</label>
+              <input type="number" id="log-km" min="0" step="0.1" placeholder="0">
+            </div>
+            <div class="log-input-group">
+              <label>⛰️ D+ (mètres)</label>
+              <input type="number" id="log-dplus" min="0" placeholder="0">
+            </div>
+            <div class="log-input-group">
+              <label>🇯🇵 Minutes japonais</label>
+              <input type="number" id="log-japanese" min="0" placeholder="0">
+            </div>
+            <div class="log-input-group">
+              <label>📱 Heures "perdues"</label>
+              <input type="number" id="log-screentime" min="0" step="0.5" placeholder="0">
+            </div>
+            <div class="log-input-group">
+              <label>😊 Humeur</label>
+              <div class="rating" id="moodRating">
+                <span class="star" data-value="1" onclick="app.setRating('mood', 1)">⭐</span>
+                <span class="star" data-value="2" onclick="app.setRating('mood', 2)">⭐</span>
+                <span class="star" data-value="3" onclick="app.setRating('mood', 3)">⭐</span>
+                <span class="star" data-value="4" onclick="app.setRating('mood', 4)">⭐</span>
+                <span class="star" data-value="5" onclick="app.setRating('mood', 5)">⭐</span>
+              </div>
+            </div>
+            <div class="log-input-group">
+              <label>😴 Sommeil</label>
+              <div class="rating" id="sleepRating">
+                <span class="star" data-value="1" onclick="app.setRating('sleep', 1)">⭐</span>
+                <span class="star" data-value="2" onclick="app.setRating('sleep', 2)">⭐</span>
+                <span class="star" data-value="3" onclick="app.setRating('sleep', 3)">⭐</span>
+                <span class="star" data-value="4" onclick="app.setRating('sleep', 4)">⭐</span>
+                <span class="star" data-value="5" onclick="app.setRating('sleep', 5)">⭐</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <!-- KPI Grid -->
+          <div>
+            <h2 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 1rem;">📈 KPIs de la semaine</h2>
+            <div class="kpi-grid" id="kpiGrid">
+              <!-- KPIs generated by JS -->
+            </div>
+          </div>
+
+          <!-- Weekly Score + Discovery -->
+          <div>
+            <!-- Weekly Score -->
+            <div class="weekly-score-card mb-lg" id="weeklyScoreCard">
+              <h3 style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">SCORE SEMAINE</h3>
+              <div class="score-circle">
+                <svg viewBox="0 0 100 100">
+                  <circle class="score-bg" cx="50" cy="50" r="42"></circle>
+                  <circle class="score-fill" cx="50" cy="50" r="42" stroke="url(#scoreGradient)" stroke-dasharray="264"
+                    stroke-dashoffset="264" id="scoreCircle"></circle>
+                  <defs>
+                    <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#3b82f6" />
+                      <stop offset="100%" stop-color="#8b5cf6" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <div class="score-text" id="scoreValue">0</div>
+              </div>
+              <div class="score-label">sur 100</div>
+            </div>
+
+            <!-- Discovery Card -->
+            <div class="discovery-card" id="discoveryCard">
+              <div class="discovery-title">🌟 Découvertes de la semaine</div>
+              <div class="discovery-suggestions" id="discoverySuggestions">
+                <!-- Generated by JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Weekly mini-charts -->
+        <div class="card mt-lg">
+          <div class="card-header">
+            <div class="card-title">📊 Évolution semaine</div>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+            <div>
+              <div class="card-subtitle mb-md">🏃 Km par jour</div>
+              <div class="mini-chart" id="chartKm"></div>
+            </div>
+            <div>
+              <div class="card-subtitle mb-md">🇯🇵 Minutes japonais</div>
+              <div class="mini-chart" id="chartJapanese"></div>
+            </div>
+            <div>
+              <div class="card-subtitle mb-md">😊 Humeur</div>
+              <div class="mini-chart" id="chartMood"></div>
+            </div>
+            <div>
+              <div class="card-subtitle mb-md">😴 Sommeil</div>
+              <div class="mini-chart" id="chartSleep"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 🎮 Gamification Section -->
+        <div id="gameSection" class="mt-lg">
+          <!-- Rendered by JS: XP bar, records, badge gallery -->
+        </div>
+
+      </section>
+
+      <!-- ========== PLANNING TAB ========== -->
+      <section class="tab-content" id="content-planning">
+
+        <div class="planning-header">
+          <div class="week-nav">
+            <button class="btn btn-icon" onclick="app.changeWeek(-1)" id="prevWeekBtn">◀</button>
+            <span class="week-label" id="weekLabel">Semaine 10</span>
+            <button class="btn btn-icon" onclick="app.changeWeek(1)" id="nextWeekBtn">▶</button>
+            <button class="btn" onclick="app.goToCurrentWeek()" id="todayBtn">Aujourd'hui</button>
+          </div>
+          <div class="template-selector">
+            <button class="template-btn active" data-template="work" onclick="app.applyTemplate('work')"
+              id="templateWork">💼 Semaine travail</button>
+            <button class="template-btn" data-template="rest" onclick="app.applyTemplate('rest')" id="templateRest">🏖️
+              Semaine repos</button>
+            <button class="template-btn" data-template="travel" onclick="app.applyTemplate('travel')"
+              id="templateTravel">✈️ Déplacement</button>
+          </div>
+        </div>
+
+        <div class="week-grid" id="weekGrid">
+          <!-- Generated by JS -->
+        </div>
+
+        <!-- Legend -->
+        <div class="card mt-lg" style="padding: 1rem;">
+          <div style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: center;">
+            <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Légende :</span>
+            <span class="activity-block run" style="display: inline-block;">🏃 Course</span>
+            <span class="activity-block japanese" style="display: inline-block;">🇯🇵 Japonais</span>
+            <span class="activity-block gaming" style="display: inline-block;">🎮 Jeux</span>
+            <span class="activity-block routine" style="display: inline-block;">🔄 Routine</span>
+            <span class="activity-block discovery" style="display: inline-block;">🌟 Découverte</span>
+            <span class="activity-block outdoor" style="display: inline-block;">☀️ Extérieur</span>
+            <span class="activity-block strength" style="display: inline-block;">💪 Renfo</span>
+            <span class="activity-block rest" style="display: inline-block;">🧘 Repos</span>
+            <span class="activity-block free" style="display: inline-block;">📖 Libre</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== HABITS TAB ========== -->
+      <section class="tab-content" id="content-habits">
+
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+          <h2 style="font-size: 1.3rem; font-weight: 700;">✅ Suivi des habitudes</h2>
+          <button class="btn btn-primary" onclick="app.openAddHabitModal()" id="addHabitBtn">+ Nouvelle
+            habitude</button>
+        </div>
+
+        <div class="habits-grid" id="habitsGrid">
+          <!-- Generated by JS -->
+        </div>
+
+        <!-- Monthly overview -->
+        <div class="card mt-lg">
+          <div class="card-header">
+            <div class="card-title">📅 Vue mensuelle</div>
+          </div>
+          <div id="monthlyHeatmap" class="habit-heatmap">
+            <!-- Generated by JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== CONFIG TAB ========== -->
+      <section class="tab-content" id="content-config">
+
+        <h2 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 1.5rem;">⚙️ Configuration</h2>
+
+        <div class="config-grid">
+          <!-- Objectives -->
+          <div class="config-section">
+            <h3>🎯 Objectifs</h3>
+            <div class="form-group">
+              <label>Km hebdo objectif</label>
+              <input type="number" class="form-input" id="config-weeklyKm" value="40" onchange="app.saveConfig()">
+            </div>
+            <div class="form-group">
+              <label>Sessions course / semaine</label>
+              <input type="number" class="form-input" id="config-runningSessions" value="4" onchange="app.saveConfig()">
+            </div>
+            <div class="form-group">
+              <label>D+ hebdo objectif (m)</label>
+              <input type="number" class="form-input" id="config-weeklyDplus" value="500" onchange="app.saveConfig()">
+            </div>
+            <div class="form-group">
+              <label>Mots japonais / semaine</label>
+              <input type="number" class="form-input" id="config-japaneseWords" value="35" onchange="app.saveConfig()">
+            </div>
+            <div class="form-group">
+              <label>Heures écran max / semaine</label>
+              <input type="number" class="form-input" id="config-maxScreentime" value="7" onchange="app.saveConfig()">
+            </div>
+            <div class="form-group">
+              <label>Découvertes / semaine</label>
+              <input type="number" class="form-input" id="config-discoveries" value="2" onchange="app.saveConfig()">
+            </div>
+          </div>
+
+          <!-- Data Management -->
+          <div class="config-section">
+            <h3 style="display: flex; align-items: center; justify-content: space-between;">
+              <span>💾 Données & Synchronisation Cloud</span>
+              <span id="headerSyncIcon" style="font-size: 1.2rem;">☁️</span>
+            </h3>
+
+            <div class="auth-panel" id="authPanel"
+              style="padding: 1rem; border-radius: 12px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.15); margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                  <div id="authStatusText" style="font-weight: 600;">Déconnecté (Mode Local)</div>
+                  <div id="authEmailText" style="font-size: 0.8rem; color: var(--text-secondary);">Données stockées
+                    uniquement sur cet appareil.</div>
+                </div>
+                <img id="authAvatar" src="" style="width: 32px; height: 32px; border-radius: 50%; display: none;"
+                  alt="Avatar">
+              </div>
+              <button class="google-signin-btn" id="btnGoogleSignIn" onclick="app.signIn()">
+                <svg width="18" height="18" viewBox="0 0 24 24">
+                  <path fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                  <path fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                  <path fill="none" d="M1 1h22v22H1z" />
+                </svg>
+                Se connecter avec Google
+              </button>
+              <button class="btn" id="btnGoogleSignOut" onclick="app.signOut()" style="display: none; width: 100%;">Se
+                déconnecter</button>
+              <div id="syncTimeStatus"
+                style="display: none; font-size: 0.8rem; color: var(--text-secondary); text-align: center;">Dernière
+                sync : -</div>
+            </div>
+
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+              Sauvegarde manuelle (Backup local JSON) :
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+              <button class="btn btn-primary" onclick="app.exportData()" id="exportBtn">📤 Exporter les données
+                (JSON)</button>
+              <button class="btn" onclick="document.getElementById('importInput').click()" id="importBtn">📥 Importer
+                des données</button>
+              <input type="file" id="importInput" accept=".json" style="display: none;"
+                onchange="app.importData(event)">
+              <button class="btn btn-danger" onclick="app.resetData()" id="resetBtn">🗑️ Réinitialiser tout</button>
+            </div>
+          </div>
+
+          <!-- About/Profile -->
+          <div class="config-section">
+            <h3>👤 Profil</h3>
+            <div class="form-group">
+              <label>Prénom</label>
+              <input type="text" class="form-input" id="config-name" value="Jason" onchange="app.saveConfig()">
+            </div>
+            <div class="form-group">
+              <label>Heure de lever habituelle</label>
+              <input type="time" class="form-input" id="config-wakeTime" value="07:30" onchange="app.saveConfig()">
+            </div>
+            <div class="form-group">
+              <label>Heure de coucher habituelle</label>
+              <input type="time" class="form-input" id="config-bedTime" value="23:00" onchange="app.saveConfig()">
+            </div>
+            <div class="form-group">
+              <label>Fin de travail habituelle</label>
+              <input type="time" class="form-input" id="config-workEnd" value="18:30" onchange="app.saveConfig()">
+            </div>
+          </div>
+
+          <!-- Notifications -->
+          <div class="config-section">
+            <h3>🔔 Notifications</h3>
+            <div id="notifStatus"
+              style="padding: 0.75rem; border-radius: 10px; margin-bottom: 1rem; font-size: 0.85rem;"></div>
+            <button class="btn btn-primary mb-md" onclick="app.requestNotificationPermission()" id="notifPermBtn">🔔
+              Activer les notifications</button>
+            <div style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;">
+              <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                <span style="font-size: 0.85rem;">🏃 Rappel entraînement course</span>
+                <input type="checkbox" id="notif-running" checked onchange="app.saveNotifPrefs()"
+                  style="width: 20px; height: 20px; accent-color: var(--accent-blue);">
+              </label>
+              <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                <span style="font-size: 0.85rem;">🇯🇵 Rappel session japonais</span>
+                <input type="checkbox" id="notif-japanese" checked onchange="app.saveNotifPrefs()"
+                  style="width: 20px; height: 20px; accent-color: var(--accent-purple);">
+              </label>
+              <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                <span style="font-size: 0.85rem;">📝 Rappel journal du soir</span>
+                <input type="checkbox" id="notif-log" checked onchange="app.saveNotifPrefs()"
+                  style="width: 20px; height: 20px; accent-color: var(--accent-green);">
+              </label>
+              <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                <span style="font-size: 0.85rem;">✅ Rappel habitudes non validées</span>
+                <input type="checkbox" id="notif-habits" checked onchange="app.saveNotifPrefs()"
+                  style="width: 20px; height: 20px; accent-color: var(--accent-orange);">
+              </label>
+              <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                <span style="font-size: 0.85rem;">🌅 Rappel routine matinale</span>
+                <input type="checkbox" id="notif-morning" checked onchange="app.saveNotifPrefs()"
+                  style="width: 20px; height: 20px; accent-color: var(--accent-cyan);">
+              </label>
+            </div>
+          </div>
+
+          <!-- Week template editor -->
+          <div class="config-section">
+            <h3>📝 Notes & Objectifs du mois</h3>
+            <div class="form-group">
+              <label>Objectif principal ce mois</label>
+              <input type="text" class="form-input" id="config-monthGoal" placeholder="Ex: Finir le plan trail 50km"
+                onchange="app.saveConfig()">
+            </div>
+            <div class="form-group">
+              <label>Notes libres</label>
+              <textarea class="form-textarea" id="config-notes" placeholder="Tes notes..."
+                onchange="app.saveConfig()"></textarea>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== INSTALL TAB ========== -->
+      <section class="tab-content" id="content-install">
+        <h2 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 1.5rem;">📲 Installer LifeFlow sur ton téléphone
+        </h2>
+
+        <div class="config-grid" style="grid-template-columns: 1fr;">
+
+          <!-- Important note -->
+          <div class="config-section"
+            style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1)); border-color: rgba(59, 130, 246, 0.2);">
+            <h3>⚠️ Pré-requis important</h3>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.7;">
+              Pour installer LifeFlow comme une application sur ton Pixel, les fichiers doivent être <strong>servis via
+                un serveur web</strong> (pas juste ouverts en tant que fichier local). Deux options :
+            </p>
+            <div style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
+              <div
+                style="padding: 0.75rem; border-radius: 10px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2);">
+                <p style="font-size: 0.85rem; color: var(--accent-green);"><strong>Option A — GitHub Pages
+                    (gratuit)</strong><br>Pousse les fichiers sur un repo GitHub → active GitHub Pages → accède à l'URL
+                  depuis ton Pixel.</p>
+              </div>
+              <div
+                style="padding: 0.75rem; border-radius: 10px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.2);">
+                <p style="font-size: 0.85rem; color: var(--accent-purple);"><strong>Option B — Serveur local (réseau
+                    WiFi)</strong><br>Sur ton PC, lance <code
+                    style='background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;'>python -m http.server 3000</code>
+                  dans le dossier Lifestyle, puis accède à <code
+                    style='background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;'>http://[IP-PC]:3000</code>
+                  depuis ton Pixel (même WiFi).</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step by step Android -->
+          <div class="config-section">
+            <h3>📱 Étapes — Android (Pixel)</h3>
+            <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+              <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                <div
+                  style="min-width: 36px; height: 36px; border-radius: 50%; background: rgba(59, 130, 246, 0.2); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--accent-blue); font-size: 1rem;">
+                  1</div>
+                <div>
+                  <p style="font-size: 0.9rem;"><strong>Ouvre Chrome</strong> sur ton Pixel et va à l'adresse de
+                    LifeFlow (GitHub Pages ou IP locale)</p>
+                </div>
+              </div>
+              <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                <div
+                  style="min-width: 36px; height: 36px; border-radius: 50%; background: rgba(59, 130, 246, 0.2); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--accent-blue); font-size: 1rem;">
+                  2</div>
+                <div>
+                  <p style="font-size: 0.9rem;"><strong>Attends le bandeau</strong> "Ajouter LifeFlow à l'écran
+                    d'accueil" qui apparaît en bas. Si il n'apparaît pas : tape les <strong>3 points ⋮</strong> en haut
+                    à droite</p>
+                </div>
+              </div>
+              <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                <div
+                  style="min-width: 36px; height: 36px; border-radius: 50%; background: rgba(59, 130, 246, 0.2); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--accent-blue); font-size: 1rem;">
+                  3</div>
+                <div>
+                  <p style="font-size: 0.9rem;"><strong>Sélectionne "Installer l'application"</strong> ou "Ajouter à
+                    l'écran d'accueil"</p>
+                </div>
+              </div>
+              <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                <div
+                  style="min-width: 36px; height: 36px; border-radius: 50%; background: rgba(59, 130, 246, 0.2); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--accent-blue); font-size: 1rem;">
+                  4</div>
+                <div>
+                  <p style="font-size: 0.9rem;"><strong>Confirme</strong> → L'icône LifeFlow ⚡ apparaît sur ton écran
+                    d'accueil !</p>
+                </div>
+              </div>
+              <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                <div
+                  style="min-width: 36px; height: 36px; border-radius: 50%; background: rgba(16, 185, 129, 0.2); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--accent-green); font-size: 1rem;">
+                  5</div>
+                <div>
+                  <p style="font-size: 0.9rem;"><strong>Active les notifications</strong> → Ouvre l'app → onglet Config
+                    → section 🔔 Notifications → "Activer les notifications"</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step by step PC -->
+          <div class="config-section">
+            <h3>💻 Étapes — PC (Chrome / Edge)</h3>
+            <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+              <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                <div
+                  style="min-width: 36px; height: 36px; border-radius: 50%; background: rgba(139, 92, 246, 0.2); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--accent-purple); font-size: 1rem;">
+                  1</div>
+                <div>
+                  <p style="font-size: 0.9rem;"><strong>Ouvre la page LifeFlow</strong> dans Chrome ou Edge</p>
+                </div>
+              </div>
+              <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                <div
+                  style="min-width: 36px; height: 36px; border-radius: 50%; background: rgba(139, 92, 246, 0.2); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--accent-purple); font-size: 1rem;">
+                  2</div>
+                <div>
+                  <p style="font-size: 0.9rem;"><strong>Clique sur l'icône 📲</strong> dans la barre d'adresse (à
+                    droite) ou va dans les <strong>3 points ⋮ → Installer LifeFlow</strong></p>
+                </div>
+              </div>
+              <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                <div
+                  style="min-width: 36px; height: 36px; border-radius: 50%; background: rgba(139, 92, 246, 0.2); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--accent-purple); font-size: 1rem;">
+                  3</div>
+                <div>
+                  <p style="font-size: 0.9rem;"><strong>Confirme l'installation</strong> → LifeFlow s'ouvre comme une
+                    fenêtre dédiée sans barre d'URL !</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- PWA status -->
+          <div class="config-section" style="text-align: center;">
+            <div id="pwaStatus" style="font-size: 0.9rem; color: var(--text-secondary);"></div>
+            <button class="btn btn-primary mt-md hidden" id="installPwaBtn" onclick="app.installPwa()">📲 Installer
+              LifeFlow maintenant</button>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ========== MODAL ========== -->
+    <div class="modal-overlay" id="modalOverlay">
+      <div class="modal" id="modal">
+        <div class="modal-header">
+          <h3 id="modalTitle">Modal</h3>
+          <button class="modal-close" onclick="app.closeModal()" id="modalCloseBtn">&times;</button>
+        </div>
+        <div id="modalBody"></div>
+        <div class="modal-footer" id="modalFooter"></div>
+      </div>
+    </div>
+
+    <!-- Toast container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+  </div>
+
+  <script src="firebase-config.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>
