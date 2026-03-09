@@ -25,6 +25,15 @@ Pour sécuriser tes données, on va s'assurer que seul TOI puisses y accéder vi
 5. Choisis un nom public pour le projet (ex: *LifeFlow*) et sélectionne ton email dans la liste déroulante "E-mail d'assistance du projet".
 6. Clique sur **Enregistrer**.
 
+### Autoriser ton adresse (Très Important !)
+Par sécurité, Firebase refuse les connexions Google si elles ne viennent pas de ton localhost. Comme ton application sera hébergée sur GitHub, il faut dire à Firebase que ce site est sûr :
+
+1. Toujours dans **Authentication**, clique sur l'onglet **Paramètres** (Settings).
+2. Dans le menu de gauche des paramètres, clique sur **Domaines autorisés** (Authorized domains).
+3. Par défaut, tu as `localhost`. Clique sur le bouton bleu **Ajouter un domaine**.
+4. Tape : `ton-nom-utilisateur.github.io` (remplace par ton vrai pseudo GitHub, ex: `gomnon-glitch.github.io`).
+5. Clique sur **Ajouter**.
+
 ---
 
 ## Étape 3 : Créer la Base de données (Firestore)
