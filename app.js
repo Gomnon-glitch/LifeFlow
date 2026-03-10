@@ -477,8 +477,8 @@ const app = {
   // ============================================
   async signIn() {
     try {
+      this.showToast('🔄 Redirection vers Google...');
       await window.firebaseAPI.signIn();
-      this.showToast('✅ Connecté avec Google !');
     } catch (err) {
       this.showToast('❌ Erreur de connexion');
     }

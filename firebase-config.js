@@ -65,8 +65,8 @@ window.firebaseAPI = {
     signIn: async () => {
         if (!auth) throw new Error("Firebase non initialisé");
         try {
-            const result = await auth.signInWithPopup(provider);
-            return result.user;
+            // Utilisation de signInWithRedirect pour PWA/Mobile
+            await auth.signInWithRedirect(provider);
         } catch (error) {
             console.error("Erreur de connexion:", error);
             throw error;
