@@ -362,14 +362,22 @@ const app = {
 
     // Initialize Firebase Auth Listener
     if (window.firebaseAPI) {
-      // Check for redirect errors (important for PWA)
-      if (window.firebaseAPI.getRedirectResult) {
-        window.firebaseAPI.getRedirectResult().catch(err => {
-          console.error("Auth redirect error:", err);
-          if (typeof this.showToast === 'function') {
-            this.showToast('❌ Erreur de connexion Google : ' + (err.message || 'Inconnue'));
-          }
-        });
+      // Check for magic link sign in (important for PWA)
+      if (window.firebaseAPI.checkAndCompleteSignIn) {
+        window.firebaseAPI.checkAndCompleteSignIn()
+          .then(user => {
+            if (user) {
+              if (typeof this.showToast === 'function') {
+                this.showToast('✅ Connecté avec succès via le lien !');
+              }
+            }
+          })
+          .catch(err => {
+            console.error("Auth link error:", err);
+            if (typeof this.showToast === 'function') {
+              this.showToast('❌ Erreur de connexion : ' + (err.message || 'Lien expiré ou invalide'));
+            }
+          });
       }
 
       window.firebaseAPI.onAuthStateChanged((user) => {
@@ -485,12 +493,22 @@ const app = {
   // ============================================
   // FIREBASE AUTH & SYNC
   // ============================================
-  async signIn() {
+  async sendMagicLink() {
+    const emailInput = document.getElementById('authEmailInput');
+    const email = emailInput ? emailInput.value.trim() : '';
+
+    if (!email || !email.includes('@')) {
+      this.showToast('❌ Veuillez entrer une adresse email valide.');
+      return;
+    }
+
     try {
-      this.showToast('🔄 Redirection vers Google...');
-      await window.firebaseAPI.signIn();
+      this.showToast('🔄 Envoi du lien de connexion...');
+      await window.firebaseAPI.sendSignInLink(email);
+      this.showToast('✅ Lien envoyé ! Vérifiez votre boîte mail.');
+      if (emailInput) emailInput.value = ''; // Clean up input
     } catch (err) {
-      this.showToast('❌ Erreur de connexion');
+      this.showToast('❌ Erreur lors de l\'envoi du lien.');
     }
   },
 
@@ -539,12 +557,17 @@ const app = {
     const authStatusText = document.getElementById('authStatusText');
     const authEmailText = document.getElementById('authEmailText');
     const authAvatar = document.getElementById('authAvatar');
-    const btnSignIn = document.getElementById('btnGoogleSignIn');
+    const btnSignInContainer = document.getElementById('emailSignInContainer'); // Updated to new container
     const btnSignOut = document.getElementById('btnGoogleSignOut');
     const syncTimeStatus = document.getElementById('syncTimeStatus');
 
+    // On s'assure que l'élément UI existe (sinon ça plante sur de vieilles versions en cache)
+    if (!authStatusText) return;
+
     if (this.currentUser) {
-      authStatusText.textContent = `Connecté : ${this.currentUser.displayName}`;
+      // User can have display name if they set it later, or null for magic link
+      const displayName = this.currentUser.displayName || this.currentUser.email.split('@')[0];
+      authStatusText.textContent = `Connecté : ${displayName}`;
       authStatusText.style.color = 'var(--text-main)';
       authEmailText.textContent = `Synchro Cloud activée (${this.currentUser.email})`;
 
@@ -553,7 +576,7 @@ const app = {
         authAvatar.style.display = 'block';
       }
 
-      btnSignIn.style.display = 'none';
+      if (btnSignInContainer) btnSignInContainer.style.display = 'none';
       btnSignOut.style.display = 'block';
       syncTimeStatus.style.display = 'block';
 
@@ -564,7 +587,7 @@ const app = {
       authEmailText.textContent = 'Données stockées uniquement sur cet appareil.';
       authAvatar.style.display = 'none';
 
-      btnSignIn.style.display = 'flex';
+      if (btnSignInContainer) btnSignInContainer.style.display = 'flex';
       btnSignOut.style.display = 'none';
       syncTimeStatus.style.display = 'none';
       this.updateSyncIndicator('local');

@@ -19,7 +19,6 @@ const firebaseConfig = {
 // ============================================
 let db = null;
 let auth = null;
-let provider = null;
 
 try {
     // Initialize Firebase
@@ -28,7 +27,6 @@ try {
     // Initialize services
     auth = firebase.auth();
     db = firebase.firestore();
-    provider = new firebase.auth.GoogleAuthProvider();
 
     // Enable offline persistence
     db.enablePersistence()
@@ -73,17 +71,54 @@ window.firebaseAPI = {
     },
 
     /**
-     * Connexion avec Google
+     * Envoie le lien magique à l'email donné
      */
-    signIn: async () => {
+    sendSignInLink: async (email) => {
         if (!auth) throw new Error("Firebase non initialisé");
+
+        // Configuration de l'URL de redirection (l'URL actuelle de l'app)
+        const actionCodeSettings = {
+            url: window.location.href, // Revenir sur la page où on est
+            handleCodeInApp: true // Nécessaire pour les Magic Links
+        };
+
         try {
-            // Utilisation de signInWithRedirect pour PWA/Mobile
-            await auth.signInWithRedirect(provider);
+            await auth.sendSignInLinkToEmail(email, actionCodeSettings);
+            // On sauvegarde l'email en local pour finaliser la connexion plus tard
+            window.localStorage.setItem('emailForSignIn', email);
         } catch (error) {
-            console.error("Erreur de connexion:", error);
+            console.error("Erreur d'envoi du lien:", error);
             throw error;
         }
+    },
+
+    /**
+     * Vérifie si l'URL courante contient un lien de connexion et finalise la connexion
+     */
+    checkAndCompleteSignIn: async () => {
+        if (!auth) return null;
+        if (auth.isSignInWithEmailLink(window.location.href)) {
+            let email = window.localStorage.getItem('emailForSignIn');
+            if (!email) {
+                // Si l'utilisateur a ouvert le lien sur un autre appareil ou navigateur,
+                // On peut potentiellement lui redemander son email, mais on va faire simple :
+                email = window.prompt("Veuillez confirmer votre email pour la connexion :");
+            }
+            if (!email) return null; // Annulé
+
+            try {
+                const result = await auth.signInWithEmailLink(email, window.location.href);
+                // On nettoie l'URL pour retirer les paramètres moches (facultatif mais plus propre)
+                window.history.replaceState(null, '', window.location.pathname);
+                // Nettoyer le localStorage
+                window.localStorage.removeItem('emailForSignIn');
+                return result.user;
+            } catch (error) {
+                console.error("Erreur de validation du lien:", error);
+                throw error;
+            }
+        }
+        return null;
     },
 
     /**
