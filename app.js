@@ -362,6 +362,16 @@ const app = {
 
     // Initialize Firebase Auth Listener
     if (window.firebaseAPI) {
+      // Check for redirect errors (important for PWA)
+      if (window.firebaseAPI.getRedirectResult) {
+        window.firebaseAPI.getRedirectResult().catch(err => {
+          console.error("Auth redirect error:", err);
+          if (typeof this.showToast === 'function') {
+            this.showToast('❌ Erreur de connexion Google : ' + (err.message || 'Inconnue'));
+          }
+        });
+      }
+
       window.firebaseAPI.onAuthStateChanged((user) => {
         const wasLoggedOut = !this.currentUser;
         this.currentUser = user;

@@ -60,6 +60,19 @@ window.firebaseAPI = {
     },
 
     /**
+     * Attraper le résultat d'une redirection (utile pour PWA)
+     */
+    getRedirectResult: async () => {
+        if (!auth) return null;
+        try {
+            return await auth.getRedirectResult();
+        } catch (error) {
+            console.error("Erreur de retour redirection:", error);
+            throw error;
+        }
+    },
+
+    /**
      * Connexion avec Google
      */
     signIn: async () => {
