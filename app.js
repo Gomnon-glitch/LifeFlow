@@ -9,6 +9,7 @@ const app = {
   state: {
     currentTab: 'dashboard',
     currentWeekOffset: 0,
+    calendarOffset: 0, // 0 = c. month, -1 = last month, etc.
     currentTemplate: 'work',
     ratings: { mood: 0, sleep: 0 },
     habits: [],
@@ -1242,7 +1243,7 @@ const app = {
       `;
     }).join('');
 
-    this.renderMonthlyHeatmap();
+    this.renderVisualCalendar();
   },
 
   toggleHabit(dateKey, habitId) {
@@ -1275,26 +1276,175 @@ const app = {
     return streak;
   },
 
-  renderMonthlyHeatmap() {
-    const heatmap = document.getElementById('monthlyHeatmap');
-    const today = new Date();
-    const days = [];
+  changeCalendarMonth(offset) {
+    this.state.calendarOffset += offset;
+    this.renderVisualCalendar();
+  },
 
-    // Last 35 days (5 weeks)
-    for (let i = 34; i >= 0; i--) {
+  calculateCurrentStreak() {
+    let streak = 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    // On recule jour par jour pour voir s'il y a de l'activité.
+    for (let i = 0; i < 365 * 5; i++) { // Vérifie sur grand max 5 ans
       const d = new Date(today);
       d.setDate(d.getDate() - i);
-      days.push(d);
+      const key = this.getDateKey(d);
+
+      const log = this.state.logs[key];
+      const habits = this.state.habitChecks[key];
+
+      let hasActivity = false;
+      if (log && ((log.km && log.km > 0) || (log.japanese && log.japanese > 0) || log.saved)) {
+        hasActivity = true;
+      }
+      if (habits && Object.values(habits).some(v => v === true)) {
+        hasActivity = true;
+      }
+
+      if (hasActivity) {
+        streak++;
+      } else if (i === 0) {
+        // C'est possible que la journée d'aujourd'hui ne soit pas encore remplie. On continue au jour d'avant.
+        continue;
+      } else {
+        // La chaîne est brisée
+        break;
+      }
+    }
+    return streak;
+  },
+
+  showDayDetailsModal(dateKey) {
+    const log = this.state.logs[dateKey] || {};
+    const habits = this.state.habitChecks[dateKey] || {};
+
+    // Check habits done
+    const habitsListHTML = this.state.habits.map(h => {
+      const done = habits[h.id] ? '✅' : '❌';
+      return `<div style="font-size: 0.85rem; padding: 4px 0; border-bottom: 1px solid var(--border-glass)">${done} ${h.name}</div>`;
+    }).join('');
+
+    const runIcon = log.km > 0 ? '🏃' : '🛌';
+    const jpIcon = log.japanese > 0 ? '🇯🇵' : '🤷';
+
+    document.getElementById('modalTitle').textContent = `📅 Résumé du ${dateKey}`;
+    document.getElementById('modalBody').innerHTML = `
+      <div style="display: flex; gap: var(--space-md); margin-bottom: var(--space-md);">
+        <div class="card" style="flex: 1; text-align: center; padding: var(--space-sm);">
+          <div style="font-size: 1.5rem;">${runIcon}</div>
+          <div style="font-weight: bold;">${log.km || 0} km</div>
+          <div style="font-size: 0.7rem; color: var(--text-muted)">+${log.dplus || 0}m D+</div>
+        </div>
+        <div class="card" style="flex: 1; text-align: center; padding: var(--space-sm);">
+          <div style="font-size: 1.5rem;">${jpIcon}</div>
+          <div style="font-weight: bold;">${log.japanese || 0} min</div>
+        </div>
+      </div>
+      <div style="margin-bottom: var(--space-md);">
+        <strong>📝 Journal du soir:</strong> ${log.saved ? 'Rempli' : 'Vide'} <br/>
+        <strong>🎭 Humeur:</strong> ${log.mood || '?'}⭐ | <strong>💤 Sommeil:</strong> ${log.sleep || '?'}⭐
+      </div>
+      <div>
+        <strong>✅ Habitudes:</strong>
+        <div style="margin-top: 8px;">
+           ${habitsListHTML || '<div style="font-size: 0.85rem; color: var(--text-muted);">Aucune habitude suivie</div>'}
+        </div>
+      </div>
+    `;
+    document.getElementById('modalFooter').innerHTML = `
+      <button class="btn btn-primary" onclick="app.closeModal()">Fermer</button>
+    `;
+    this.openModal();
+  },
+
+  renderVisualCalendar() {
+    const calendarEl = document.getElementById('visualCalendar');
+    const monthLabelEl = document.getElementById('calendarMonthLabel');
+    const streakCountEl = document.getElementById('streakCount');
+
+    if (!calendarEl) return;
+
+    // 1. Update Streak
+    const currentStreak = this.calculateCurrentStreak();
+    if (streakCountEl) {
+      streakCountEl.textContent = `${currentStreak} Jour${currentStreak > 1 ? 's' : ''}`;
     }
 
-    heatmap.innerHTML = days.map(d => {
+    // 2. Determine target month
+    const currentDate = new Date();
+    currentDate.setMonth(currentDate.getMonth() + this.state.calendarOffset);
+
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+
+    if (monthLabelEl) {
+      monthLabelEl.textContent = currentDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    }
+
+    // 3. Calendar calculations
+    const firstDayOfMonth = new Date(year, month, 1);
+    const lastDayOfMonth = new Date(year, month + 1, 0);
+    const daysInMonth = lastDayOfMonth.getDate();
+
+    // JS getDay() returns 0 for Sunday, 1 for Monday. Convert to Monday-first (0-6)
+    let startDayOfWeek = firstDayOfMonth.getDay() - 1;
+    if (startDayOfWeek === -1) startDayOfWeek = 6; // Sunday becomes 6
+
+    const todayDateKey = this.getDateKey(new Date());
+
+    // 4. Build Header
+    const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+    let html = `<div class="calendar-header">
+      ${weekDays.map(d => `<div>${d}</div>`).join('')}
+    </div><div class="calendar-grid">`;
+
+    // 5. Empty padding before first day
+    for (let i = 0; i < startDayOfWeek; i++) {
+      html += `<div class="calendar-day empty"></div>`;
+    }
+
+    // 6. Actual days
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(year, month, day);
       const key = this.getDateKey(d);
-      const checks = this.state.habitChecks[key] || {};
+      const isToday = key === todayDateKey;
+
+      const log = this.state.logs[key] || {};
+      const habits = this.state.habitChecks[key] || {};
+
+      // Compute dots
+      const hasRun = log.km && log.km > 0;
+      const hasJp = log.japanese && log.japanese > 0;
+      const hasJournal = log.saved === true;
+
       const totalHabits = this.state.habits.length;
-      const checkedCount = Object.values(checks).filter(v => v).length;
-      const level = totalHabits > 0 ? Math.ceil((checkedCount / totalHabits) * 4) : 0;
-      return `<div class="heatmap-cell level-${level}" title="${d.toLocaleDateString('fr-FR')}: ${checkedCount}/${totalHabits}"></div>`;
-    }).join('');
+      const checkedHabits = Object.values(habits).filter(v => v === true).length;
+      const hasHabits = checkedHabits > 0;
+      const allHabitsChecked = totalHabits > 0 && checkedHabits === totalHabits;
+
+      const isPerfectDay = allHabitsChecked && hasJournal;
+
+      let dotsHtml = '';
+      if (hasRun) dotsHtml += `<div class="day-dot dot-run" title="Course"></div>`;
+      if (hasJp) dotsHtml += `<div class="day-dot dot-japanese" title="Japonais"></div>`;
+      if (hasJournal) dotsHtml += `<div class="day-dot dot-log" title="Journal"></div>`;
+      if (hasHabits) dotsHtml += `<div class="day-dot dot-habit" title="Habitudes"></div>`;
+
+      html += `
+        <div class="calendar-day ${isToday ? 'today' : ''} ${isPerfectDay ? 'perfect' : ''}" 
+             onclick="app.showDayDetailsModal('${key}')"
+             title="${isPerfectDay ? '⭐ Journée Parfaite !' : 'Clique pour les détails'}">
+          <div class="calendar-date">${day}</div>
+          <div class="day-dots">
+            ${dotsHtml}
+          </div>
+        </div>
+      `;
+    }
+
+    html += `</div>`;
+    calendarEl.innerHTML = html;
   },
 
   openAddHabitModal() {
