@@ -579,23 +579,33 @@ const app = {
   updateStravaStatus() {
     const statusEl = document.getElementById('stravaStatus');
     const btnConnect = document.getElementById('btnConnectStrava');
-    if (!statusEl) return;
-
+    const dashboardBtn = document.getElementById('dashboardSyncStravaBtn');
+    
     if (this.state.strava && this.state.strava.connected) {
-      statusEl.textContent = 'Statut : Connecté à Strava ✅';
-      statusEl.style.color = 'var(--text-main)';
-      statusEl.style.display = 'block';
+      if (statusEl) {
+        statusEl.textContent = 'Statut : Connecté à Strava ✅';
+        statusEl.style.color = 'var(--text-main)';
+        statusEl.style.display = 'block';
+      }
       if (btnConnect) {
         btnConnect.textContent = '🔄 Reconnecter / Mettre à jour API';
         btnConnect.classList.replace('btn-primary', 'btn-outline');
       }
+      if (dashboardBtn) {
+        dashboardBtn.style.display = 'block';
+      }
     } else {
-      statusEl.textContent = 'Statut : Déconnecté';
-      statusEl.style.color = 'var(--text-secondary)';
-      statusEl.style.display = 'block';
+      if (statusEl) {
+        statusEl.textContent = 'Statut : Déconnecté';
+        statusEl.style.color = 'var(--text-secondary)';
+        statusEl.style.display = 'block';
+      }
       if (btnConnect) {
         btnConnect.textContent = '🔗 Se connecter à Strava';
         btnConnect.classList.replace('btn-outline', 'btn-primary');
+      }
+      if (dashboardBtn) {
+        dashboardBtn.style.display = 'none';
       }
     }
   },
@@ -819,6 +829,13 @@ const app = {
 
   async syncFromCloud() {
     if (!this.currentUser || !window.firebaseAPI) return;
+
+    // Prevent overwriting local state if we are currently resolving a Strava OAuth callback
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('code') || urlParams.has('error')) {
+      console.log("Strava Auth in progress, skipping cloud sync to prevent state overwrite.");
+      return;
+    }
 
     this.updateSyncIndicator('syncing');
     const cloudState = await window.firebaseAPI.loadFromCloud(this.currentUser.uid);
