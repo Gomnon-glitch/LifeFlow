@@ -1667,8 +1667,10 @@ const app = {
       if (hasJournal) dotsHtml += `<div class="day-dot dot-log" title="Journal" style="${getStickerStyle(key+'log')}"></div>`;
       if (hasHabits) dotsHtml += `<div class="day-dot dot-habit" title="Habitudes" style="${getStickerStyle(key+'hab')}"></div>`;
 
+      const hasActivity = hasRun || hasJp || hasJournal || hasHabits;
+
       html += `
-        <div class="calendar-day ${isToday ? 'today' : ''} ${isPerfectDay ? 'perfect' : ''}" 
+        <div class="calendar-day ${isToday ? 'today' : ''} ${isPerfectDay ? 'perfect' : ''} ${hasActivity ? 'has-activity' : ''} month-${month}" 
              onclick="app.showDayDetailsModal('${key}')"
              title="${isPerfectDay ? '⭐ Journée Parfaite !' : 'Clique pour les détails'}">
           <div class="calendar-date">${day}</div>
