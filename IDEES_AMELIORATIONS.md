@@ -11,7 +11,7 @@
 
 | Idée | Description | Priorité | Difficulté |
 |------|------------|----------|-----------|
-| **Quêtes hebdomadaires** | 3 mini-défis générés chaque lundi (ex: "Cours 3× cette semaine", "30 min de japonais 5 jours") avec récompense XP bonus | 🔴 | 🔧 |
+| ✅ **Quêtes hebdomadaires** | 3 mini-défis générés chaque lundi (ex: "Cours 3× cette semaine", "30 min de japonais 5 jours") avec récompense XP bonus | 🔴 | 🔧 |
 | **Défis mensuels** | Un grand défi thématique par mois (ex: "Mois du D+" = cumuler 2000m D+) avec badge spécial | 🔴 | 🔧 |
 | **Quêtes chaînées** | Série de quêtes progressives qui racontent une "histoire" (ex: "Le Chemin de Compostelle" = courir 800 km cumulés) | 🟡 | 🔧 |
 | **Défis flash** | Pop-up aléatoire proposant un micro-défi du jour ("Aujourd'hui, fais 5 min de japonais de plus que d'habitude") | 🟢 | ⚡ |

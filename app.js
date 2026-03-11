@@ -32,8 +32,8 @@ const app = {
     discoveryAccepted: {},  // { weekKey: [index, index] }
     weekPlannings: {},      // { "2026-W10": { "mon-evening1": { type: 'run', label: '...' } } }
     // Gamification
-    xp: 0,
     level: 1,
+    questCompleted: {},     // {"2026-W11": ["q_habit_1", "q_spec_5"]}
     unlockedBadges: {},     // { "badge-id": "2026-03-08" (date unlocked) }
     records: {              // Personal bests
       longestRun: 0,
@@ -83,6 +83,39 @@ const app = {
     { emoji: '🌿', title: 'Randonnée nature', desc: 'Randonnée découverte — nouveau sentier (2-3h)', category: 'outdoor' },
     { emoji: '🗣️', title: 'Conversation avec un inconnu', desc: 'Engager une conversation avec quelqu\'un de nouveau (défi social)', category: 'social' },
     { emoji: '🧪', title: 'Expérience culinaire', desc: 'Cuisiner un plat japonais (onigiri, ramen, gyoza...)', category: 'lifestyle' },
+  ],
+
+  // ============================================
+  // QUESTS DATABASE
+  // ============================================
+  habitQuestPool: [
+    { id: 'q_run_3', title: 'Régularité', desc: 'Faire 3 sessions de course', type: 'run_sessions', target: 3, xp: 50 },
+    { id: 'q_run_4', title: 'Marathonien', desc: 'Faire 4 sessions de course', type: 'run_sessions', target: 4, xp: 75 },
+    { id: 'q_km_20', title: 'Bornes', desc: 'Courir 20 km au total', type: 'km', target: 20, xp: 50 },
+    { id: 'q_km_30', title: 'Gros Kilométrage', desc: 'Courir 30 km au total', type: 'km', target: 30, xp: 75 },
+    { id: 'q_dplus_300', title: 'Grimpeur', desc: 'Cumuler 300m de D+', type: 'dplus', target: 300, xp: 50 },
+    { id: 'q_dplus_500', title: 'Chamois', desc: 'Cumuler 500m de D+', type: 'dplus', target: 500, xp: 75 },
+    { id: 'q_jap_3', title: 'Nihongo 3', desc: 'Faire 3 sessions de japonais', type: 'jap_sessions', target: 3, xp: 50 },
+    { id: 'q_jap_5', title: 'Nihongo 5', desc: 'Faire 5 sessions de japonais', type: 'jap_sessions', target: 5, xp: 75 },
+    { id: 'q_jap_min_60', title: 'Immersion', desc: 'Cumuler 60 min de japonais', type: 'jap_minutes', target: 60, xp: 50 },
+    { id: 'q_habit_15', title: 'Discipline', desc: 'Cocher 15 habitudes', type: 'habit_count', target: 15, xp: 50 },
+    { id: 'q_habit_25', title: 'Rigueur', desc: 'Cocher 25 habitudes', type: 'habit_count', target: 25, xp: 75 },
+    { id: 'q_log_5', title: 'Scribe', desc: 'Remplir le journal 5 fois', type: 'log_count', target: 5, xp: 40 },
+    { id: 'q_mood_4', title: 'Good Vibes', desc: 'Avoir une humeur moyenne de 4', type: 'mood_avg', target: 4, xp: 60, requiresFullWeek: true },
+    { id: 'q_screen_under_5', title: 'Déconnecté', desc: "Moins de 5h d'écran sur la semaine", type: 'screentime_max', target: 5, xp: 80, requiresFullWeek: true }
+  ],
+
+  specialQuestPool: [
+    { id: 'sq_read', title: 'Rat de bibliothèque', desc: "Lire 30 min d'affilée", type: 'special', target: 1, xp: 100 },
+    { id: 'sq_cook', title: 'Chef cuistot', desc: 'Cuisiner un plat sain inédit', type: 'special', target: 1, xp: 100 },
+    { id: 'sq_social', title: 'Social', desc: 'Appeler un proche', type: 'special', target: 1, xp: 100 },
+    { id: 'sq_stretch', title: 'Souplesse', desc: 'Session stretching de 20 min', type: 'special', target: 1, xp: 100 },
+    { id: 'sq_walk', title: 'Flânerie', desc: 'Se promener 45 min sans téléphone', type: 'special', target: 1, xp: 100 },
+    { id: 'sq_clean', title: 'Minimaliste', desc: 'Trier 5 objets inutiles', type: 'special', target: 1, xp: 100 },
+    { id: 'sq_nature', title: 'Bain de forêt', desc: 'Passer 1h dans la nature', type: 'special', target: 1, xp: 100 },
+    { id: 'sq_culture', title: 'Culture', desc: 'Documentaire instructif', type: 'special', target: 1, xp: 100 },
+    { id: 'sq_tech_detox', title: 'Détox Digitale', desc: 'Aucun écran après 21h', type: 'special', target: 1, xp: 100 },
+    { id: 'sq_meditate', title: 'Zen', desc: '15 min de méditation', type: 'special', target: 1, xp: 100 }
   ],
 
   // ============================================
@@ -245,6 +278,7 @@ const app = {
     { id: 'score-50', emoji: '⭐', name: 'Demi-étoile', desc: 'Atteindre un score hebdo ≥ 50', category: 'score', horizon: 'quick' },
     { id: 'habits-100-day', emoji: '💯', name: 'Journée parfaite', desc: '100% habitudes en une journée', category: 'habitudes', horizon: 'quick' },
     { id: '4-sessions', emoji: '🏅', name: 'Programme respecté', desc: '4 sessions de course en une semaine', category: 'course', horizon: 'quick' },
+    { id: 'first-quest', emoji: '📜', name: 'Chasseur de primes', desc: 'Compléter ta première quête', category: 'général', horizon: 'quick' },
 
     // ───── 🔵 MEDIUM (1 mois) ─────
     { id: 'streak-7-jap', emoji: '🔥', name: 'Flamme 7', desc: 'Streak japonais de 7 jours', category: 'japonais', horizon: 'medium' },
@@ -261,6 +295,8 @@ const app = {
     { id: 'streak-7-log', emoji: '📖', name: 'Chroniqueur', desc: 'Remplir le journal 7 jours d\'affilée', category: 'général', horizon: 'medium' },
     { id: '4-sessions-4weeks', emoji: '📅', name: 'Régularité', desc: '4 sessions/sem pendant 4 semaines', category: 'course', horizon: 'medium' },
     { id: 'level-5', emoji: '🎖️', name: 'Trailer', desc: 'Atteindre le niveau 5', category: 'général', horizon: 'medium' },
+    { id: '10-quests', emoji: '⚔️', name: 'Mercenaire régulier', desc: 'Compléter 10 quêtes au total', category: 'général', horizon: 'medium' },
+    { id: 'perfect-week-quests', emoji: '🎯', name: 'Le compte est bon', desc: "Compléter les 3 quêtes d'une semaine", category: 'général', horizon: 'medium' },
 
     // ───── 🟣 LONG (3-6 mois) ─────
     { id: 'streak-60-jap', emoji: '🏯', name: 'Samouraï', desc: 'Streak japonais de 60 jours', category: 'japonais', horizon: 'long' },
@@ -275,6 +311,7 @@ const app = {
     { id: '10000m-dplus', emoji: '🏔️', name: 'Himalayiste', desc: 'Cumuler 10 000m D+ au total', category: 'course', horizon: 'long' },
     { id: 'habits-100-month', emoji: '🔱', name: 'Discipline absolue', desc: '100% habitudes pendant 30 jours', category: 'habitudes', horizon: 'long' },
     { id: '500-jap-min', emoji: '📚', name: 'Étudiant assidu', desc: 'Cumuler 500 minutes de japonais', category: 'japonais', horizon: 'long' },
+    { id: '50-quests', emoji: '🐺', name: 'Sorceleur', desc: 'Compléter 50 quêtes au total', category: 'général', horizon: 'long' },
 
     // ───── 🟡 EPIC (1 an+) ─────
     { id: 'streak-180-jap', emoji: '🎎', name: 'Sensei (先生)', desc: 'Streak japonais de 180 jours', category: 'japonais', horizon: 'epic' },
@@ -411,6 +448,7 @@ const app = {
         this.state.habits = [...this.defaultHabits];
       }
       // Ensure gamification state exists (for data saved before gamification was added)
+      if (!this.state.questCompleted) this.state.questCompleted = {};
       if (!this.state.unlockedBadges) this.state.unlockedBadges = {};
       if (!this.state.records) this.state.records = {
         longestRun: 0, biggestDplus: 0, bestWeekKm: 0, bestWeekScore: 0,
@@ -789,6 +827,7 @@ const app = {
     this.saveData();
     this.recalculateXP();
     this.updateRecords();
+    this.checkWeeklyQuests();
     this.checkAllBadges();
     this.renderDashboard();
     this.showToast('✅ Journal sauvegardé !');
@@ -815,8 +854,60 @@ const app = {
     this.renderKPIs();
     this.renderWeeklyScore();
     this.renderMiniCharts();
+    this.renderQuests();
     this.renderDiscovery();
     this.renderGameSection();
+  },
+
+  renderQuests() {
+      const container = document.getElementById('questsContainer');
+      if (!container) return;
+
+      const today = new Date();
+      const weekKey = this.getWeekKey(today);
+      const quests = this.getWeekQuests(weekKey);
+      
+      const weekLogs = this.getWeekLogs();
+      const dates = this.getWeekDates(0);
+      const weekHabitChecks = {};
+      dates.forEach(d => {
+          const k = this.getDateKey(d);
+          if (this.state.habitChecks[k]) {
+              weekHabitChecks[k] = this.state.habitChecks[k];
+          }
+      });
+
+      const completed = this.state.questCompleted[weekKey] || [];
+
+      container.innerHTML = quests.map(q => {
+          const isDone = completed.includes(q.id);
+          const progress = isDone ? q.target : this.getQuestProgress(q, weekLogs, weekHabitChecks, this.getDateKey(today));
+          const pct = Math.min((progress / q.target) * 100, 100);
+
+          let actionHtml = '';
+          if (q.type === 'special') {
+              actionHtml = `<button class="btn ${isDone ? 'btn-primary' : ''}" style="padding: 4px 8px; font-size: 0.8rem;" onclick="app.toggleSpecialQuest('${q.id}')">${isDone ? '✅ Fait' : 'Valider'}</button>`;
+          } else {
+              actionHtml = `<span style="font-size: 0.8rem; color: var(--text-muted);">${typeof progress === 'number' && !Number.isInteger(progress) ? progress.toFixed(1) : progress} / ${q.target}</span>`;
+          }
+
+          return `
+            <div style="background: var(--bg-card); padding: 0.75rem; border-radius: 8px; display: flex; flex-direction: column; gap: 0.5rem; opacity: ${isDone ? '0.7' : '1'};">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                  <div style="font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
+                    ${isDone ? '✅' : '🔸'} ${q.title}
+                  </div>
+                  <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">${q.desc} <span style="color: var(--accent-purple); font-weight: 600;">(+${q.xp} XP)</span></div>
+                </div>
+                ${actionHtml}
+              </div>
+              <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; margin-top: 4px;">
+                <div style="height: 100%; width: ${pct}%; background: ${isDone ? 'var(--accent-green)' : 'var(--accent-purple)'}; transition: width 0.3s ease;"></div>
+              </div>
+            </div>
+          `;
+      }).join('');
   },
 
   getWeekLogs() {
@@ -1031,6 +1122,134 @@ const app = {
     this.renderDiscovery();
     this.renderKPIs();
     this.renderWeeklyScore();
+  },
+
+  // ============================================
+  // WEEKLY QUESTS
+  // ============================================
+  getWeekQuests(weekKey) {
+    let hash = 0;
+    for (let i = 0; i < weekKey.length; i++) {
+      hash = ((hash << 5) - hash) + weekKey.charCodeAt(i);
+      hash |= 0;
+    }
+    hash = Math.abs(hash);
+
+    const habitQuests = [];
+    let hPool = [...this.habitQuestPool];
+    for(let i=0; i<2; i++) {
+        const idx = (hash + i * 17) % hPool.length;
+        habitQuests.push(hPool.splice(idx, 1)[0]);
+    }
+
+    const specialIdx = (hash * 13) % this.specialQuestPool.length;
+    const specialQuest = this.specialQuestPool[specialIdx];
+
+    return [...habitQuests, specialQuest];
+  },
+
+  getQuestProgress(quest, weekLogs, weekHabitChecks, todayDateKey) {
+    if (quest.type === 'special') {
+        const weekKey = this.getWeekKey(new Date());
+        return (this.state.questCompleted[weekKey] && this.state.questCompleted[weekKey].includes(quest.id)) ? 1 : 0;
+    }
+
+    let progress = 0;
+    if (quest.type === 'run_sessions') {
+        progress = weekLogs.filter(l => l && l.km > 0).length;
+    } else if (quest.type === 'km') {
+        progress = weekLogs.reduce((sum, l) => sum + (l?.km || 0), 0);
+    } else if (quest.type === 'dplus') {
+        progress = weekLogs.reduce((sum, l) => sum + (l?.dplus || 0), 0);
+    } else if (quest.type === 'jap_sessions') {
+        progress = weekLogs.filter(l => l && l.japanese > 0).length;
+    } else if (quest.type === 'jap_minutes') {
+        progress = weekLogs.reduce((sum, l) => sum + (l?.japanese || 0), 0);
+    } else if (quest.type === 'habit_count') {
+        Object.values(weekHabitChecks).forEach(dayHabits => {
+            progress += Object.values(dayHabits).filter(v => v).length;
+        });
+    } else if (quest.type === 'log_count') {
+        progress = weekLogs.filter(l => l && l.saved).length;
+    } else if (quest.type === 'mood_avg') {
+        const moodLogs = weekLogs.filter(l => l && l.mood > 0);
+        progress = moodLogs.length > 0 ? (moodLogs.reduce((sum, l) => sum + (l.mood || 0), 0) / moodLogs.length) : 0;
+    } else if (quest.type === 'screentime_max') {
+        progress = weekLogs.reduce((sum, l) => sum + (l?.screentime || 0), 0);
+    }
+
+    return progress;
+  },
+
+  checkWeeklyQuests() {
+    const today = new Date();
+    const weekKey = this.getWeekKey(today);
+    const quests = this.getWeekQuests(weekKey);
+    
+    if (!this.state.questCompleted[weekKey]) {
+      this.state.questCompleted[weekKey] = [];
+    }
+    
+    const weekLogs = this.getWeekLogs();
+    const dates = this.getWeekDates(0);
+    const weekHabitChecks = {};
+    dates.forEach(d => {
+        const k = this.getDateKey(d);
+        if (this.state.habitChecks[k]) {
+            weekHabitChecks[k] = this.state.habitChecks[k];
+        }
+    });
+
+    let newlyCompleted = false;
+
+    quests.forEach(q => {
+      if (this.state.questCompleted[weekKey].includes(q.id)) return;
+
+      const progress = this.getQuestProgress(q, weekLogs, weekHabitChecks, this.getDateKey(today));
+      
+      let isCompleted = false;
+      if (q.type === 'screentime_max') {
+          const isSunday = today.getDay() === 0;
+          if (isSunday && progress <= q.target) isCompleted = true;
+      } else {
+          isCompleted = progress >= q.target;
+      }
+
+      if (isCompleted) {
+          this.state.questCompleted[weekKey].push(q.id);
+          newlyCompleted = true;
+          this.showToast(`🎉 Quête accomplie : ${q.title} (+${q.xp} XP)`);
+      }
+    });
+
+    if (newlyCompleted) {
+        this.recalculateXP();
+        this.checkAllBadges();
+        this.saveData();
+        this.renderDashboard();
+    }
+  },
+
+  toggleSpecialQuest(questId) {
+      const weekKey = this.getWeekKey(new Date());
+      if (!this.state.questCompleted[weekKey]) {
+          this.state.questCompleted[weekKey] = [];
+      }
+      
+      const isCompleted = this.state.questCompleted[weekKey].includes(questId);
+      if (isCompleted) {
+          this.state.questCompleted[weekKey] = this.state.questCompleted[weekKey].filter(id => id !== questId);
+          this.saveData();
+      } else {
+          this.state.questCompleted[weekKey].push(questId);
+          const q = this.specialQuestPool.find(sp => sp.id === questId);
+          this.showToast(`🎉 Quête spéciale accomplie : ${q?.title} (+${q?.xp} XP)`);
+          this.recalculateXP();
+          this.checkAllBadges();
+          this.saveData();
+      }
+      // Assuming rendering is done via UI interactions
+      this.renderDashboard();
   },
 
   // ============================================
@@ -1253,6 +1472,7 @@ const app = {
     this.state.habitChecks[dateKey][habitId] = !this.state.habitChecks[dateKey][habitId];
     this.saveData();
     this.recalculateXP();
+    this.checkWeeklyQuests();
     this.checkAllBadges();
     this.renderHabits();
     this.renderKPIs();
@@ -1551,6 +1771,15 @@ const app = {
     // XP from badges
     xp += Object.keys(this.state.unlockedBadges).length * r.badgeUnlocked;
 
+    // XP from quests
+    Object.values(this.state.questCompleted || {}).forEach(arr => {
+        arr.forEach(questId => {
+            const allQuests = [...this.habitQuestPool, ...this.specialQuestPool];
+            const q = allQuests.find(poolQ => poolQ.id === questId);
+            if (q) xp += q.xp;
+        });
+    });
+
     this.state.xp = Math.round(xp);
     this.state.level = this.getLevelForXP(xp);
     this.saveData();
@@ -1646,6 +1875,16 @@ const app = {
     let totalDisc = 0;
     Object.values(this.state.discoveryAccepted).forEach(arr => totalDisc += arr.length);
 
+    // Total quests
+    let totalQuests = 0;
+    let perfectQuestWeeks = 0;
+    let hasAnyQuest = false;
+    Object.values(this.state.questCompleted || {}).forEach(arr => {
+      totalQuests += arr.length;
+      if (arr.length > 0) hasAnyQuest = true;
+      if (arr.length >= 3) perfectQuestWeeks++;
+    });
+
     // Any log exists?
     const hasAnyLog = Object.keys(logs).length > 0;
     const hasAnyRun = Object.values(logs).some(l => l.km > 0);
@@ -1680,6 +1919,7 @@ const app = {
 
     // ── Quick badges ──
     grant('first-run', hasAnyRun);
+    grant('first-quest', hasAnyQuest);
     grant('first-log', hasAnyLog);
     grant('first-japanese', hasAnyJap);
     grant('first-habit', hasAnyHabit);
@@ -1694,6 +1934,8 @@ const app = {
     grant('streak-7-jap', japStreak >= 7);
     grant('streak-14-jap', japStreak >= 14);
     grant('streak-30-jap', japStreak >= 30);
+    grant('10-quests', totalQuests >= 10);
+    grant('perfect-week-quests', perfectQuestWeeks >= 1);
     grant('50km-week', weekKm >= 50);
     grant('1000m-dplus', weekDplus >= 1000);
     grant('100km-total', rec.totalKm >= 100);
@@ -1710,6 +1952,7 @@ const app = {
     grant('streak-60-jap', japStreak >= 60);
     grant('streak-90-jap', japStreak >= 90);
     grant('500km-total', rec.totalKm >= 500);
+    grant('50-quests', totalQuests >= 50);
     grant('1000km-total', rec.totalKm >= 1000);
     grant('5000m-dplus', rec.totalDplus >= 5000);
     grant('10000m-dplus', rec.totalDplus >= 10000);
