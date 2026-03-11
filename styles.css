@@ -1830,18 +1830,18 @@ body::before {
 }
 
 /* Month Colors for Day Backgrounds */
-.calendar-day.has-activity.month-0 { background: rgba(59, 130, 246, 0.15); /* Jan: Blue */ }
-.calendar-day.has-activity.month-1 { background: rgba(6, 182, 212, 0.15); /* Feb: Cyan */ }
-.calendar-day.has-activity.month-2 { background: rgba(16, 185, 129, 0.15); /* Mar: Green */ }
-.calendar-day.has-activity.month-3 { background: rgba(132, 204, 22, 0.15); /* Apr: Lime */ }
-.calendar-day.has-activity.month-4 { background: rgba(234, 179, 8, 0.15); /* May: Yellow */ }
-.calendar-day.has-activity.month-5 { background: rgba(245, 158, 11, 0.15); /* Jun: Amber */ }
-.calendar-day.has-activity.month-6 { background: rgba(249, 115, 22, 0.15); /* Jul: Orange */ }
-.calendar-day.has-activity.month-7 { background: rgba(239, 68, 68, 0.15); /* Aug: Red */ }
-.calendar-day.has-activity.month-8 { background: rgba(236, 72, 153, 0.15); /* Sep: Pink */ }
-.calendar-day.has-activity.month-9 { background: rgba(217, 70, 239, 0.15); /* Oct: Fuchsia */ }
-.calendar-day.has-activity.month-10 { background: rgba(168, 85, 247, 0.15); /* Nov: Purple */ }
-.calendar-day.has-activity.month-11 { background: rgba(139, 92, 246, 0.15); /* Dec: Violet */ }
+.calendar-day.has-activity.month-0 { background: rgba(59, 130, 246, 0.15) !important; /* Jan: Blue */ }
+.calendar-day.has-activity.month-1 { background: rgba(6, 182, 212, 0.15) !important; /* Feb: Cyan */ }
+.calendar-day.has-activity.month-2 { background: rgba(16, 185, 129, 0.15) !important; /* Mar: Green */ }
+.calendar-day.has-activity.month-3 { background: rgba(132, 204, 22, 0.15) !important; /* Apr: Lime */ }
+.calendar-day.has-activity.month-4 { background: rgba(234, 179, 8, 0.15) !important; /* May: Yellow */ }
+.calendar-day.has-activity.month-5 { background: rgba(245, 158, 11, 0.15) !important; /* Jun: Amber */ }
+.calendar-day.has-activity.month-6 { background: rgba(249, 115, 22, 0.15) !important; /* Jul: Orange */ }
+.calendar-day.has-activity.month-7 { background: rgba(239, 68, 68, 0.15) !important; /* Aug: Red */ }
+.calendar-day.has-activity.month-8 { background: rgba(236, 72, 153, 0.15) !important; /* Sep: Pink */ }
+.calendar-day.has-activity.month-9 { background: rgba(217, 70, 239, 0.15) !important; /* Oct: Fuchsia */ }
+.calendar-day.has-activity.month-10 { background: rgba(168, 85, 247, 0.15) !important; /* Nov: Purple */ }
+.calendar-day.has-activity.month-11 { background: rgba(139, 92, 246, 0.15) !important; /* Dec: Violet */ }
 
 .calendar-nav .btn-icon {
   background: var(--bg-glass);
