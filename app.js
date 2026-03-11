@@ -31,6 +31,13 @@ const app = {
     },
     discoveryAccepted: {},  // { weekKey: [index, index] }
     weekPlannings: {},      // { "2026-W10": { "mon-evening1": { type: 'run', label: '...' } } }
+    strava: {
+      connected: false,
+      accessToken: null,
+      refreshToken: null,
+      expiresAt: null,
+      athleteId: null
+    },
     // Gamification
     level: 1,
     questCompleted: {},     // {"2026-W11": ["q_habit_1", "q_spec_5"]}
@@ -393,6 +400,9 @@ const app = {
     this.updateRecords();
     this.checkAllBadges();
 
+    // Check strava params if returning from oauth
+    this.checkStravaAuthCallback();
+
     // Update "now" banner every minute
     setInterval(() => this.updateNowBanner(), 60000);
     // Check notifications every minute
@@ -428,6 +438,253 @@ const app = {
           this.syncFromCloud();
         }
       });
+    }
+  },
+
+  // ============================================
+  // STRAVA INTEGRATION
+  // ============================================
+  async getValidStravaToken() {
+    if (!this.state.strava || !this.state.strava.connected) return null;
+    
+    // Check if token is expired (adding a 5-minute buffer)
+    if (Date.now() > this.state.strava.expiresAt - 300000) {
+      try {
+        const response = await fetch('https://www.strava.com/oauth/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            client_id: this.state.config.stravaClientId,
+            client_secret: this.state.config.stravaClientSecret,
+            grant_type: 'refresh_token',
+            refresh_token: this.state.strava.refreshToken
+          })
+        });
+
+        if (!response.ok) throw new Error('Token refresh failed');
+        const data = await response.json();
+
+        this.state.strava.accessToken = data.access_token;
+        this.state.strava.refreshToken = data.refresh_token; // Sometimes they rotate refresh tokens
+        this.state.strava.expiresAt = data.expires_at * 1000;
+        this.saveData();
+
+      } catch (err) {
+        console.error("Erreur renouvellement token Strava:", err);
+        return null;
+      }
+    }
+    
+    return this.state.strava.accessToken;
+  },
+
+  async syncStravaActivities(isBackground = false) {
+    if (!this.state.strava || !this.state.strava.connected) {
+      if (!isBackground) this.showToast('❌ Strava non connecté.');
+      return;
+    }
+
+    if (!isBackground) this.showToast('🔄 Synchronisation Strava...');
+    const btnSync = document.querySelector('button[onclick="app.syncStravaActivities()"]');
+    if (btnSync) btnSync.classList.add('loading');
+
+    const token = await this.getValidStravaToken();
+    if (!token) {
+      if (!isBackground) this.showToast('❌ Le token Strava a expiré. Veuillez vous reconnecter.');
+      if (btnSync) btnSync.classList.remove('loading');
+      return;
+    }
+
+    try {
+      // Get Activities from Monday of the current week (to avoid messing up past data!)
+      const monday = this.getMonday(new Date());
+      monday.setHours(0, 0, 0, 0);
+      const afterTimestamp = Math.floor(monday.getTime() / 1000);
+
+      const response = await fetch(`https://www.strava.com/api/v3/athlete/activities?after=${afterTimestamp}&per_page=30`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch activities');
+
+      const activities = await response.json();
+      const updatedDays = this.processStravaActivities(activities);
+
+      if (updatedDays > 0) {
+        this.saveData();
+        this.recalculateXP();
+        this.updateRecords();
+        this.checkWeeklyQuests();
+        this.checkAllBadges();
+        
+        // Refresh UI
+        this.renderDashboard();
+        this.renderVisualCalendar();
+        this.renderPlanning();
+        
+        this.showToast(`✅ Strava: ${updatedDays} activité(s) importée(s) cette semaine !`);
+      } else {
+        if (!isBackground) this.showToast('ℹ️ Strava: Aucune nouvelle activité cette semaine.');
+      }
+
+    } catch (err) {
+      console.error('Strava Fetch Error:', err);
+      if (!isBackground) this.showToast('❌ Erreur de synchronisation Strava.');
+    } finally {
+      if (btnSync) btnSync.classList.remove('loading');
+    }
+  },
+
+  processStravaActivities(activities) {
+    let updatedCount = 0;
+    
+    // Strava activity types that count as running
+    const runTypes = ['Run', 'TrailRun', 'VirtualRun'];
+
+    activities.forEach(activity => {
+      // Ignore non-running activities if we only track runs
+      if (!runTypes.includes(activity.type)) return;
+
+      const dateObj = new Date(activity.start_date_local);
+      const dateKey = this.getDateKey(dateObj);
+
+      // Create log if it doesn't exist
+      if (!this.state.logs[dateKey]) {
+        this.state.logs[dateKey] = {};
+      }
+      
+      const log = this.state.logs[dateKey];
+      
+      // Calculate km and D+
+      const km = parseFloat((activity.distance / 1000).toFixed(1));
+      const dplus = Math.round(activity.total_elevation_gain);
+
+      // If there's an existing log with values, we might just be overwriting it to make sure it matches Strava.
+      // Strava is the source of truth for distance/elevation.
+      if (log.km !== km || log.dplus !== dplus) {
+        log.km = km;
+        log.dplus = dplus;
+        // Don't overwrite mood or sleep, just the sports data
+        updatedCount++;
+      }
+    });
+
+    return updatedCount;
+  },
+
+  updateStravaStatus() {
+    const statusEl = document.getElementById('stravaStatus');
+    const btnConnect = document.getElementById('btnConnectStrava');
+    if (!statusEl) return;
+
+    if (this.state.strava && this.state.strava.connected) {
+      statusEl.textContent = 'Statut : Connecté à Strava ✅';
+      statusEl.style.color = 'var(--text-main)';
+      statusEl.style.display = 'block';
+      if (btnConnect) {
+        btnConnect.textContent = '🔄 Reconnecter / Mettre à jour API';
+        btnConnect.classList.replace('btn-primary', 'btn-outline');
+      }
+    } else {
+      statusEl.textContent = 'Statut : Déconnecté';
+      statusEl.style.color = 'var(--text-secondary)';
+      statusEl.style.display = 'block';
+      if (btnConnect) {
+        btnConnect.textContent = '🔗 Se connecter à Strava';
+        btnConnect.classList.replace('btn-outline', 'btn-primary');
+      }
+    }
+  },
+
+  async connectStrava() {
+    const clientId = this.state.config.stravaClientId;
+    
+    // Save current config if changes were made
+    this.saveConfig();
+
+    if (!clientId) {
+      this.showToast('❌ Veuillez renseigner le Client ID Strava.');
+      return;
+    }
+
+    const redirectUri = window.location.href.split('?')[0]; // Current URL without params
+    const scope = 'activity:read_all';
+    const authUrl = `https://www.strava.com/oauth/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&approval_prompt=force&scope=${scope}`;
+    
+    // Redirect user to Strava
+    window.location.href = authUrl;
+  },
+
+  async checkStravaAuthCallback() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const error = urlParams.get('error');
+
+    if (error) {
+       this.showToast('❌ Connexion Strava refusée.');
+       // Clean URL without reloading immediately
+       window.history.replaceState({}, document.title, window.location.pathname);
+       return;
+    }
+
+    if (code) {
+      this.showToast('🔄 Finalisation de la connexion Strava...');
+      
+      const clientId = this.state.config.stravaClientId;
+      const clientSecret = this.state.config.stravaClientSecret;
+
+      if (!clientId || !clientSecret) {
+        this.showToast('❌ Client ID ou Secret manquant. Reconfigurez Strava.');
+        return;
+      }
+
+      try {
+        const response = await fetch('https://www.strava.com/oauth/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            client_id: clientId,
+            client_secret: clientSecret,
+            code: code,
+            grant_type: 'authorization_code'
+          })
+        });
+
+        if (!response.ok) {
+           throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Save Strava data deeply in app state
+        this.state.strava = {
+          connected: true,
+          accessToken: data.access_token,
+          refreshToken: data.refresh_token,
+          expiresAt: data.expires_at * 1000, // Make it ms
+          athleteId: data.athlete.id
+        };
+
+        this.saveData();
+        this.updateStravaStatus();
+        this.showToast('✅ Strava connecté avec succès !');
+
+        // Automatically fetch data for the first time
+        this.syncStravaActivities(true); // true = force fetch
+
+      } catch (err) {
+        console.error("Strava Auth Error:", err);
+        this.showToast('❌ Erreur lors de l\'authentification Strava.');
+      }
+
+      // Cleanup URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
   },
 
@@ -1715,7 +1972,7 @@ const app = {
   // CONFIG
   // ============================================
   saveConfig() {
-    const fields = ['name', 'wakeTime', 'bedTime', 'workEnd', 'weeklyKm', 'runningSessions', 'weeklyDplus', 'japaneseWords', 'maxScreentime', 'discoveries', 'monthGoal', 'notes'];
+    const fields = ['name', 'wakeTime', 'bedTime', 'workEnd', 'weeklyKm', 'runningSessions', 'weeklyDplus', 'japaneseWords', 'maxScreentime', 'discoveries', 'monthGoal', 'notes', 'stravaClientId', 'stravaClientSecret'];
     fields.forEach(field => {
       const el = document.getElementById(`config-${field}`);
       if (el) {
@@ -1733,6 +1990,7 @@ const app = {
       const el = document.getElementById(`config-${key}`);
       if (el) el.value = config[key] || '';
     });
+    this.updateStravaStatus();
   },
 
   // ============================================
