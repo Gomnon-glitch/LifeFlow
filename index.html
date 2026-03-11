@@ -12,6 +12,11 @@
   <meta name="apple-mobile-web-app-title" content="LifeFlow">
   <title>LifeFlow — Dashboard Personnel</title>
   <link rel="stylesheet" href="styles.css">
+
+  <!-- Confetti script -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <!-- PWA Setup -->
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="icon" href="icon-192.png" type="image/png">
@@ -347,6 +352,17 @@
               <span>💾 Données & Synchronisation Cloud</span>
               <span id="headerSyncIcon" style="font-size: 1.2rem;">☁️</span>
             </h3>
+
+            <div class="form-group" style="margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.05); padding: 10px 15px; border-radius: 8px;">
+              <div>
+                <label style="margin-bottom: 0;">🔊 Sons & Vibrations</label>
+                <div style="font-size: 0.75rem; color: var(--text-secondary);">Activer pour les passages de niveaux et récompenses</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="config-enableSounds" checked onchange="app.saveConfig()">
+                <span class="slider round"></span>
+              </label>
+            </div>
 
             <div class="auth-panel" id="authPanel"
               style="padding: 1rem; border-radius: 12px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.15); margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">

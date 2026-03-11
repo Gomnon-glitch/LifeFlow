@@ -1928,3 +1928,119 @@ body::before {
   background-color: #f8f9fa;
   box-shadow: var(--shadow-sm);
 }
+
+/* ============================================
+   GAMIFICATION AWARDS & ANIMATIONS
+   ============================================ */
+.reward-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(10, 15, 30, 0.85); /* Darker backdrop */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease-out;
+}
+
+.reward-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.reward-content {
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 3rem 2rem;
+  border-radius: var(--radius-xl);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  transform: scale(0.8) translateY(20px);
+  opacity: 0;
+  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  max-width: 90%;
+  width: 400px;
+  position: relative;
+  overflow: hidden;
+}
+
+.reward-overlay.active .reward-content {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+
+/* Dynamic Glows */
+.reward-content[data-glow="level"] {
+  box-shadow: 0 0 80px rgba(139, 92, 246, 0.3), inset 0 0 20px rgba(139, 92, 246, 0.1);
+  border-color: rgba(139, 92, 246, 0.4);
+}
+.reward-content[data-glow="badge-epic"] {
+  box-shadow: 0 0 80px rgba(245, 158, 11, 0.3), inset 0 0 20px rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.5);
+}
+.reward-content[data-glow="badge-long"] {
+  box-shadow: 0 0 80px rgba(59, 130, 246, 0.3), inset 0 0 20px rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.reward-icon {
+  font-size: 5rem;
+  margin-bottom: 1rem;
+  animation: floatReward 3s ease-in-out infinite, pulseGlow 2s infinite;
+  display: inline-block;
+  filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.2));
+}
+
+@keyframes floatReward {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-10px) scale(1.05); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.2)); }
+  50% { filter: drop-shadow(0 0 25px rgba(255, 255, 255, 0.5)); }
+}
+
+.reward-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+  background: var(--gradient-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  text-shadow: 0 2px 10px rgba(255, 255, 255, 0.1);
+}
+
+.reward-content[data-glow="badge-epic"] .reward-title {
+  background: linear-gradient(135deg, #fcd34d 0%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.reward-subtitle {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  margin-bottom: 2rem;
+  line-height: 1.4;
+}
+
+.reward-btn {
+  width: 100%;
+  font-size: 1.1rem;
+  padding: 12px;
+  animation: slideUpFade 0.5s ease 0.3s both;
+}
+
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}

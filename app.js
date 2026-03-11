@@ -27,7 +27,8 @@ const app = {
       maxScreentime: 7,
       discoveries: 2,
       monthGoal: '',
-      notes: ''
+      notes: '',
+      enableSounds: true
     },
     discoveryAccepted: {},  // { weekKey: [index, index] }
     weekPlannings: {},      // { "2026-W10": { "mon-evening1": { type: 'run', label: '...' } } }
@@ -1529,7 +1530,93 @@ const app = {
           this.saveData();
       }
       // Assuming rendering is done via UI interactions
-      this.renderDashboard();
+      this.renderGamification();
+  },
+
+  // ============================================
+  // GAMIFICATION REWARD ANIMATIONS
+  // ============================================
+  rewardQueue: [],
+  isShowingReward: false,
+
+  queueRewardAnimation(rewardData) {
+    this.rewardQueue.push(rewardData);
+    if (!this.isShowingReward) {
+      this.playNextReward();
+    }
+  },
+
+  playNextReward() {
+    if (this.rewardQueue.length === 0) {
+      this.isShowingReward = false;
+      return;
+    }
+
+    this.isShowingReward = true;
+    const reward = this.rewardQueue.shift();
+    
+    const overlay = document.getElementById('rewardOverlay');
+    const content = overlay.querySelector('.reward-content');
+    const icon = document.getElementById('rewardIcon');
+    const title = document.getElementById('rewardTitle');
+    const subtitle = document.getElementById('rewardSubtitle');
+
+    // Haptic Feedback & Sound
+    if (this.state.config.enableSounds !== false) {
+      if (window.navigator && window.navigator.vibrate) {
+        try { navigator.vibrate([100, 50, 200]); } catch(e) {}
+      }
+      try {
+        const audio = new Audio(reward.type === 'level' ? 'assets/level-up.mp3' : 'assets/badge.mp3');
+        audio.volume = 0.5;
+        audio.play().catch(e => console.log('Audio autoplays prevented by browser', e));
+      } catch(e) {}
+    }
+
+    if (reward.type === 'level') {
+      icon.textContent = '🎖️';
+      title.textContent = 'Niveau Supérieur !';
+      subtitle.textContent = `Bravo, tu as atteint le niveau ${reward.level} : ${reward.name}`;
+      content.setAttribute('data-glow', 'level');
+    } else if (reward.type === 'badge') {
+      icon.textContent = reward.badge.emoji;
+      title.textContent = 'Badge Débloqué !';
+      subtitle.textContent = `Tu as obtenu le badge épique : ${reward.badge.name}`;
+      content.setAttribute('data-glow', reward.badge.horizon === 'epic' ? 'badge-epic' : 'badge-long');
+    }
+
+    overlay.classList.add('active');
+
+    // Trigger Confetti
+    if (typeof confetti === 'function') {
+      const duration = 3000;
+      const animationEnd = Date.now() + duration;
+      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 10000 };
+
+      const interval = setInterval(function() {
+        const timeLeft = animationEnd - Date.now();
+        if (timeLeft <= 0) {
+          return clearInterval(interval);
+        }
+        const particleCount = 50 * (timeLeft / duration);
+        confetti(Object.assign({}, defaults, { particleCount, origin: { x: this.randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+        confetti(Object.assign({}, defaults, { particleCount, origin: { x: this.randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+      }.bind(this), 250);
+    }
+  },
+
+  randomInRange(min, max) {
+    return Math.random() * (max - min) + min;
+  },
+
+  closeRewardAnimation() {
+    const overlay = document.getElementById('rewardOverlay');
+    if (overlay) overlay.classList.remove('active');
+    
+    // Slight delay before reading the next queue item to let CSS transition finish
+    setTimeout(() => {
+      this.playNextReward();
+    }, 500);
   },
 
   // ============================================
