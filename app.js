@@ -1645,11 +1645,27 @@ const app = {
 
       const isPerfectDay = allHabitsChecked && hasJournal;
 
+      const getStickerStyle = (seed) => {
+          let hash = 0;
+          for (let i = 0; i < seed.length; i++) {
+              hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+              hash |= 0;
+          }
+          const r1 = Math.abs(Math.sin(hash)) * 2 - 1;
+          const r2 = Math.abs(Math.cos(hash)) * 2 - 1;
+          const r3 = Math.abs(Math.sin(hash * 2)) * 2 - 1;
+          
+          const rot = r1 * 30; // -30 to 30 deg
+          const tx = r2 * 6; // -6px to 6px
+          const ty = r3 * 6; // -6px to 6px
+          return `transform: translate(${tx}px, ${ty}px) rotate(${rot}deg);`;
+      };
+
       let dotsHtml = '';
-      if (hasRun) dotsHtml += `<div class="day-dot dot-run" title="Course"></div>`;
-      if (hasJp) dotsHtml += `<div class="day-dot dot-japanese" title="Japonais"></div>`;
-      if (hasJournal) dotsHtml += `<div class="day-dot dot-log" title="Journal"></div>`;
-      if (hasHabits) dotsHtml += `<div class="day-dot dot-habit" title="Habitudes"></div>`;
+      if (hasRun) dotsHtml += `<div class="day-dot dot-run" title="Course" style="${getStickerStyle(key+'run')}"></div>`;
+      if (hasJp) dotsHtml += `<div class="day-dot dot-japanese" title="Japonais" style="${getStickerStyle(key+'jp')}"></div>`;
+      if (hasJournal) dotsHtml += `<div class="day-dot dot-log" title="Journal" style="${getStickerStyle(key+'log')}"></div>`;
+      if (hasHabits) dotsHtml += `<div class="day-dot dot-habit" title="Habitudes" style="${getStickerStyle(key+'hab')}"></div>`;
 
       html += `
         <div class="calendar-day ${isToday ? 'today' : ''} ${isPerfectDay ? 'perfect' : ''}" 

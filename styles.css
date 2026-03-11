@@ -1769,6 +1769,9 @@ body::before {
   font-weight: 600;
   color: var(--text-secondary);
   line-height: 1;
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
 }
 
 .calendar-day.today .calendar-date {
@@ -1776,27 +1779,34 @@ body::before {
 }
 
 .day-dots {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 4px;
-  align-content: flex-end;
-  height: 100%;
-  padding-bottom: 4px;
+  align-items: center;
+  align-content: center;
+  pointer-events: none;
 }
 
 .day-dot {
-  width: 8px;
-  height: 8px;
+  width: 16px;
+  height: 16px;
+  margin: -4px;
   border-radius: 50%;
-  box-shadow: 0 0 5px currentColor;
-  opacity: 0.9;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  opacity: 0.95;
   transition: all var(--transition-fast);
+  position: relative;
+  pointer-events: auto;
 }
 
 .day-dot:hover {
-  transform: scale(1.5);
+  transform: scale(1.5) rotate(0deg) !important;
   opacity: 1;
+  z-index: 10;
+  box-shadow: 0 4px 12px currentColor;
 }
 
 .dot-run {
