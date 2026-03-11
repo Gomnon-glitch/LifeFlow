@@ -634,6 +634,10 @@ const app = {
     const code = urlParams.get('code');
     const error = urlParams.get('error');
 
+    if (code || error) {
+      this.isResolvingStrava = true; // Protect from cloud sync overwriting
+    }
+
     if (error) {
        this.showToast('❌ Connexion Strava refusée.');
        // Clean URL without reloading immediately
@@ -695,6 +699,9 @@ const app = {
 
       // Cleanup URL parameters
       window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // Release the lock after a short delay to allow Firebase to settle
+      setTimeout(() => { this.isResolvingStrava = false; }, 5000);
     }
   },
 
@@ -831,8 +838,7 @@ const app = {
     if (!this.currentUser || !window.firebaseAPI) return;
 
     // Prevent overwriting local state if we are currently resolving a Strava OAuth callback
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('code') || urlParams.has('error')) {
+    if (this.isResolvingStrava) {
       console.log("Strava Auth in progress, skipping cloud sync to prevent state overwrite.");
       return;
     }
