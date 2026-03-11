@@ -1778,32 +1778,45 @@ body::before {
 .day-dots {
   display: flex;
   flex-wrap: wrap;
-  gap: 3px;
+  justify-content: center;
+  gap: 4px;
   align-content: flex-end;
   height: 100%;
-  padding-top: 4px;
+  padding-bottom: 4px;
 }
 
 .day-dot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
+  box-shadow: 0 0 5px currentColor;
+  opacity: 0.9;
+  transition: all var(--transition-fast);
+}
+
+.day-dot:hover {
+  transform: scale(1.5);
+  opacity: 1;
 }
 
 .dot-run {
   background: var(--accent-blue);
+  color: var(--accent-blue);
 }
 
 .dot-japanese {
   background: var(--accent-purple);
+  color: var(--accent-purple);
 }
 
 .dot-log {
   background: var(--accent-green);
+  color: var(--accent-green);
 }
 
 .dot-habit {
   background: var(--accent-orange);
+  color: var(--accent-orange);
 }
 
 .calendar-nav .btn-icon {
