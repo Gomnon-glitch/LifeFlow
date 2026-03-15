@@ -645,7 +645,7 @@ body::before {
 .week-grid .cell {
   background: var(--bg-secondary);
   padding: 4px;
-  min-height: 50px;
+  min-height: 70px;
   position: relative;
   transition: background var(--transition-fast);
   cursor: pointer;
@@ -670,27 +670,28 @@ body::before {
 .validate-btn {
   display: block;
   width: 100%;
-  margin-top: 4px;
-  padding: 2px 0;
-  background: none;
-  border: 1px dashed var(--border-glass);
+  margin-top: 5px;
+  padding: 4px 2px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 4px;
-  font-size: 0.7rem;
-  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
   cursor: pointer;
   transition: all var(--transition-fast);
   text-align: center;
+  line-height: 1;
 }
 
 .validate-btn:hover, .validate-btn:active {
-  background: rgba(16, 185, 129, 0.1);
+  background: rgba(16, 185, 129, 0.2);
   border-color: var(--accent-green);
   color: var(--accent-green);
-  border-style: solid;
 }
 
 .validate-btn.is-validated {
-  background: rgba(16, 185, 129, 0.15);
+  background: rgba(16, 185, 129, 0.2);
   border-color: var(--accent-green);
   border-style: solid;
   color: var(--accent-green);
@@ -698,9 +699,9 @@ body::before {
 }
 
 .validate-btn.is-validated:hover {
-  background: rgba(239, 68, 68, 0.1);
-  border-color: var(--accent-red, #ef4444);
-  color: var(--accent-red, #ef4444);
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+  color: #ef4444;
 }
 
 /* État validé sur l'activity-block */

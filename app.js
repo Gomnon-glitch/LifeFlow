@@ -1735,7 +1735,7 @@ const app = {
             html += `<button class="validate-btn ${isValidated ? 'is-validated' : ''}"
               onclick="event.stopPropagation(); app.validateSlot('${weekKey}', '${slotKey}')"
               title="${isValidated ? 'Annuler la validation' : 'Valider ce créneau'}">
-              ${isValidated ? '✓' : '○'}
+              ${isValidated ? '✓ Fait' : '○ Valider'}
             </button>`;
           }
         }
