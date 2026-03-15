@@ -381,15 +381,16 @@ const app = {
 
   // XP rewards per action
   xpRewards: {
-    kmRun: 10,            // per km
-    dplusGained: 0.05,    // per meter D+
-    japaneseMinute: 1,    // per minute
-    habitChecked: 5,      // per habit
-    journalFilled: 10,    // daily log
-    discoveryTried: 25,   // per discovery
-    badgeUnlocked: 50,    // per badge
-    perfectHabitDay: 15,  // bonus: all habits in a day
-    runSession: 15,       // per session logged
+    kmRun: 10,              // per km
+    dplusGained: 0.05,      // per meter D+
+    japaneseMinute: 1,      // per minute
+    habitChecked: 5,        // per habit
+    journalFilled: 10,      // daily log
+    discoveryTried: 25,     // per discovery
+    badgeUnlocked: 50,      // per badge
+    perfectHabitDay: 15,    // bonus: all habits in a day
+    runSession: 15,         // per session logged
+    perfectPlanningDay: 25, // bonus: Perfect Day (≥80% habits + ≥3 slots validés)
   },
 
   // ============================================
@@ -1067,41 +1068,49 @@ const app = {
     const hours = now.getHours();
     const name = this.state.config.name || 'Jason';
 
+    // Créneau actuel depuis le planning réel
+    const dayKey = this.getDayKey((now.getDay() + 6) % 7);
+    const planning = this.getCurrentTemplate();
+    const slotOrder = ['morning', 'day', 'evening1', 'evening2', 'evening3'];
+    const currentSlotKey = slotOrder.find(s => this.isCurrentTimeSlot(s));
+    const currentSlot = currentSlotKey ? planning[`${dayKey}-${currentSlotKey}`] : null;
+    const nextSlotKey = currentSlotKey
+      ? slotOrder[slotOrder.indexOf(currentSlotKey) + 1]
+      : slotOrder.find(s => {
+          const ranges = { morning:[7*60,8*60+30], day:[9*60,18*60], evening1:[18*60+30,20*60], evening2:[20*60,21*60+30], evening3:[21*60+30,23*60] };
+          return ranges[s] && (hours * 60 + now.getMinutes()) < ranges[s][0];
+        });
+    const nextSlot = nextSlotKey ? planning[`${dayKey}-${nextSlotKey}`] : null;
+
     let greeting, activity, nextUp;
 
     if (hours < 8) {
       greeting = `Bonjour ${name} 🌅`;
-      activity = 'C\'est le matin — prends ton temps pour ta routine.';
-      nextUp = 'Routine matin → Journée de travail';
+      activity = currentSlot ? `En cours : ${currentSlot.label}` : 'C\'est le matin — prends ton temps pour ta routine.';
+      nextUp = nextSlot ? `Prochain : ${nextSlot.label}` : 'Routine matin → Journée de travail';
     } else if (hours < 12) {
       greeting = `Bonne matinée ${name} ☀️`;
-      activity = now.getDay() === 0 || now.getDay() === 6
-        ? 'Weekend ! Check ton planning pour ce matin.'
-        : 'En plein travail — focus ! 💪';
-      nextUp = 'Pause déjeuner bientôt';
+      activity = currentSlot ? `En cours : ${currentSlot.label}` : (now.getDay() === 0 || now.getDay() === 6 ? 'Weekend ! Check ton planning.' : 'En plein travail — focus ! 💪');
+      nextUp = nextSlot ? `Prochain : ${nextSlot.label}` : 'Pause déjeuner bientôt';
     } else if (hours < 14) {
       greeting = `Bon appétit ${name} 🍽️`;
-      activity = 'Pause midi — recharge tes batteries.';
-      nextUp = 'Reprise à 14h';
+      activity = currentSlot ? `En cours : ${currentSlot.label}` : 'Pause midi — recharge tes batteries.';
+      nextUp = nextSlot ? `Prochain : ${nextSlot.label}` : 'Reprise à 14h';
     } else if (hours < 18) {
       greeting = `Bon après-midi ${name} 💼`;
-      activity = now.getDay() === 0 || now.getDay() === 6
-        ? 'Profite de ton après-midi libre !'
-        : 'Dernière ligne droite au travail.';
-      nextUp = 'Fin de journée bientôt → activité du soir';
+      activity = currentSlot ? `En cours : ${currentSlot.label}` : (now.getDay() === 0 || now.getDay() === 6 ? 'Profite de ton après-midi libre !' : 'Dernière ligne droite au travail.');
+      nextUp = nextSlot ? `Prochain : ${nextSlot.label}` : 'Fin de journée → activité du soir';
     } else if (hours < 20) {
       greeting = `Bonsoir ${name} 🌆`;
-      activity = 'C\'est l\'heure de ton activité du soir !';
-      const dayKey = this.getDayKey((now.getDay() + 6) % 7);
-      const slot = this.getCurrentTemplate()[`${dayKey}-evening1`];
-      nextUp = slot ? slot.label : 'Check ton planning';
+      activity = currentSlot ? `En cours : ${currentSlot.label}` : 'C\'est l\'heure de ton activité du soir !';
+      nextUp = nextSlot ? `Prochain : ${nextSlot.label}` : 'Bonne soirée !';
     } else if (hours < 22) {
       greeting = `Bonsoir ${name} 🌙`;
-      activity = 'Temps de détente — profites-en bien.';
-      nextUp = 'N\'oublie pas ton journal du soir !';
+      activity = currentSlot ? `En cours : ${currentSlot.label}` : 'Temps de détente — profites-en bien.';
+      nextUp = nextSlot ? `Prochain : ${nextSlot.label}` : 'N\'oublie pas ton journal du soir !';
     } else {
       greeting = `Bonne nuit ${name} 😴`;
-      activity = 'Il est temps de préparer le sommeil.';
+      activity = currentSlot ? `En cours : ${currentSlot.label}` : 'Il est temps de préparer le sommeil.';
       nextUp = 'Repos → Demain est un nouveau jour !';
     }
 
@@ -1199,7 +1208,7 @@ const app = {
 
       container.innerHTML = quests.map(q => {
           const isDone = completed.includes(q.id);
-          const progress = isDone ? q.target : this.getQuestProgress(q, weekLogs, weekHabitChecks, this.getDateKey(today));
+          const progress = isDone ? q.target : this.getQuestProgress(q, weekLogs, weekHabitChecks);
           const pct = Math.min((progress / q.target) * 100, 100);
 
           let actionHtml = '';
@@ -1269,6 +1278,7 @@ const app = {
       { icon: '😴', label: 'Sommeil Moy.', value: sleepAvg.toFixed(1), target: 'Obj: ≥ 3.5', pct: (sleepAvg / 5 * 100), color: 'cyan' },
       { icon: '✅', label: 'Habitudes', value: `${habitScore}%`, target: 'Obj: > 80%', pct: habitScore, color: habitScore >= 80 ? 'green' : 'orange' },
       { icon: '🌟', label: 'Découvertes', value: discoveryCount, target: `Obj: ${config.discoveries}/sem`, pct: (discoveryCount / config.discoveries * 100), color: 'pink' },
+      { icon: '📅', label: 'Planning Streak', value: `${this.state.planningStreak}j`, target: 'Obj: ≥ 3 créneaux/j', pct: Math.min(this.state.planningStreak / 7 * 100, 100), color: this.state.planningStreak >= 7 ? 'green' : 'orange', streak: this.state.planningStreak },
     ];
 
     const grid = document.getElementById('kpiGrid');
@@ -1466,7 +1476,7 @@ const app = {
     return [...habitQuests, specialQuest];
   },
 
-  getQuestProgress(quest, weekLogs, weekHabitChecks, todayDateKey) {
+  getQuestProgress(quest, weekLogs, weekHabitChecks) {
     if (quest.type === 'special') {
         const weekKey = this.getWeekKey(new Date());
         return (this.state.questCompleted[weekKey] && this.state.questCompleted[weekKey].includes(quest.id)) ? 1 : 0;
@@ -1523,7 +1533,7 @@ const app = {
     quests.forEach(q => {
       if (this.state.questCompleted[weekKey].includes(q.id)) return;
 
-      const progress = this.getQuestProgress(q, weekLogs, weekHabitChecks, this.getDateKey(today));
+      const progress = this.getQuestProgress(q, weekLogs, weekHabitChecks);
       
       let isCompleted = false;
       if (q.type === 'screentime_max') {
@@ -1700,6 +1710,7 @@ const app = {
     });
 
     // Time slot rows
+    const now = new Date();
     timeSlots.forEach(slot => {
       html += `<div class="time-slot">${slot.label}<br><small>${slot.time}</small></div>`;
       dates.forEach((d, i) => {
@@ -1707,9 +1718,27 @@ const app = {
         const slotKey = `${dayKey}-${slot.key}`;
         const activity = planning[slotKey];
         const isToday = this.getDateKey(d) === today;
-        html += `<div class="cell ${isToday ? 'today-col' : ''}" onclick="app.editSlot('${weekKey}', '${slotKey}')">`;
+        const isPastOrToday = d <= now;
+        const isCurrentSlot = isToday && this.isCurrentTimeSlot(slot.key);
+        const validation = this.state.slotValidations[weekKey]?.[slotKey];
+        const isValidated = !!validation;
+
+        html += `<div class="cell ${isToday ? 'today-col' : ''} ${isCurrentSlot ? 'current-slot' : ''}" onclick="app.editSlot('${weekKey}', '${slotKey}')">`;
         if (activity) {
-          html += `<div class="activity-block ${activity.type}">${activity.label}</div>`;
+          const validatedTime = isValidated
+            ? new Date(validation.validatedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+            : '';
+          html += `<div class="activity-block ${activity.type} ${isValidated ? 'validated' : ''}">
+            ${activity.label}
+            ${isValidated ? `<span class="validated-time">✓ ${validatedTime}</span>` : ''}
+          </div>`;
+          if (isPastOrToday) {
+            html += `<button class="validate-btn ${isValidated ? 'is-validated' : ''}"
+              onclick="event.stopPropagation(); app.validateSlot('${weekKey}', '${slotKey}')"
+              title="${isValidated ? 'Annuler la validation' : 'Valider ce créneau'}">
+              ${isValidated ? '✓' : '○'}
+            </button>`;
+          }
         }
         html += '</div>';
       });
@@ -1822,6 +1851,169 @@ const app = {
     this.saveData();
     this.renderPlanning();
     this.closeModal();
+  },
+
+  // ============================================
+  // SLOT VALIDATION (Phase 1)
+  // ============================================
+
+  // Retourne true si le slot correspond à la plage horaire actuelle (aujourd'hui)
+  isCurrentTimeSlot(slotKey) {
+    const now = new Date();
+    const mins = now.getHours() * 60 + now.getMinutes();
+    const ranges = {
+      morning:  [7 * 60,       8 * 60 + 30],
+      day:      [9 * 60,       18 * 60],
+      evening1: [18 * 60 + 30, 20 * 60],
+      evening2: [20 * 60,      21 * 60 + 30],
+      evening3: [21 * 60 + 30, 23 * 60],
+    };
+    const r = ranges[slotKey];
+    return r ? mins >= r[0] && mins < r[1] : false;
+  },
+
+  validateSlot(weekKey, slotKey) {
+    const slot = this.state.weekPlannings[weekKey]?.[slotKey];
+    if (!slot) return;
+
+    if (!this.state.slotValidations[weekKey]) this.state.slotValidations[weekKey] = {};
+    const alreadyValidated = !!this.state.slotValidations[weekKey][slotKey];
+
+    if (alreadyValidated) {
+      // Toggle off — annuler la validation
+      delete this.state.slotValidations[weekKey][slotKey];
+      this.updatePlanningStreak();
+      this.saveData();
+      this.renderPlanning();
+      this.renderVisualCalendar();
+      this.showToast('↩️ Validation annulée');
+      return;
+    }
+
+    // Enregistrer la validation
+    this.state.slotValidations[weekKey][slotKey] = { validatedAt: new Date().toISOString() };
+
+    // Auto-log modal si créneau sport (sans écraser le log existant)
+    if (['run', 'strength', 'outdoor'].includes(slot.type)) {
+      // Extraire la date du slotKey (ex: "mon-morning" dans weekKey "2026-W11")
+      const dayKeys = ['mon','tue','wed','thu','fri','sat','sun'];
+      const dayPart = slotKey.split('-')[0];
+      const dayIdx = dayKeys.indexOf(dayPart);
+      if (dayIdx !== -1) {
+        const dates = this.getWeekDates(this.state.currentWeekOffset);
+        const slotDate = dates[dayIdx];
+        const dateKey = this.getDateKey(slotDate);
+        this.openSportLogModal(dateKey, slot);
+      }
+    }
+
+    // Ancrage d'habitude (Phase 3 — stub prévu ici)
+    // this.triggerHabitAnchor(slot.type);
+
+    this.updatePlanningStreak();
+    this.saveData();
+    this.renderPlanning();
+    this.renderVisualCalendar();
+    this.recalculateXP();
+    this.checkAllBadges();
+    this.showToast('✅ Créneau validé !');
+  },
+
+  openSportLogModal(dateKey, slot) {
+    const existing = this.state.logs[dateKey] || {};
+    const hasExistingKm = existing.km && existing.km > 0;
+
+    document.getElementById('modalTitle').textContent = `🏃 Logger l'activité — ${slot.label || slot.type}`;
+    document.getElementById('modalBody').innerHTML = `
+      ${hasExistingKm ? `<div style="background:rgba(245,158,11,0.15);border:1px solid var(--accent-orange);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:0.85rem;">
+        ⚠️ Un log existe déjà pour ce jour (${existing.km} km). Les valeurs seront ajoutées au log existant.
+      </div>` : ''}
+      <div class="form-group">
+        <label>Distance (km)</label>
+        <input type="number" class="form-input" id="sportLogKm" step="0.1" min="0" placeholder="0.0" value="">
+      </div>
+      <div class="form-group">
+        <label>Dénivelé positif (m)</label>
+        <input type="number" class="form-input" id="sportLogDplus" step="1" min="0" placeholder="0" value="">
+      </div>
+    `;
+    document.getElementById('modalFooter').innerHTML = `
+      <button class="btn" onclick="app.closeModal()">Passer</button>
+      <button class="btn btn-primary" onclick="app.saveSportLog('${dateKey}', ${hasExistingKm})">💾 Enregistrer</button>
+    `;
+    this.openModal();
+  },
+
+  saveSportLog(dateKey, additive) {
+    const km    = parseFloat(document.getElementById('sportLogKm').value) || 0;
+    const dplus = parseFloat(document.getElementById('sportLogDplus').value) || 0;
+    if (km === 0 && dplus === 0) { this.closeModal(); return; }
+
+    if (!this.state.logs[dateKey]) this.state.logs[dateKey] = {};
+    if (additive) {
+      this.state.logs[dateKey].km    = (this.state.logs[dateKey].km    || 0) + km;
+      this.state.logs[dateKey].dplus = (this.state.logs[dateKey].dplus || 0) + dplus;
+    } else {
+      this.state.logs[dateKey].km    = km;
+      this.state.logs[dateKey].dplus = dplus;
+      this.state.logs[dateKey].saved = true;
+    }
+    this.saveData();
+    this.recalculateXP();
+    this.updateRecords();
+    this.checkAllBadges();
+    this.renderDashboard();
+    this.closeModal();
+    this.showToast(`✅ ${km} km + ${dplus}m D+ enregistrés`);
+  },
+
+  // Recalcule le nombre de jours consécutifs avec ≥3 créneaux validés
+  updatePlanningStreak() {
+    let streak = 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < 365; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const validatedCount = this.getValidatedSlotsForDay(d);
+
+      if (validatedCount >= 3) {
+        streak++;
+      } else if (i === 0) {
+        // Jour en cours pas encore validé — on continue en arrière
+        continue;
+      } else {
+        break;
+      }
+    }
+    this.state.planningStreak = streak;
+  },
+
+  // Compte le nombre de créneaux validés pour un jour donné (objet Date)
+  getValidatedSlotsForDay(date) {
+    const weekKey = this.getWeekKey(date);
+    const dayKeys = ['mon','tue','wed','thu','fri','sat','sun'];
+    const jsDay = date.getDay(); // 0=dim, 1=lun...
+    const dayIdx = jsDay === 0 ? 6 : jsDay - 1;
+    const dayKey = dayKeys[dayIdx];
+    const slotSuffixes = ['morning','day','evening1','evening2','evening3'];
+    const validations = this.state.slotValidations[weekKey] || {};
+    return slotSuffixes.filter(s => validations[`${dayKey}-${s}`]).length;
+  },
+
+  // True si ≥80% des habitudes sont cochées ET ≥3 créneaux validés
+  isPerfectDay(dateKey) {
+    const habits = this.state.habitChecks[dateKey] || {};
+    const total = this.state.habits.length;
+    if (total === 0) return false;
+    const checked = this.state.habits.filter(h => habits[h.id]).length;
+    const habitPct = checked / total;
+
+    const d = new Date(dateKey);
+    const slotCount = this.getValidatedSlotsForDay(d);
+
+    return habitPct >= 0.8 && slotCount >= 3;
   },
 
   // ============================================
@@ -2050,12 +2242,9 @@ const app = {
       const hasJp = log.japanese && log.japanese > 0;
       const hasJournal = log.saved === true;
 
-      const totalHabits = this.state.habits.length;
       const checkedHabits = Object.values(habits).filter(v => v === true).length;
       const hasHabits = checkedHabits > 0;
-      const allHabitsChecked = totalHabits > 0 && checkedHabits === totalHabits;
-
-      const isPerfectDay = allHabitsChecked && hasJournal;
+      const isPerfectDay = this.isPerfectDay(key);
 
       const getStickerStyle = (seed) => {
           let hash = 0;
@@ -2310,6 +2499,8 @@ const app = {
       let checkedCount = 0;
       Object.values(checks).forEach(v => { if (v) { xp += r.habitChecked; checkedCount++; } });
       if (checkedCount === this.state.habits.length && checkedCount > 0) { xp += r.perfectHabitDay; }
+      // Bonus Perfect Day (Phase 1) : ≥80% habitudes + ≥3 créneaux validés
+      if (this.isPerfectDay(dateKey)) { xp += r.perfectPlanningDay; }
     });
 
     // XP from discoveries
@@ -2417,7 +2608,6 @@ const app = {
     const weekDplus = weekLogs.reduce((s, l) => s + (l?.dplus || 0), 0);
     const runningSessions = weekLogs.filter(l => l?.km > 0).length;
     const japStreak = this.calculateStreak('japanese');
-    const habitScore = this.calculateHabitScore();
     const weekScore = this.getCurrentWeekScore();
 
     // Total discoveries

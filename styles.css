@@ -655,6 +655,67 @@ body::before {
   background: var(--bg-card-hover);
 }
 
+/* Créneau actuel — effet neon-glow Cyber-Focus */
+@keyframes currentSlotPulse {
+  0%, 100% { box-shadow: inset 0 0 0 2px var(--accent-blue), 0 0 8px rgba(59,130,246,0.3); }
+  50%       { box-shadow: inset 0 0 0 2px var(--accent-blue), 0 0 16px rgba(59,130,246,0.6); }
+}
+
+.week-grid .cell.current-slot {
+  animation: currentSlotPulse 2s ease-in-out infinite;
+  background: rgba(59, 130, 246, 0.06);
+}
+
+/* Bouton de validation sur les créneaux */
+.validate-btn {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 2px 0;
+  background: none;
+  border: 1px dashed var(--border-glass);
+  border-radius: 4px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: center;
+}
+
+.validate-btn:hover, .validate-btn:active {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+  border-style: solid;
+}
+
+.validate-btn.is-validated {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: var(--accent-green);
+  border-style: solid;
+  color: var(--accent-green);
+  font-weight: 700;
+}
+
+.validate-btn.is-validated:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: var(--accent-red, #ef4444);
+  color: var(--accent-red, #ef4444);
+}
+
+/* État validé sur l'activity-block */
+.activity-block.validated {
+  opacity: 0.75;
+}
+
+.validated-time {
+  display: block;
+  font-size: 0.6rem;
+  opacity: 0.8;
+  margin-top: 2px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
 /* Activity blocks in planning */
 .activity-block {
   padding: 4px 6px;
@@ -1826,8 +1887,9 @@ body::before {
 }
 
 .calendar-day.perfect {
-  border: 1px solid rgba(251, 191, 36, 0.6);
-  box-shadow: inset 0 0 15px rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.8);
+  box-shadow: inset 0 0 15px rgba(251, 191, 36, 0.2), 0 0 6px rgba(251, 191, 36, 0.3);
+  background: rgba(251, 191, 36, 0.05);
 }
 
 .calendar-date {

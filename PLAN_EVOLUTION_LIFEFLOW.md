@@ -9,7 +9,7 @@
 | Phase | Nom | Statut | Risque | Prérequis |
 |-------|-----|--------|--------|-----------|
 | **0** | Migration des données & fondations habitudes | ✅ **Livré** (v1.1.1) | Faible | Aucun |
-| **1** | Validation des créneaux planning | ⏳ À faire | Moyen | Phase 0 |
+| **1** | Validation des créneaux planning | ✅ **Livré** (v1.3) | Moyen | Phase 0 |
 | **2** | Noyau RPG & progression hors-ligne | ⏳ À faire | Élevé | Phase 0 |
 | **3** | Synergies Planning ↔ Habitudes ↔ Buffs RPG | ⏳ À faire | Moyen | Phases 1 + 2 |
 | **4** | Cosmétique, narratif & hero dans le calendrier | ⏳ À faire | Faible | Phase 3 |
@@ -183,9 +183,29 @@ Source : `PLAN_HABITUDES.md`
 
 ---
 
-## Phase 1 — Validation des Créneaux Planning
+## Phase 1 — Validation des Créneaux Planning ✅
 
+> **Statut : Livré dans v1.3** — Implémenté le 2026-03-15.
+>
 > Objectif : Permettre à l'utilisateur de "tamponner" un créneau comme réalisé, en déclencher les effets sur le log quotidien, et poser les bases des synergies futures.
+
+### Résumé d'implémentation
+
+| Fichier | Modifications |
+|---------|--------------|
+| `app.js` | `isCurrentTimeSlot()`, `validateSlot()` (toggle + auto-log sport), `openSportLogModal()`, `saveSportLog()`, `updatePlanningStreak()`, `getValidatedSlotsForDay()`, `isPerfectDay()` ajoutés ; `renderPlanning()` étendu avec bouton `validate-btn`, glow `current-slot`, badge `validated-time` ; `renderVisualCalendar()` utilise `isPerfectDay()` ; `recalculateXP()` ajoute +25 XP Perfect Day ; `renderKPIs()` affiche planning streak ; `updateNowBanner()` affiche le créneau actuel en temps réel |
+| `styles.css` | `@keyframes currentSlotPulse`, `.cell.current-slot`, `.validate-btn` / `.is-validated`, `.activity-block.validated`, `.validated-time`, `.calendar-day.perfect` renforcé |
+
+### Checklist Phase 1 — État Final
+- [x] Bouton ✅ visible sur les créneaux du jour courant et passés uniquement
+- [x] `validateSlot()` enregistre dans `slotValidations`, toggle possible
+- [x] Créneau sport → `openSportLogModal()` pré-rempli (fusion si log existant)
+- [x] `updatePlanningStreak()` recalcule après chaque validation
+- [x] "Perfect Day" (≥80% habits + ≥3 slots) déclenche glow doré sur le calendrier
+- [x] +25 XP bonus Perfect Day dans `recalculateXP()`
+- [x] KPI "Planning Streak" ajouté au dashboard
+- [x] Créneau courant animé en glow néon bleu dans la grille hebdo
+- [x] `updateNowBanner()` affiche le créneau en cours et le suivant depuis le planning réel
 
 ### 1.1 UI : Bouton de Validation dans la Grille
 
