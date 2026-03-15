@@ -1710,7 +1710,6 @@ const app = {
     });
 
     // Time slot rows
-    const now = new Date();
     timeSlots.forEach(slot => {
       html += `<div class="time-slot">${slot.label}<br><small>${slot.time}</small></div>`;
       dates.forEach((d, i) => {
@@ -1718,7 +1717,7 @@ const app = {
         const slotKey = `${dayKey}-${slot.key}`;
         const activity = planning[slotKey];
         const isToday = this.getDateKey(d) === today;
-        const isPastOrToday = d <= now;
+        const isPastOrToday = this.getDateKey(d) <= today;
         const isCurrentSlot = isToday && this.isCurrentTimeSlot(slot.key);
         const validation = this.state.slotValidations[weekKey]?.[slotKey];
         const isValidated = !!validation;
@@ -1873,8 +1872,16 @@ const app = {
   },
 
   validateSlot(weekKey, slotKey) {
-    const slot = this.state.weekPlannings[weekKey]?.[slotKey];
+    // Chercher le slot comme renderPlanning : weekPlannings d'abord, sinon template
+    const planning = this.state.weekPlannings[weekKey]
+      || this.templates[this.state.currentTemplate]?.slots
+      || this.templates.work.slots;
+    const slot = planning[slotKey];
     if (!slot) return;
+    // S'assurer que la semaine existe dans weekPlannings pour pouvoir sauvegarder
+    if (!this.state.weekPlannings[weekKey]) {
+      this.state.weekPlannings[weekKey] = { ...planning };
+    }
 
     if (!this.state.slotValidations[weekKey]) this.state.slotValidations[weekKey] = {};
     const alreadyValidated = !!this.state.slotValidations[weekKey][slotKey];
