@@ -786,33 +786,27 @@ body::before {
 .habit-actions {
   display: flex;
   gap: 4px;
-  opacity: 0;
-  transition: opacity var(--transition-base);
-}
-
-.habit-card:hover .habit-actions {
-  opacity: 1;
 }
 
 .habit-action-btn {
   background: none;
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-sm);
-  padding: 2px 6px;
+  padding: 3px 8px;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   line-height: 1.4;
   color: var(--text-muted);
   transition: all var(--transition-base);
 }
 
-.habit-action-btn:hover {
+.habit-action-btn:hover, .habit-action-btn:active {
   background: var(--bg-glass-hover);
   border-color: var(--border-hover);
   color: var(--text-primary);
 }
 
-.habit-action-delete:hover {
+.habit-action-delete:hover, .habit-action-delete:active {
   border-color: var(--accent-pink);
   color: var(--accent-pink);
 }

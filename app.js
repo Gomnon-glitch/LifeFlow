@@ -2137,7 +2137,7 @@ const app = {
               style="background: var(${c.var})"
               data-color="${c.var}"
               title="${c.label}"
-              onclick="document.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('selected')); this.classList.add('selected'); document.getElementById('habitFormColor').value='${c.var}'">
+              onclick="app.selectHabitColor(this)">
             </button>
           `).join('')}
         </div>
@@ -2150,6 +2150,12 @@ const app = {
         </select>
       </div>
     `;
+  },
+
+  selectHabitColor(btn) {
+    document.querySelectorAll('#modalBody .color-swatch').forEach(s => s.classList.remove('selected'));
+    btn.classList.add('selected');
+    document.getElementById('habitFormColor').value = btn.dataset.color;
   },
 
   openAddHabitModal() {
