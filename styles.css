@@ -739,13 +739,16 @@ body::before {
 .habit-card {
   background: var(--bg-card);
   border: 1px solid var(--border-glass);
+  border-left: 3px solid var(--habit-accent, var(--accent-orange));
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
   transition: all var(--transition-base);
 }
 
 .habit-card:hover {
-  border-color: var(--border-hover);
+  border-color: var(--habit-accent, var(--border-hover));
+  border-left-color: var(--habit-accent, var(--accent-orange));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--habit-accent, var(--accent-orange)) 20%, transparent);
 }
 
 .habit-header {
@@ -763,6 +766,12 @@ body::before {
   gap: var(--space-sm);
 }
 
+.habit-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
 .habit-streak {
   display: flex;
   align-items: center;
@@ -770,7 +779,70 @@ body::before {
   font-size: 0.85rem;
   font-weight: 700;
   font-family: 'JetBrains Mono', monospace;
-  color: var(--accent-orange);
+  color: var(--habit-accent, var(--accent-orange));
+}
+
+/* Boutons d'action édition/suppression */
+.habit-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity var(--transition-base);
+}
+
+.habit-card:hover .habit-actions {
+  opacity: 1;
+}
+
+.habit-action-btn {
+  background: none;
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+  transition: all var(--transition-base);
+}
+
+.habit-action-btn:hover {
+  background: var(--bg-glass-hover);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
+.habit-action-delete:hover {
+  border-color: var(--accent-pink);
+  color: var(--accent-pink);
+}
+
+/* Sélecteur de couleur dans les modaux */
+.habit-color-picker {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  outline: none;
+}
+
+.color-swatch:hover {
+  transform: scale(1.15);
+}
+
+.color-swatch.selected {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.4);
+  transform: scale(1.15);
 }
 
 .habit-week {
@@ -814,9 +886,9 @@ body::before {
 }
 
 .habit-day .check-btn.checked {
-  background: rgba(16, 185, 129, 0.2);
-  border-color: var(--accent-green);
-  color: var(--accent-green);
+  background: color-mix(in srgb, var(--habit-accent, var(--accent-green)) 20%, transparent);
+  border-color: var(--habit-accent, var(--accent-green));
+  color: var(--habit-accent, var(--accent-green));
 }
 
 .habit-day .check-btn.missed {
@@ -826,8 +898,8 @@ body::before {
 }
 
 .habit-day.today .check-btn {
-  border-color: var(--accent-blue);
-  box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+  border-color: var(--habit-accent, var(--accent-blue));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--habit-accent, var(--accent-blue)) 30%, transparent);
 }
 
 /* Monthly habit heatmap */

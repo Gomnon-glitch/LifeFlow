@@ -263,13 +263,27 @@ const app = {
   // DEFAULT HABITS
   // ============================================
   defaultHabits: [
-    { id: 'hab-routine-am', name: '🌅 Routine matin', icon: '🌅', frequency: 'daily' },
-    { id: 'hab-stretching', name: '🤸 Étirements/Mobilité', icon: '🤸', frequency: 'daily' },
-    { id: 'hab-japanese', name: '🇯🇵 Japonais (SRS)', icon: '🇯🇵', frequency: 'daily' },
-    { id: 'hab-log', name: '📝 Journal du soir', icon: '📝', frequency: 'daily' },
-    { id: 'hab-hydration', name: '💧 Hydratation (2L+)', icon: '💧', frequency: 'daily' },
-    { id: 'hab-no-scroll', name: '📵 Pas de scroll > 1h', icon: '📵', frequency: 'daily' },
+    { id: 'hab-routine-am', name: '🌅 Routine matin',       icon: '🌅', frequency: 'daily', color: '--accent-orange', linkedSlotCategory: 'routine' },
+    { id: 'hab-stretching', name: '🤸 Étirements/Mobilité', icon: '🤸', frequency: 'daily', color: '--accent-blue',   linkedSlotCategory: 'sport'   },
+    { id: 'hab-japanese',   name: '🇯🇵 Japonais (SRS)',      icon: '🇯🇵', frequency: 'daily', color: '--accent-purple', linkedSlotCategory: 'study'   },
+    { id: 'hab-log',        name: '📝 Journal du soir',      icon: '📝', frequency: 'daily', color: '--accent-green',  linkedSlotCategory: null      },
+    { id: 'hab-hydration',  name: '💧 Hydratation (2L+)',    icon: '💧', frequency: 'daily', color: '--accent-cyan',   linkedSlotCategory: null      },
+    { id: 'hab-no-scroll',  name: '📵 Pas de scroll > 1h',  icon: '📵', frequency: 'daily', color: '--accent-pink',   linkedSlotCategory: null      },
   ],
+
+  // Mapping type de créneau → catégorie générique (pour l'ancrage habitude↔planning)
+  SLOT_TYPE_TO_CATEGORY: {
+    'run':       'sport',
+    'strength':  'sport',
+    'outdoor':   'sport',
+    'japanese':  'study',
+    'discovery': 'discovery',
+    'routine':   'routine',
+    'gaming':    'leisure',
+    'rest':      'leisure',
+    'work':      'work',
+    'free':      null,
+  },
 
   // ============================================
   // GAMIFICATION — BADGE DATABASE
@@ -722,6 +736,15 @@ const app = {
       if (!this.state.habits || this.state.habits.length === 0) {
         this.state.habits = [...this.defaultHabits];
       }
+      // Phase 0 — Migration : ajouter color et linkedSlotCategory aux habitudes existantes
+      this.state.habits = this.state.habits.map((h, i) => {
+        const defaults = this.defaultHabits.find(d => d.id === h.id);
+        return {
+          color: defaults?.color ?? ['--accent-orange','--accent-blue','--accent-purple','--accent-green','--accent-cyan','--accent-pink'][i % 6],
+          linkedSlotCategory: null,
+          ...h,
+        };
+      });
       // Ensure gamification state exists (for data saved before gamification was added)
       if (!this.state.questCompleted) this.state.questCompleted = {};
       if (!this.state.unlockedBadges) this.state.unlockedBadges = {};
@@ -732,6 +755,20 @@ const app = {
       };
       if (typeof this.state.xp !== 'number') this.state.xp = 0;
       if (typeof this.state.level !== 'number') this.state.level = 1;
+      // Phase 0 — Migration : nouveaux champs state pour phases futures
+      if (!this.state.slotValidations) this.state.slotValidations = {};
+      if (typeof this.state.planningStreak !== 'number') this.state.planningStreak = 0;
+      if (!this.state.rpg) this.state.rpg = {
+        hero: { hp: 100, hpMax: 100, atk: 10, def: 10, speed: 1.0, lvl: 1, xp: 0, prestigePoints: 0, resets: 0 },
+        equipment: { weapon: null, head: null, torso: null, gloves: null, legs: null, boots: null, amulet: null, accessory: null },
+        inventory: [],
+        skillTree: {},
+        activeBuffs: [],
+        currentWave: 1,
+        highestWave: 1,
+        lastUpdate: null,
+        focusTimer: 0,
+      };
     } catch (e) {
       console.warn('Could not load saved data:', e);
     }
@@ -1798,19 +1835,27 @@ const app = {
     grid.innerHTML = this.state.habits.map(habit => {
       // Calculate streak
       const streak = this.calculateHabitStreak(habit.id);
+      const accentColor = `var(${habit.color || '--accent-orange'})`;
 
       return `
-        <div class="habit-card">
+        <div class="habit-card" style="--habit-accent: ${accentColor}">
           <div class="habit-header">
             <div class="habit-name">${habit.name}</div>
-            <div class="habit-streak">
-              ${streak >= 3 ? '🔥' : '📊'} ${streak}j
+            <div class="habit-header-right">
+              <div class="habit-streak">
+                ${streak >= 3 ? '🔥' : '📊'} ${streak}j
+              </div>
+              <div class="habit-actions">
+                <button class="habit-action-btn" onclick="app.openEditHabitModal('${habit.id}')" title="Modifier">✏️</button>
+                <button class="habit-action-btn habit-action-delete" onclick="app.deleteHabit('${habit.id}')" title="Supprimer">🗑️</button>
+              </div>
             </div>
           </div>
           <div class="habit-week">
             ${dates.map((d, i) => {
         const key = this.getDateKey(d);
         const isChecked = this.state.habitChecks[key]?.[habit.id] || false;
+        const isAuto = this.state.habitChecks[key]?.[`${habit.id}_auto`] || false;
         const isToday = key === today;
         const isPast = d < new Date() && !isToday;
         return `
@@ -1819,7 +1864,7 @@ const app = {
                   <button class="check-btn ${isChecked ? 'checked' : (isPast && !isChecked ? 'missed' : '')}"
                     onclick="app.toggleHabit('${key}', '${habit.id}')"
                     id="habit-${habit.id}-${key}">
-                    ${isChecked ? '✓' : (isPast ? '✕' : '')}
+                    ${isChecked ? (isAuto ? '⚡' : '✓') : (isPast ? '✕' : '')}
                   </button>
                 </div>
               `;
@@ -2032,7 +2077,14 @@ const app = {
       if (hasRun) dotsHtml += `<div class="day-dot dot-run" title="Course" style="${getStickerStyle(key+'run')}"></div>`;
       if (hasJp) dotsHtml += `<div class="day-dot dot-japanese" title="Japonais" style="${getStickerStyle(key+'jp')}"></div>`;
       if (hasJournal) dotsHtml += `<div class="day-dot dot-log" title="Journal" style="${getStickerStyle(key+'log')}"></div>`;
-      if (hasHabits) dotsHtml += `<div class="day-dot dot-habit" title="Habitudes" style="${getStickerStyle(key+'hab')}"></div>`;
+      // Gommettes colorées par habitude (Phase 0)
+      this.state.habits.forEach((habit) => {
+        const checked = this.state.habitChecks[key]?.[habit.id];
+        if (checked) {
+          const color = `var(${habit.color || '--accent-orange'})`;
+          dotsHtml += `<div class="day-dot" title="${habit.name}" style="background:${color}; ${getStickerStyle(key + habit.id)}"></div>`;
+        }
+      });
 
       const hasActivity = hasRun || hasJp || hasJournal || hasHabits;
 
@@ -2052,14 +2104,57 @@ const app = {
     calendarEl.innerHTML = html;
   },
 
-  openAddHabitModal() {
-    document.getElementById('modalTitle').textContent = '➕ Nouvelle habitude';
-    document.getElementById('modalBody').innerHTML = `
+  _habitFormHTML(habit = null) {
+    const colors = [
+      { var: '--accent-orange', label: 'Orange' },
+      { var: '--accent-blue',   label: 'Bleu'   },
+      { var: '--accent-purple', label: 'Violet' },
+      { var: '--accent-green',  label: 'Vert'   },
+      { var: '--accent-cyan',   label: 'Cyan'   },
+      { var: '--accent-pink',   label: 'Rose'   },
+    ];
+    const categories = [
+      { val: null,        label: '— Aucune liaison —' },
+      { val: 'sport',     label: '🏃 Sport'           },
+      { val: 'study',     label: '📚 Étude'           },
+      { val: 'routine',   label: '🔄 Routine'         },
+      { val: 'discovery', label: '🌟 Découverte'      },
+      { val: 'leisure',   label: '🎮 Loisir'          },
+      { val: 'work',      label: '💼 Travail'         },
+    ];
+    const selectedColor = habit?.color || '--accent-orange';
+    const selectedCat   = habit?.linkedSlotCategory ?? null;
+    return `
       <div class="form-group">
         <label>Nom de l'habitude</label>
-        <input type="text" class="form-input" id="newHabitName" placeholder="Ex: 🧘 Méditation 10 min">
+        <input type="text" class="form-input" id="habitFormName" placeholder="Ex: 🧘 Méditation 10 min" value="${habit?.name || ''}">
+      </div>
+      <div class="form-group">
+        <label>Couleur</label>
+        <div class="habit-color-picker">
+          ${colors.map(c => `
+            <button type="button" class="color-swatch ${selectedColor === c.var ? 'selected' : ''}"
+              style="background: var(${c.var})"
+              data-color="${c.var}"
+              title="${c.label}"
+              onclick="document.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('selected')); this.classList.add('selected'); document.getElementById('habitFormColor').value='${c.var}'">
+            </button>
+          `).join('')}
+        </div>
+        <input type="hidden" id="habitFormColor" value="${selectedColor}">
+      </div>
+      <div class="form-group">
+        <label>Lier à un type d'activité (planning)</label>
+        <select class="form-input" id="habitFormCategory">
+          ${categories.map(c => `<option value="${c.val ?? ''}" ${selectedCat === c.val ? 'selected' : ''}>${c.label}</option>`).join('')}
+        </select>
       </div>
     `;
+  },
+
+  openAddHabitModal() {
+    document.getElementById('modalTitle').textContent = '➕ Nouvelle habitude';
+    document.getElementById('modalBody').innerHTML = this._habitFormHTML();
     document.getElementById('modalFooter').innerHTML = `
       <button class="btn" onclick="app.closeModal()">Annuler</button>
       <button class="btn btn-primary" onclick="app.addHabit()">➕ Ajouter</button>
@@ -2068,14 +2163,76 @@ const app = {
   },
 
   addHabit() {
-    const name = document.getElementById('newHabitName').value.trim();
+    const name = document.getElementById('habitFormName').value.trim();
     if (!name) return;
+    const color = document.getElementById('habitFormColor').value || '--accent-orange';
+    const catVal = document.getElementById('habitFormCategory').value;
+    const linkedSlotCategory = catVal === '' ? null : catVal;
     const id = 'hab-' + Date.now();
-    this.state.habits.push({ id, name, icon: '✅', frequency: 'daily' });
+    this.state.habits.push({ id, name, icon: '✅', frequency: 'daily', color, linkedSlotCategory });
     this.saveData();
     this.renderHabits();
     this.closeModal();
     this.showToast(`✅ Habitude "${name}" ajoutée`);
+  },
+
+  openEditHabitModal(habitId) {
+    const habit = this.state.habits.find(h => h.id === habitId);
+    if (!habit) return;
+    document.getElementById('modalTitle').textContent = '✏️ Modifier l\'habitude';
+    document.getElementById('modalBody').innerHTML = this._habitFormHTML(habit);
+    document.getElementById('modalFooter').innerHTML = `
+      <button class="btn" onclick="app.closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="app.saveHabitEdit('${habitId}')">💾 Sauvegarder</button>
+    `;
+    this.openModal();
+  },
+
+  saveHabitEdit(habitId) {
+    const habit = this.state.habits.find(h => h.id === habitId);
+    if (!habit) return;
+    const name = document.getElementById('habitFormName').value.trim();
+    if (!name) return;
+    const color = document.getElementById('habitFormColor').value || '--accent-orange';
+    const catVal = document.getElementById('habitFormCategory').value;
+    habit.name = name;
+    habit.color = color;
+    habit.linkedSlotCategory = catVal === '' ? null : catVal;
+    // id conservé → les streaks restent valides
+    this.saveData();
+    this.renderHabits();
+    this.closeModal();
+    this.showToast(`✅ Habitude modifiée`);
+  },
+
+  deleteHabit(habitId) {
+    const habit = this.state.habits.find(h => h.id === habitId);
+    if (!habit) return;
+    document.getElementById('modalTitle').textContent = '🗑️ Supprimer l\'habitude';
+    document.getElementById('modalBody').innerHTML = `
+      <p style="text-align:center; padding: 1rem 0">Supprimer <strong>${habit.name}</strong> ?<br>
+      <span style="font-size:0.85rem; opacity:0.7">L'historique de cette habitude sera également effacé.</span></p>
+    `;
+    document.getElementById('modalFooter').innerHTML = `
+      <button class="btn" onclick="app.closeModal()">Annuler</button>
+      <button class="btn" style="background:var(--accent-pink);color:#fff" onclick="app.confirmDeleteHabit('${habitId}')">🗑️ Supprimer</button>
+    `;
+    this.openModal();
+  },
+
+  confirmDeleteHabit(habitId) {
+    this.state.habits = this.state.habits.filter(h => h.id !== habitId);
+    // Nettoyer habitChecks
+    Object.keys(this.state.habitChecks).forEach(dateKey => {
+      if (this.state.habitChecks[dateKey]) {
+        delete this.state.habitChecks[dateKey][habitId];
+        delete this.state.habitChecks[dateKey][`${habitId}_auto`];
+      }
+    });
+    this.saveData();
+    this.renderHabits();
+    this.closeModal();
+    this.showToast(`🗑️ Habitude supprimée`);
   },
 
   // ============================================
