@@ -342,6 +342,22 @@ body::before {
   border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
+/* Season indicator badge (Phase 2) */
+.season-indicator {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  padding: 4px 12px;
+  cursor: default;
+  white-space: nowrap;
+}
+
 /* KPI Grid */
 .kpi-grid {
   display: grid;

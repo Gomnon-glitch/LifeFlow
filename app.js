@@ -394,11 +394,37 @@ const app = {
   },
 
   // ============================================
+  // SEASON DATA (Phase 2)
+  // ============================================
+  // XP saisonnière accordée par type de créneau validé
+  slotSeasonXP: {
+    run: 20, strength: 15, outdoor: 15, japanese: 12,
+    discovery: 20, routine: 8, rest: 5, free: 5, gaming: 5, work: 5,
+  },
+
+  // Définition statique des 4 saisons (mois en index JS, 0=Jan)
+  seasonData: {
+    spring: { key: 'spring', name: 'Printemps', emoji: '🌿', startMonth: 2, bonusTypes: ['discovery'] },
+    summer: { key: 'summer', name: 'Été',       emoji: '☀️', startMonth: 5, bonusTypes: ['run', 'outdoor'] },
+    autumn: { key: 'autumn', name: 'Automne',   emoji: '🍂', startMonth: 8, bonusTypes: ['japanese', 'free'] },
+    winter: { key: 'winter', name: 'Hiver',     emoji: '❄️', startMonth: 11, bonusTypes: ['routine'] },
+  },
+
+  // Seuils XP pour les niveaux saisonniers (reset chaque saison)
+  seasonLevelThresholds: [
+    0, 50, 120, 220, 350, 520, 730, 980, 1280, 1630,
+    2030, 2480, 2980, 3530, 4130, 4780, 5480, 6230, 7030, 7880,
+  ],
+
+  // ============================================
   // INITIALIZATION
   // ============================================
   init() {
     this.currentUser = null;
     this.loadData();
+    // Phase 2 — vérifier transition de saison et afficher l'indicateur
+    this.checkSeasonTransition();
+    this.updateSeasonIndicator();
     this.setupNavigation();
     this.updateDateDisplay();
     this.renderDashboard();
@@ -770,6 +796,22 @@ const app = {
         lastUpdate: null,
         focusTimer: 0,
       };
+      // Phase 2 — Migration : ajouter rpg.season si absent
+      if (!this.state.rpg.season) {
+        const cs = this.getCurrentSeason();
+        const now = new Date();
+        this.state.rpg.season = {
+          current: {
+            id: this.getSeasonIdForDate(now),
+            name: cs.name,
+            startDate: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`,
+            xp: 0,
+            rank: 'Bronze',
+            xpMultiplier: 1.0,
+          },
+          history: [],
+        };
+      }
     } catch (e) {
       console.warn('Could not load saved data:', e);
     }
@@ -1853,6 +1895,136 @@ const app = {
   },
 
   // ============================================
+  // SEASONS (Phase 2)
+  // ============================================
+
+  // Retourne l'objet seasonData correspondant à la date actuelle (mois local, sans UTC)
+  getCurrentSeason() {
+    const month = new Date().getMonth(); // 0=Jan … 11=Dec, heure locale
+    if (month >= 2 && month <= 4)  return this.seasonData.spring;
+    if (month >= 5 && month <= 7)  return this.seasonData.summer;
+    if (month >= 8 && month <= 10) return this.seasonData.autumn;
+    return this.seasonData.winter;
+  },
+
+  // Retourne l'identifiant unique d'une saison pour une date donnée (ex: "spring-2026")
+  getSeasonIdForDate(date) {
+    const month = date.getMonth();
+    const year  = date.getFullYear();
+    if (month >= 2 && month <= 4)  return `spring-${year}`;
+    if (month >= 5 && month <= 7)  return `summer-${year}`;
+    if (month >= 8 && month <= 10) return `autumn-${year}`;
+    return `winter-${year}`;
+  },
+
+  // Ajoute de l'XP saisonnière sans toucher à state.xp (géré par recalculateXP)
+  // Ne sauvegarde PAS — la fonction appelante doit sauvegarder.
+  // _type sera utilisé en Phase 3 pour appliquer les multiplicateurs saisonniers par catégorie
+  addXP(_type, amount) {
+    if (!this.state.rpg?.season?.current) return;
+    const season = this.state.rpg.season.current;
+    season.xp = (season.xp || 0) + Math.round(amount);
+    season.rank = this.getSeasonRank(season.xp);
+  },
+
+  // Retourne le niveau saisonnier (1-20) pour une valeur d'XP saisonnière
+  getSeasonLevelForXP(xp) {
+    let level = 1;
+    for (let i = 0; i < this.seasonLevelThresholds.length; i++) {
+      if (xp >= this.seasonLevelThresholds[i]) level = i + 1;
+      else break;
+    }
+    return level;
+  },
+
+  // Retourne le rang saisonnier (Bronze → Maître) selon l'XP
+  getSeasonRank(xp) {
+    const level = this.getSeasonLevelForXP(xp);
+    if (level >= 20) return 'Maître';
+    if (level >= 16) return 'Platine';
+    if (level >= 11) return 'Or';
+    if (level >= 6)  return 'Argent';
+    return 'Bronze';
+  },
+
+  // Retourne le bonus Héritage (multiplicateur à ajouter) selon le rang de fin de saison
+  getHeritageBonus(rank) {
+    const bonuses = { 'Bronze': 0.01, 'Argent': 0.02, 'Or': 0.03, 'Platine': 0.05, 'Maître': 0.08 };
+    return bonuses[rank] || 0.01;
+  },
+
+  // Vérifie si la saison a changé depuis la dernière sauvegarde ; déclenche la transition si besoin
+  checkSeasonTransition() {
+    if (!this.state.rpg?.season?.current) return;
+    const expectedId = this.getSeasonIdForDate(new Date());
+    if (expectedId !== this.state.rpg.season.current.id) {
+      this.applySeasonTransition();
+    }
+  },
+
+  // Archive la saison terminée, applique le bonus Héritage, et initialise la nouvelle saison
+  applySeasonTransition() {
+    const season = this.state.rpg.season;
+    const old = { ...season.current };
+
+    // Calcul du bonus Héritage (plafonné à +25% cumulé)
+    const bonus = this.getHeritageBonus(old.rank);
+    const newMultiplier = Math.min((old.xpMultiplier || 1.0) + bonus, 1.25);
+
+    // Archiver (max 8 entrées — FIFO)
+    season.history.push({
+      id: old.id,
+      name: old.name,
+      rank: old.rank,
+      xpEarned: old.xp,
+      endDate: new Date().toISOString().split('T')[0],
+      heritageBonus: bonus,
+    });
+    if (season.history.length > 8) season.history.shift();
+
+    // Nouvelle saison
+    const newSD = this.getCurrentSeason();
+    const now = new Date();
+    season.current = {
+      id: this.getSeasonIdForDate(now),
+      name: newSD.name,
+      startDate: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`,
+      xp: 0,
+      rank: 'Bronze',
+      xpMultiplier: newMultiplier,
+    };
+
+    this.saveData();
+    this.showToast(`🌟 Nouvelle saison : ${newSD.emoji} ${newSD.name} ! Héritage +${Math.round(bonus * 100)}% XP`);
+  },
+
+  // Met à jour l'indicateur visuel de saison dans le banner
+  updateSeasonIndicator() {
+    const el = document.getElementById('seasonIndicator');
+    if (!el) return;
+    const season = this.state.rpg?.season?.current;
+    if (!season) return;
+    const sd = this.getCurrentSeason();
+    const rankEmojis = { 'Bronze': '🥉', 'Argent': '🥈', 'Or': '🥇', 'Platine': '💎', 'Maître': '👑' };
+    el.textContent = `${sd.emoji} ${season.name} · ${rankEmojis[season.rank] || ''} ${season.rank}`;
+    el.title = `Saison ${season.name} — ${Math.round(season.xp)} XP saisonnière`;
+  },
+
+  // Utilitaire debug (console) : forcer une saison pour tester la transition
+  // Usage : app.debugSetSeason('winter')
+  debugSetSeason(key) {
+    const sd = this.seasonData[key];
+    if (!sd) { console.warn('[LifeFlow] Saison invalide. Valeurs : spring, summer, autumn, winter'); return; }
+    const now = new Date();
+    this.state.rpg.season.current.id   = `${key}-${now.getFullYear()}`;
+    this.state.rpg.season.current.name = sd.name;
+    this.state.rpg.season.current.startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    this.saveData();
+    this.updateSeasonIndicator();
+    console.log('[LifeFlow] Saison forcée :', key, this.state.rpg.season.current);
+  },
+
+  // ============================================
   // SLOT VALIDATION (Phase 1)
   // ============================================
 
@@ -1899,6 +2071,9 @@ const app = {
 
     // Enregistrer la validation
     this.state.slotValidations[weekKey][slotKey] = { validatedAt: new Date().toISOString() };
+
+    // Phase 2 — XP saisonnière pour la validation du créneau
+    this.addXP(slot.type, this.slotSeasonXP[slot.type] || 5);
 
     // Auto-log modal si créneau sport (sans écraser le log existant)
     if (['run', 'strength', 'outdoor'].includes(slot.type)) {
@@ -2080,7 +2255,10 @@ const app = {
     if (!this.state.habitChecks[dateKey]) {
       this.state.habitChecks[dateKey] = {};
     }
-    this.state.habitChecks[dateKey][habitId] = !this.state.habitChecks[dateKey][habitId];
+    const newValue = !this.state.habitChecks[dateKey][habitId];
+    this.state.habitChecks[dateKey][habitId] = newValue;
+    // Phase 2 — XP saisonnière uniquement lors du cochage (pas du décochage)
+    if (newValue) this.addXP('habit', this.xpRewards.habitChecked);
     this.saveData();
     this.recalculateXP();
     this.checkWeeklyQuests();
