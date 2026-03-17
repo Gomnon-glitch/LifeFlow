@@ -342,6 +342,51 @@ body::before {
   border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
+/* ============================================
+   SEASON WIDGET (Phase 3)
+   ============================================ */
+.season-widget-card {
+  background: var(--gradient-card);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.season-widget-header { display: flex; align-items: center; gap: 0.75rem; }
+.season-widget-emoji  { font-size: 2rem; line-height: 1; }
+.season-widget-title  { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
+.season-widget-bonus  { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+.season-widget-rank-badge { font-size: 0.9rem; font-weight: 700; margin-left: auto; white-space: nowrap; }
+.season-widget-bar-label  { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-secondary); }
+.season-widget-bar        { width: 100%; height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; }
+.season-widget-bar-fill   { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+.season-widget-footer     { display: flex; flex-wrap: wrap; gap: 0.75rem; font-size: 0.78rem; color: var(--text-muted); }
+
+/* ============================================
+   FOCUS TIMER — Méditation de Combat (Phase 3)
+   ============================================ */
+.focus-card .card-header { border-bottom: 1px solid var(--border-glass); padding-bottom: 0.75rem; }
+.focus-body {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 1rem; padding: 1.25rem 1rem;
+}
+.focus-phase-label    { font-size: 0.85rem; font-weight: 600; }
+.focus-timer-display  {
+  font-size: 3.5rem; font-weight: 800; line-height: 1;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-primary); letter-spacing: 0.05em;
+}
+.focus-hp-bar     { width: 100%; max-width: 220px; }
+.focus-hp-label   { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; }
+.focus-bar-track  { width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
+.focus-bar-fill   { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
+.focus-controls   { display: flex; gap: 0.75rem; }
+.focus-btn-stop   { background: rgba(239,68,68,0.12); border-color: #ef4444; color: #ef4444; }
+.focus-sessions   { font-size: 0.8rem; color: var(--text-muted); text-align: center; }
+.focus-warning    { color: var(--accent-orange); margin-left: 0.5rem; }
+
 /* Season indicator badge (Phase 2) */
 .season-indicator {
   position: absolute;

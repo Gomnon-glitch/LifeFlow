@@ -407,7 +407,7 @@ const app = {
     spring: { key: 'spring', name: 'Printemps', emoji: '🌿', startMonth: 2, bonusTypes: ['discovery'] },
     summer: { key: 'summer', name: 'Été',       emoji: '☀️', startMonth: 5, bonusTypes: ['run', 'outdoor'] },
     autumn: { key: 'autumn', name: 'Automne',   emoji: '🍂', startMonth: 8, bonusTypes: ['japanese', 'free'] },
-    winter: { key: 'winter', name: 'Hiver',     emoji: '❄️', startMonth: 11, bonusTypes: ['routine'] },
+    winter: { key: 'winter', name: 'Hiver',     emoji: '❄️', startMonth: 11, bonusTypes: ['routine', 'habit'] },
   },
 
   // Seuils XP pour les niveaux saisonniers (reset chaque saison)
@@ -425,6 +425,8 @@ const app = {
     // Phase 2 — vérifier transition de saison et afficher l'indicateur
     this.checkSeasonTransition();
     this.updateSeasonIndicator();
+    // Phase 3 — réinitialiser le timer focus si le chargement interrompt une session
+    if (this.state.rpg?.focusActive) this.state.rpg.focusActive = false;
     this.setupNavigation();
     this.updateDateDisplay();
     this.renderDashboard();
@@ -796,6 +798,11 @@ const app = {
         lastUpdate: null,
         focusTimer: 0,
       };
+      // Phase 3 — Migration : champs manquants sur hero + focus timer
+      if (typeof this.state.rpg.hero.luck !== 'number') this.state.rpg.hero.luck = 10;
+      if (typeof this.state.rpg.focusActive !== 'boolean') this.state.rpg.focusActive = false;
+      if (!this.state.rpg.focusPhase) this.state.rpg.focusPhase = 'work';
+      if (typeof this.state.rpg.focusSessionsCompleted !== 'number') this.state.rpg.focusSessionsCompleted = 0;
       // Phase 2 — Migration : ajouter rpg.season si absent
       if (!this.state.rpg.season) {
         const cs = this.getCurrentSeason();
@@ -1225,6 +1232,7 @@ const app = {
     this.renderMiniCharts();
     this.renderQuests();
     this.renderDiscovery();
+    this.renderSeasonWidget(); // Phase 3
     this.renderGameSection();
   },
 
@@ -1786,6 +1794,7 @@ const app = {
     });
 
     grid.innerHTML = html;
+    this.renderFocusTimer(); // Phase 3 — met à jour le timer Pomodoro
   },
 
   changeWeek(delta) {
@@ -1919,11 +1928,16 @@ const app = {
 
   // Ajoute de l'XP saisonnière sans toucher à state.xp (géré par recalculateXP)
   // Ne sauvegarde PAS — la fonction appelante doit sauvegarder.
-  // _type sera utilisé en Phase 3 pour appliquer les multiplicateurs saisonniers par catégorie
-  addXP(_type, amount) {
+  // Incrémente l'XP saisonnière en appliquant les multiplicateurs (saison + héritage)
+  addXP(type, amount) {
     if (!this.state.rpg?.season?.current) return;
     const season = this.state.rpg.season.current;
-    season.xp = (season.xp || 0) + Math.round(amount);
+    // Multiplicateur saisonnier : +15% si le type est dans les bonusTypes de la saison courante
+    const sd = this.getCurrentSeason();
+    const seasonalMult = sd.bonusTypes.includes(type) ? 1.15 : 1.0;
+    // Multiplicateur héritage cumulé des saisons précédentes
+    const heritageMult = season.xpMultiplier || 1.0;
+    season.xp = (season.xp || 0) + Math.round(amount * seasonalMult * heritageMult);
     season.rank = this.getSeasonRank(season.xp);
   },
 
@@ -2025,6 +2039,235 @@ const app = {
   },
 
   // ============================================
+  // SYNERGIES Planning ↔ Habitudes ↔ RPG (Phase 3)
+  // ============================================
+
+  // Valide automatiquement les habitudes liées au type du créneau validé (uniquement pour aujourd'hui)
+  triggerHabitAnchor(slotType) {
+    const category = this.SLOT_TYPE_TO_CATEGORY[slotType];
+    if (!category) return;
+    const linked = this.state.habits.filter(h => h.linkedSlotCategory === category);
+    if (linked.length === 0) return;
+
+    const today = this.getDateKey(new Date());
+    if (!this.state.habitChecks[today]) this.state.habitChecks[today] = {};
+
+    let count = 0;
+    linked.forEach(habit => {
+      if (!this.state.habitChecks[today][habit.id]) {
+        this.state.habitChecks[today][habit.id] = true;
+        this.state.habitChecks[today][`${habit.id}_auto`] = true; // marque l'auto-validation
+        this.addXP('habit', this.xpRewards.habitChecked);         // XP saisonnière
+        count++;
+      }
+    });
+
+    if (count > 0) {
+      this.showToast(`⚡ ${count} habitude${count > 1 ? 's' : ''} auto-validée${count > 1 ? 's' : ''} !`);
+    }
+  },
+
+  // Met à jour la Luck du héros selon le taux de complétion des habitudes du jour (5–25)
+  updateHeroLuck() {
+    if (!this.state.rpg?.hero) return;
+    const today = this.getDateKey(new Date());
+    const checks = this.state.habitChecks[today] || {};
+    const total = this.state.habits.length;
+    if (total === 0) { this.state.rpg.hero.luck = 10; return; }
+    const checked = this.state.habits.filter(h => checks[h.id]).length;
+    this.state.rpg.hero.luck = Math.round(5 + (checked / total) * 20);
+  },
+
+  // Retourne la date de fin de la saison courante (1er jour de la saison suivante)
+  getSeasonEndDate(date) {
+    const month = date.getMonth();
+    const year  = date.getFullYear();
+    if (month >= 2 && month <= 4)  return new Date(year, 5, 1);   // Printemps → 1er Juin
+    if (month >= 5 && month <= 7)  return new Date(year, 8, 1);   // Été → 1er Sept
+    if (month >= 8 && month <= 10) return new Date(year, 11, 1);  // Automne → 1er Déc
+    return month === 11 ? new Date(year + 1, 2, 1) : new Date(year, 2, 1); // Hiver → 1er Mars
+  },
+
+  // Affiche le widget Saison Actuelle dans le Dashboard
+  renderSeasonWidget() {
+    const el = document.getElementById('seasonWidget');
+    if (!el) return;
+    const season = this.state.rpg?.season?.current;
+    if (!season) { el.innerHTML = ''; return; }
+
+    const sd = this.getCurrentSeason();
+    const rankEmojis  = { 'Bronze': '🥉', 'Argent': '🥈', 'Or': '🥇', 'Platine': '💎', 'Maître': '👑' };
+    const rankColors  = { 'Bronze': '#cd7f32', 'Argent': '#c0c0c0', 'Or': '#ffd700', 'Platine': '#e5e4e2', 'Maître': '#f59e0b' };
+    const rankXPRanges = {
+      'Bronze':  { min: this.seasonLevelThresholds[0],  max: this.seasonLevelThresholds[5],  next: 'Argent'  },
+      'Argent':  { min: this.seasonLevelThresholds[5],  max: this.seasonLevelThresholds[10], next: 'Or'      },
+      'Or':      { min: this.seasonLevelThresholds[10], max: this.seasonLevelThresholds[15], next: 'Platine' },
+      'Platine': { min: this.seasonLevelThresholds[15], max: this.seasonLevelThresholds[19], next: 'Maître'  },
+      'Maître':  { min: this.seasonLevelThresholds[19], max: null, next: null },
+    };
+
+    const range   = rankXPRanges[season.rank] || rankXPRanges['Bronze'];
+    const xpIn    = season.xp - range.min;
+    const xpSpan  = range.max ? range.max - range.min : 1;
+    const rankPct = range.max ? Math.min((xpIn / xpSpan) * 100, 100) : 100;
+    const toNext  = range.max ? Math.max(0, range.max - season.xp) : 0;
+    const color   = rankColors[season.rank] || '#cd7f32';
+
+    const now = new Date();
+    const daysLeft = Math.max(0, Math.ceil((this.getSeasonEndDate(now) - now) / 86400000));
+
+    const bonusLabel = sd.bonusTypes
+      .filter(t => t !== 'habit')
+      .map(t => ({ run: 'Course', outdoor: 'Extérieur', japanese: 'Japonais', free: 'Lecture', discovery: 'Découverte', routine: 'Routine' })[t] || t)
+      .join(' & ');
+    const habitBonus = sd.bonusTypes.includes('habit') ? ' + Habitudes' : '';
+    const heritageLabel = season.xpMultiplier > 1.0
+      ? `🏛️ +${Math.round((season.xpMultiplier - 1.0) * 100)}% héritage`
+      : null;
+    const luck = this.state.rpg?.hero?.luck || 10;
+
+    el.innerHTML = `
+      <div class="season-widget-card">
+        <div class="season-widget-header">
+          <span class="season-widget-emoji">${sd.emoji}</span>
+          <div style="flex:1">
+            <div class="season-widget-title">Saison ${season.name}</div>
+            <div class="season-widget-bonus">+15% XP : ${bonusLabel}${habitBonus}</div>
+          </div>
+          <div class="season-widget-rank-badge" style="color:${color}">
+            ${rankEmojis[season.rank]} ${season.rank}
+          </div>
+        </div>
+        <div class="season-widget-bar-label">
+          <span>${Math.round(season.xp)} XP saisonnière</span>
+          <span style="color:var(--text-muted)">${range.next ? `→ ${range.next} dans ${toNext} XP` : '👑 Rang max !'}</span>
+        </div>
+        <div class="season-widget-bar">
+          <div class="season-widget-bar-fill" style="width:${rankPct}%; background:${color}"></div>
+        </div>
+        <div class="season-widget-footer">
+          <span>⏳ ${daysLeft}j restants</span>
+          <span>🎲 Luck héros : ${luck}/25</span>
+          ${heritageLabel ? `<span>${heritageLabel}</span>` : ''}
+          ${season.history?.length > 0 ? `<span>📜 ${season.history.length} saison${season.history.length > 1 ? 's' : ''} archivée${season.history.length > 1 ? 's' : ''}</span>` : ''}
+        </div>
+      </div>
+    `;
+  },
+
+  // ============================================
+  // FOCUS TIMER — Méditation de Combat (Phase 3)
+  // ============================================
+
+  startFocusTimer() {
+    if (this.state.rpg.focusActive) return;
+    const phase = this.state.rpg.focusPhase || 'work';
+    if (this.state.rpg.focusTimer <= 0) {
+      this.state.rpg.focusTimer = phase === 'work' ? 25 * 60 : 5 * 60;
+    }
+    this.state.rpg.focusActive = true;
+    this.saveData();
+    this.focusInterval = setInterval(() => this.tickFocus(), 1000);
+    this.renderFocusTimer();
+  },
+
+  stopFocusTimer() {
+    if (!this.state.rpg.focusActive) return;
+    clearInterval(this.focusInterval);
+    this.focusInterval = null;
+    this.state.rpg.focusActive = false;
+    // Pénalité uniquement si interruption d'une session de travail
+    if (this.state.rpg.focusPhase === 'work' && this.state.rpg.hero) {
+      this.state.rpg.hero.hp = Math.max(1, (this.state.rpg.hero.hp || 100) - 5);
+      this.showToast('💔 Concentration brisée ! −5 HP héros');
+    }
+    this.saveData();
+    this.renderFocusTimer();
+  },
+
+  resetFocusTimer() {
+    clearInterval(this.focusInterval);
+    this.focusInterval = null;
+    this.state.rpg.focusActive = false;
+    this.state.rpg.focusPhase  = 'work';
+    this.state.rpg.focusTimer  = 0;
+    this.saveData();
+    this.renderFocusTimer();
+  },
+
+  tickFocus() {
+    if (!this.state.rpg.focusActive) { clearInterval(this.focusInterval); return; }
+    this.state.rpg.focusTimer = Math.max(0, (this.state.rpg.focusTimer || 0) - 1);
+
+    if (this.state.rpg.focusTimer <= 0) {
+      clearInterval(this.focusInterval);
+      this.focusInterval = null;
+
+      if (this.state.rpg.focusPhase === 'work') {
+        this.state.rpg.focusSessionsCompleted = (this.state.rpg.focusSessionsCompleted || 0) + 1;
+        this.addXP('focus', 50); // +50 XP saisonnière par session complète
+        this.showToast('🎯 Session complète ! +50 XP saisonnière · Pause méritée !');
+        this.state.rpg.focusPhase = 'break';
+        this.state.rpg.focusTimer = 5 * 60;
+      } else {
+        this.showToast('☕ Pause terminée ! Prêt pour un nouveau round ?');
+        this.state.rpg.focusPhase = 'work';
+        this.state.rpg.focusTimer = 25 * 60;
+      }
+      this.state.rpg.focusActive = false;
+      this.saveData();
+      this.renderSeasonWidget();
+    }
+    this.renderFocusTimer();
+  },
+
+  renderFocusTimer() {
+    const el = document.getElementById('focusTimerUI');
+    if (!el) return;
+    const active   = this.state.rpg.focusActive;
+    const phase    = this.state.rpg.focusPhase  || 'work';
+    const sessions = this.state.rpg.focusSessionsCompleted || 0;
+    const hp       = this.state.rpg.hero?.hp    || 100;
+    const hpMax    = this.state.rpg.hero?.hpMax || 100;
+
+    const defaultTime = phase === 'work' ? 25 * 60 : 5 * 60;
+    const remaining   = this.state.rpg.focusTimer > 0 ? this.state.rpg.focusTimer : defaultTime;
+    const mins = String(Math.floor(remaining / 60)).padStart(2, '0');
+    const secs = String(remaining % 60).padStart(2, '0');
+
+    const phaseLabel = phase === 'work' ? '🧠 Concentration (25 min)' : '☕ Pause (5 min)';
+    const phaseColor = phase === 'work' ? 'var(--accent-purple)' : 'var(--accent-green)';
+    const hpPct      = Math.round((hp / hpMax) * 100);
+    const hpColor    = hp > 50 ? 'var(--accent-green)' : hp > 20 ? 'var(--accent-orange)' : 'var(--accent-pink)';
+
+    const statusEl = document.getElementById('focusStatus');
+    if (statusEl) statusEl.textContent = active ? (phase === 'work' ? '⚔️ Combat actif' : '☕ Pause') : 'Inactif';
+
+    el.innerHTML = `
+      <div class="focus-body">
+        <div class="focus-phase-label" style="color:${phaseColor}">${phaseLabel}</div>
+        <div class="focus-timer-display">${mins}:${secs}</div>
+        <div class="focus-hp-bar">
+          <div class="focus-hp-label"><span>❤️ HP Héros</span><span>${hp}/${hpMax}</span></div>
+          <div class="focus-bar-track">
+            <div class="focus-bar-fill" style="width:${hpPct}%; background:${hpColor}"></div>
+          </div>
+        </div>
+        <div class="focus-controls">
+          ${!active
+            ? `<button class="btn btn-primary" onclick="app.startFocusTimer()">▶ Démarrer</button>`
+            : `<button class="btn focus-btn-stop" onclick="app.stopFocusTimer()">⏹ Interrompre</button>`}
+          <button class="btn" onclick="app.resetFocusTimer()">↺ Reset</button>
+        </div>
+        <div class="focus-sessions">
+          Sessions : ${sessions} ${sessions > 0 ? '🎯'.repeat(Math.min(sessions, 5)) : '—'}
+          ${active && phase === 'work' ? '<span class="focus-warning">⚠️ Interrompre = −5 HP</span>' : ''}
+        </div>
+      </div>
+    `;
+  },
+
+  // ============================================
   // SLOT VALIDATION (Phase 1)
   // ============================================
 
@@ -2089,12 +2332,13 @@ const app = {
       }
     }
 
-    // Ancrage d'habitude (Phase 3 — stub prévu ici)
-    // this.triggerHabitAnchor(slot.type);
+    // Phase 3 — ancrage automatique de l'habitude liée au type du créneau
+    this.triggerHabitAnchor(slot.type);
 
     this.updatePlanningStreak();
     this.saveData();
     this.renderPlanning();
+    this.renderHabits();        // Phase 3 — rafraîchir si habitude auto-validée
     this.renderVisualCalendar();
     this.recalculateXP();
     this.checkAllBadges();
@@ -2259,6 +2503,8 @@ const app = {
     this.state.habitChecks[dateKey][habitId] = newValue;
     // Phase 2 — XP saisonnière uniquement lors du cochage (pas du décochage)
     if (newValue) this.addXP('habit', this.xpRewards.habitChecked);
+    // Phase 3 — mettre à jour la Luck du héros selon le taux de complétion du jour
+    this.updateHeroLuck();
     this.saveData();
     this.recalculateXP();
     this.checkWeeklyQuests();
@@ -3121,6 +3367,7 @@ const app = {
   // PWA — Install Prompt
   // ============================================
   deferredInstallPrompt: null,
+  focusInterval: null,        // Phase 3 — setInterval handle pour le Pomodoro
 
   setupPwaInstall() {
     window.addEventListener('beforeinstallprompt', (e) => {
