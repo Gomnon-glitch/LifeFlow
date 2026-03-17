@@ -352,6 +352,48 @@ const app = {
     { id: 'season-gold',     emoji: '🥇', name: 'Vétéran Or',        desc: 'Terminer une saison au rang Or',       category: 'saison', horizon: 'long' },
     { id: 'season-platinum', emoji: '💎', name: 'Vétéran Platine',   desc: 'Terminer une saison au rang Platine',  category: 'saison', horizon: 'epic' },
     { id: 'season-master',   emoji: '👑', name: 'Maître de Saison',  desc: 'Terminer une saison au rang Maître',   category: 'saison', horizon: 'epic' },
+
+    // ───── 🌿 PRINTEMPS — Curiosité & Nouveau Départ ─────
+    { id: 'spring-curious',  emoji: '🌸', name: 'Bourgeon Curieux',    desc: 'Essayer 3 découvertes',                  category: 'saison', horizon: 'quick'  },
+    { id: 'spring-growth',   emoji: '🌿', name: 'Croissance',          desc: 'Essayer 7 découvertes',                  category: 'saison', horizon: 'medium' },
+    { id: 'spring-garden',   emoji: '🪴', name: 'Jardinier',           desc: 'Avoir 3 habitudes actives simultanément', category: 'saison', horizon: 'quick'  },
+    { id: 'spring-bloom',    emoji: '✨', name: 'Floraison',           desc: 'Atteindre une Journée Parfaite',         category: 'saison', horizon: 'medium' },
+
+    // ───── ☀️ ÉTÉ — Dépassement & Énergie ─────
+    { id: 'summer-warmup',   emoji: '☀️', name: 'Échauffement',        desc: '20 km en une semaine',                   category: 'saison', horizon: 'quick'  },
+    { id: 'summer-altitude', emoji: '⛰️', name: 'Conquête',            desc: '2 000m D+ en une semaine',               category: 'saison', horizon: 'medium' },
+    { id: 'summer-century',  emoji: '🌞', name: 'Century',             desc: '300 km cumulés au total',                category: 'saison', horizon: 'medium' },
+    { id: 'summer-beast',    emoji: '💪', name: 'Bête de Course',      desc: '3 semaines distinctes à 4+ sessions',    category: 'saison', horizon: 'long'   },
+
+    // ───── 🍂 AUTOMNE — Sagesse & Réflexion ─────
+    { id: 'autumn-leaf',     emoji: '🍂', name: 'Feuille d\'Automne',  desc: '30 min de japonais en une semaine',      category: 'saison', horizon: 'quick'  },
+    { id: 'autumn-owl',      emoji: '🦉', name: 'Chouette',            desc: 'Renseigner son humeur 10 fois',          category: 'saison', horizon: 'quick'  },
+    { id: 'autumn-harvest',  emoji: '🌾', name: 'Récolte',             desc: 'Remplir 20 journaux',                    category: 'saison', horizon: 'medium' },
+    { id: 'autumn-scholar',  emoji: '📖', name: 'Érudit',              desc: 'Cumuler 200 min de japonais',            category: 'saison', horizon: 'medium' },
+
+    // ───── ❄️ HIVER — Résilience & Discipline ─────
+    { id: 'winter-spark',    emoji: '❄️', name: 'Étincelle',           desc: 'Compléter sa 1ère session Focus',        category: 'saison', horizon: 'quick'  },
+    { id: 'winter-will',     emoji: '🌨️', name: 'Volonté',             desc: 'Compléter 5 sessions Focus',             category: 'saison', horizon: 'medium' },
+    { id: 'winter-fortress', emoji: '🏔️', name: 'Forteresse',          desc: 'Planning streak de 3 semaines',          category: 'saison', horizon: 'medium' },
+    { id: 'winter-iron',     emoji: '⚔️', name: 'Acier Trempé',        desc: '10 jours consécutifs d\'habitudes parfaites', category: 'saison', horizon: 'long' },
+
+    // ───── 📅 PLANNING ─────
+    { id: 'planner-1',       emoji: '📅', name: 'Premier Plan',        desc: 'Valider une semaine de planning',        category: 'planning', horizon: 'quick'  },
+    { id: 'planner-5',       emoji: '🗓️', name: 'Planificateur',       desc: 'Planning streak de 5 semaines',          category: 'planning', horizon: 'long'   },
+
+    // ───── 🎯 FOCUS ─────
+    { id: 'focus-first',     emoji: '🎯', name: 'Dans la Zone',        desc: 'Compléter une session Focus Pomodoro',   category: 'focus', horizon: 'quick'  },
+    { id: 'focus-10',        emoji: '⏱️', name: 'Zone de Flow',        desc: 'Compléter 10 sessions Focus',            category: 'focus', horizon: 'medium' },
+    { id: 'focus-50',        emoji: '🔥', name: 'Maître du Focus',     desc: 'Compléter 50 sessions Focus',            category: 'focus', horizon: 'epic'   },
+
+    // ───── 📝 JOURNAL & BIEN-ÊTRE ─────
+    { id: 'log-20',          emoji: '📖', name: 'Mémorialiste',        desc: 'Remplir 20 journaux',                    category: 'journal', horizon: 'medium' },
+    { id: 'log-50',          emoji: '📚', name: 'Chroniqueur',         desc: 'Remplir 50 journaux',                    category: 'journal', horizon: 'long'   },
+    { id: 'mood-tracker',    emoji: '😊', name: 'Baromètre',           desc: 'Renseigner son humeur 7 fois',           category: 'journal', horizon: 'quick'  },
+
+    // ───── 🎭 POLYVALENCE ─────
+    { id: 'all-rounder',     emoji: '🎭', name: 'Touche-à-tout',       desc: 'Débloquer les 4 badges "Premier" (run, japonais, habitude, découverte)', category: 'général', horizon: 'medium' },
+    { id: 'perfect-3',       emoji: '💫', name: 'Triplé Parfait',      desc: '3 Journées Parfaites consécutives',      category: 'général', horizon: 'long'   },
   ],
 
   // ============================================
@@ -3271,6 +3313,14 @@ const app = {
     // Consecutive weeks with 4+ sessions
     const fourSessionWeeks = this.countConsecutive4SessionWeeks();
 
+    // ── Données supplémentaires pour nouveaux badges ──
+    const totalLogs    = Object.keys(logs).length;
+    const weekJap      = weekLogs.reduce((s, l) => s + (l?.japanese || 0), 0);
+    const moodDays     = Object.values(logs).filter(l => l.mood > 0).length;
+    const focusDone    = this.state.rpg?.focusSessionsCompleted || 0;
+    const heroLvl      = this.state.rpg?.hero?.lvl || 1;
+    const activeHabits = this.state.habits.length;
+
     // ── Build fresh badge map (recalculate from scratch) ──
     const oldBadges = { ...this.state.unlockedBadges };
     const newBadges = {};
@@ -3354,6 +3404,49 @@ const app = {
     if (highestRankIdx >= 2) grant('season-gold',     true);
     if (highestRankIdx >= 3) grant('season-platinum', true);
     if (highestRankIdx >= 4) grant('season-master',   true);
+
+    // ── Badges thématiques 🌿 Printemps ──
+    grant('spring-curious',  totalDisc >= 3);
+    grant('spring-growth',   totalDisc >= 7);
+    grant('spring-garden',   activeHabits >= 3);
+    grant('spring-bloom',    todayAllChecked);
+
+    // ── Badges thématiques ☀️ Été ──
+    grant('summer-warmup',   weekKm >= 20);
+    grant('summer-altitude', weekDplus >= 2000);
+    grant('summer-century',  rec.totalKm >= 300);
+    grant('summer-beast',    fourSessionWeeks >= 3);
+
+    // ── Badges thématiques 🍂 Automne ──
+    grant('autumn-leaf',     weekJap >= 30);
+    grant('autumn-owl',      moodDays >= 10);
+    grant('autumn-harvest',  totalLogs >= 20);
+    grant('autumn-scholar',  rec.totalJapMinutes >= 200);
+
+    // ── Badges thématiques ❄️ Hiver ──
+    grant('winter-spark',    focusDone >= 1);
+    grant('winter-will',     focusDone >= 5);
+    grant('winter-fortress', this.state.planningStreak >= 3);
+    grant('winter-iron',     habitPerfectStreak >= 10);
+
+    // ── Badges Planning ──
+    grant('planner-1',       this.state.planningStreak >= 1);
+    grant('planner-5',       this.state.planningStreak >= 5);
+
+    // ── Badges Focus ──
+    grant('focus-first',     focusDone >= 1);
+    grant('focus-10',        focusDone >= 10);
+    grant('focus-50',        focusDone >= 50);
+
+    // ── Badges Journal & Bien-être ──
+    grant('log-20',          totalLogs >= 20);
+    grant('log-50',          totalLogs >= 50);
+    grant('mood-tracker',    moodDays >= 7);
+
+    // ── Badges Polyvalence ──
+    const firstBadgesDone = ['first-run','first-japanese','first-habit','first-discovery'].every(id => newBadges[id]);
+    grant('all-rounder',     firstBadgesDone);
+    grant('perfect-3',       habitPerfectStreak >= 3);
 
     // ── Stabilization: update badges → recalculate XP/level → re-check level badges ──
     this.state.unlockedBadges = newBadges;
