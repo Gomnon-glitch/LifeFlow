@@ -3631,8 +3631,18 @@ const app = {
       const unlocked = this.state.unlockedBadges[b.id];
       const horizonColors = { quick: 'green', medium: 'blue', long: 'purple', epic: 'orange' };
       const horizonLabels = { quick: '1 sem', medium: '1 mois', long: '3-6 mois', epic: '1 an+' };
+
+      // Accent : couleur saisonnière si badge de saison, sinon couleur de rareté
+      let accent;
+      if      (b.id.startsWith('spring-')) accent = 'spring';
+      else if (b.id.startsWith('summer-')) accent = 'summer';
+      else if (b.id.startsWith('autumn-')) accent = 'autumn';
+      else if (b.id.startsWith('winter-')) accent = 'winter';
+      else if (b.category === 'saison')    accent = 'season';  // badges de rang
+      else                                  accent = b.horizon; // quick/medium/long/epic
+
       return `
-        <div class="badge-card ${unlocked ? 'unlocked' : 'locked'}" data-horizon="${b.horizon}">
+        <div class="badge-card ${unlocked ? 'unlocked' : 'locked'}" data-horizon="${b.horizon}" data-accent="${accent}">
           <div class="badge-emoji">${unlocked ? b.emoji : '🔒'}</div>
           <div class="badge-name">${unlocked ? b.name : '???'}</div>
           <div class="badge-desc">${b.desc}</div>

@@ -1826,25 +1826,126 @@ body::before {
   overflow: hidden;
 }
 
+/* ── Badge débloqué : base commune ── */
 .badge-card.unlocked {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(139, 92, 246, 0.05));
-  border-color: rgba(59, 130, 246, 0.2);
+  transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base);
 }
-
 .badge-card.unlocked:hover {
   transform: translateY(-3px) scale(1.02);
-  border-color: rgba(59, 130, 246, 0.4);
-  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.15);
 }
 
+/* ── Badge verrouillé ── */
 .badge-card.locked {
   background: rgba(255, 255, 255, 0.01);
-  opacity: 0.5;
+  opacity: 0.45;
+}
+.badge-card.locked:hover { opacity: 0.65; }
+
+/* ── Accents par rareté (horizon) ── */
+/* Vert — Quick */
+.badge-card.unlocked[data-accent="quick"] {
+  background: linear-gradient(135deg, rgba(16,185,129,0.10), rgba(16,185,129,0.03));
+  border-color: rgba(16,185,129,0.40);
+  box-shadow: 0 0 10px rgba(16,185,129,0.18), inset 0 0 20px rgba(16,185,129,0.04);
+}
+.badge-card.unlocked[data-accent="quick"]:hover {
+  border-color: rgba(16,185,129,0.65);
+  box-shadow: 0 6px 22px rgba(16,185,129,0.30);
 }
 
-.badge-card.locked:hover {
-  opacity: 0.7;
+/* Bleu — Medium */
+.badge-card.unlocked[data-accent="medium"] {
+  background: linear-gradient(135deg, rgba(59,130,246,0.10), rgba(59,130,246,0.03));
+  border-color: rgba(59,130,246,0.40);
+  box-shadow: 0 0 10px rgba(59,130,246,0.18), inset 0 0 20px rgba(59,130,246,0.04);
 }
+.badge-card.unlocked[data-accent="medium"]:hover {
+  border-color: rgba(59,130,246,0.65);
+  box-shadow: 0 6px 22px rgba(59,130,246,0.30);
+}
+
+/* Violet — Long */
+.badge-card.unlocked[data-accent="long"] {
+  background: linear-gradient(135deg, rgba(139,92,246,0.12), rgba(139,92,246,0.03));
+  border-color: rgba(139,92,246,0.42);
+  box-shadow: 0 0 12px rgba(139,92,246,0.22), inset 0 0 20px rgba(139,92,246,0.05);
+}
+.badge-card.unlocked[data-accent="long"]:hover {
+  border-color: rgba(139,92,246,0.68);
+  box-shadow: 0 6px 24px rgba(139,92,246,0.32);
+}
+
+/* Or — Epic */
+.badge-card.unlocked[data-accent="epic"] {
+  background: linear-gradient(135deg, rgba(245,158,11,0.12), rgba(245,158,11,0.03));
+  border-color: rgba(245,158,11,0.45);
+  box-shadow: 0 0 14px rgba(245,158,11,0.25), inset 0 0 22px rgba(245,158,11,0.06);
+}
+.badge-card.unlocked[data-accent="epic"]:hover {
+  border-color: rgba(245,158,11,0.70);
+  box-shadow: 0 6px 26px rgba(245,158,11,0.35);
+}
+
+/* ── Accents saisonniers ── */
+/* 🌿 Printemps */
+.badge-card.unlocked[data-accent="spring"] {
+  background: linear-gradient(135deg, rgba(74,222,128,0.12), rgba(74,222,128,0.03));
+  border-color: rgba(74,222,128,0.42);
+  box-shadow: 0 0 12px rgba(74,222,128,0.22), inset 0 0 20px rgba(74,222,128,0.05);
+}
+.badge-card.unlocked[data-accent="spring"]:hover {
+  border-color: rgba(74,222,128,0.68);
+  box-shadow: 0 6px 24px rgba(74,222,128,0.32);
+}
+
+/* ☀️ Été */
+.badge-card.unlocked[data-accent="summer"] {
+  background: linear-gradient(135deg, rgba(251,191,36,0.12), rgba(251,191,36,0.03));
+  border-color: rgba(251,191,36,0.42);
+  box-shadow: 0 0 12px rgba(251,191,36,0.22), inset 0 0 20px rgba(251,191,36,0.05);
+}
+.badge-card.unlocked[data-accent="summer"]:hover {
+  border-color: rgba(251,191,36,0.68);
+  box-shadow: 0 6px 24px rgba(251,191,36,0.32);
+}
+
+/* 🍂 Automne */
+.badge-card.unlocked[data-accent="autumn"] {
+  background: linear-gradient(135deg, rgba(251,146,60,0.12), rgba(251,146,60,0.03));
+  border-color: rgba(251,146,60,0.42);
+  box-shadow: 0 0 12px rgba(251,146,60,0.22), inset 0 0 20px rgba(251,146,60,0.05);
+}
+.badge-card.unlocked[data-accent="autumn"]:hover {
+  border-color: rgba(251,146,60,0.68);
+  box-shadow: 0 6px 24px rgba(251,146,60,0.32);
+}
+
+/* ❄️ Hiver */
+.badge-card.unlocked[data-accent="winter"] {
+  background: linear-gradient(135deg, rgba(96,165,250,0.12), rgba(96,165,250,0.03));
+  border-color: rgba(96,165,250,0.42);
+  box-shadow: 0 0 12px rgba(96,165,250,0.22), inset 0 0 20px rgba(96,165,250,0.05);
+}
+.badge-card.unlocked[data-accent="winter"]:hover {
+  border-color: rgba(96,165,250,0.68);
+  box-shadow: 0 6px 24px rgba(96,165,250,0.32);
+}
+
+/* 🏅 Rang saisonnier (badges de fin de saison — doré) */
+.badge-card.unlocked[data-accent="season"] {
+  background: linear-gradient(135deg, rgba(251,191,36,0.14), rgba(245,158,11,0.04));
+  border-color: rgba(245,158,11,0.48);
+  box-shadow: 0 0 14px rgba(245,158,11,0.28), inset 0 0 22px rgba(245,158,11,0.06);
+}
+.badge-card.unlocked[data-accent="season"]:hover {
+  border-color: rgba(245,158,11,0.72);
+  box-shadow: 0 6px 26px rgba(245,158,11,0.38);
+}
+
+/* Hint sur badges verrouillés selon leur rareté/saison (très subtil) */
+.badge-card.locked[data-accent="epic"]   { border-color: rgba(245,158,11,0.15); }
+.badge-card.locked[data-accent="long"]   { border-color: rgba(139,92,246,0.12); }
+.badge-card.locked[data-accent="season"] { border-color: rgba(245,158,11,0.12); }
 
 .badge-emoji {
   font-size: 2rem;
