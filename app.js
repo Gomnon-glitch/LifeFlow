@@ -345,6 +345,13 @@ const app = {
     { id: 'level-50', emoji: '🐐', name: 'G.O.A.T.', desc: 'Atteindre le niveau 50', category: 'général', horizon: 'epic' },
     { id: '1000-jap-min', emoji: '🏯', name: 'Maître de dojo', desc: 'Cumuler 1000 minutes de japonais', category: 'japonais', horizon: 'epic' },
     { id: '5000km-total', emoji: '🌌', name: 'Légende', desc: 'Cumuler 5000 km au total', category: 'course', horizon: 'epic' },
+
+    // ───── 🏅 SAISONNIERS (rang fin de saison) ─────
+    { id: 'season-bronze',   emoji: '🥉', name: 'Vétéran Bronze',    desc: 'Terminer une saison au rang Bronze',   category: 'saison', horizon: 'quick' },
+    { id: 'season-silver',   emoji: '🥈', name: 'Vétéran Argent',    desc: 'Terminer une saison au rang Argent',   category: 'saison', horizon: 'medium' },
+    { id: 'season-gold',     emoji: '🥇', name: 'Vétéran Or',        desc: 'Terminer une saison au rang Or',       category: 'saison', horizon: 'long' },
+    { id: 'season-platinum', emoji: '💎', name: 'Vétéran Platine',   desc: 'Terminer une saison au rang Platine',  category: 'saison', horizon: 'epic' },
+    { id: 'season-master',   emoji: '👑', name: 'Maître de Saison',  desc: 'Terminer une saison au rang Maître',   category: 'saison', horizon: 'epic' },
   ],
 
   // ============================================
@@ -422,7 +429,8 @@ const app = {
   init() {
     this.currentUser = null;
     this.loadData();
-    // Phase 2 — vérifier transition de saison et afficher l'indicateur
+    // Phase 2 — gains hors-ligne, transition de saison, indicateur
+    this.calculateOfflineGains();
     this.checkSeasonTransition();
     this.updateSeasonIndicator();
     // Phase 3 — réinitialiser le timer focus si le chargement interrompt une session
@@ -826,6 +834,8 @@ const app = {
 
   saveData() {
     try {
+      // Mettre à jour le timestamp hors-ligne avant toute sauvegarde
+      if (this.state.rpg) this.state.rpg.lastUpdate = Date.now();
       localStorage.setItem('lifeflow-data', JSON.stringify(this.state));
       this.updateSyncIndicator('syncing');
 
@@ -1937,8 +1947,82 @@ const app = {
     const seasonalMult = sd.bonusTypes.includes(type) ? 1.15 : 1.0;
     // Multiplicateur héritage cumulé des saisons précédentes
     const heritageMult = season.xpMultiplier || 1.0;
-    season.xp = (season.xp || 0) + Math.round(amount * seasonalMult * heritageMult);
+    const finalAmount = Math.round(amount * seasonalMult * heritageMult);
+    season.xp = (season.xp || 0) + finalAmount;
     season.rank = this.getSeasonRank(season.xp);
+    // Phase 2 — incrémenter aussi l'XP globale du héros
+    if (this.state.rpg.hero) {
+      this.state.rpg.hero.xp = (this.state.rpg.hero.xp || 0) + finalAmount;
+      this.checkLevelUp();
+    }
+  },
+
+  // Fait monter le héros de niveau si son XP est suffisant
+  // Chaque niveau coûte lvl * 100 XP (seuil linéaire simple)
+  checkLevelUp() {
+    const hero = this.state.rpg?.hero;
+    if (!hero) return;
+    let leveled = false;
+    while (hero.xp >= hero.lvl * 100) {
+      hero.xp -= hero.lvl * 100;
+      hero.lvl = (hero.lvl || 1) + 1;
+      hero.hpMax = 100 + (hero.lvl - 1) * 10;
+      hero.hp = hero.hpMax;          // restaurer HP au level-up
+      hero.atk = 10 + (hero.lvl - 1) * 2;
+      hero.def = 10 + (hero.lvl - 1) * 1;
+      leveled = true;
+    }
+    if (leveled) {
+      this.showToast(`⚡ Héros niveau ${hero.lvl} ! HP+, ATK+, DEF+`);
+    }
+  },
+
+  // Calcule les gains accumulés hors-ligne depuis la dernière visite
+  // Capped à 480 min (8h) pour éviter l'inflation
+  calculateOfflineGains() {
+    const rpg = this.state.rpg;
+    if (!rpg?.hero || !rpg.lastUpdate) {
+      rpg.lastUpdate = Date.now();
+      return;
+    }
+    const elapsed = Date.now() - rpg.lastUpdate;
+    const minutes = Math.min(Math.floor(elapsed / 60000), 480);
+    if (minutes < 1) {
+      rpg.lastUpdate = Date.now();
+      return;
+    }
+    const hero = rpg.hero;
+    const gained = Math.floor(minutes * (hero.speed || 1.0));
+    hero.xp = (hero.xp || 0) + gained;
+    this.checkLevelUp();
+    rpg.lastUpdate = Date.now();
+    if (gained > 0) {
+      this.showToast(`⏰ +${gained} XP héros accumulés hors-ligne (${minutes} min)`);
+    }
+  },
+
+  // Retourne les stats effectives du héros (base + bonus équipement)
+  getHeroStats() {
+    const hero = this.state.rpg?.hero;
+    if (!hero) return null;
+    const eq = this.state.rpg?.equipment || {};
+    let atkBonus = 0, defBonus = 0, hpBonus = 0;
+    Object.values(eq).forEach(item => {
+      if (!item) return;
+      atkBonus += item.atk || 0;
+      defBonus += item.def || 0;
+      hpBonus  += item.hp  || 0;
+    });
+    return {
+      lvl:   hero.lvl,
+      hp:    hero.hp,
+      hpMax: hero.hpMax + hpBonus,
+      atk:   hero.atk + atkBonus,
+      def:   hero.def + defBonus,
+      speed: hero.speed,
+      luck:  hero.luck,
+      xp:    hero.xp,
+    };
   },
 
   // Retourne le niveau saisonnier (1-20) pour une valeur d'XP saisonnière
@@ -1972,7 +2056,11 @@ const app = {
     if (!this.state.rpg?.season?.current) return;
     const expectedId = this.getSeasonIdForDate(new Date());
     if (expectedId !== this.state.rpg.season.current.id) {
+      // Snapshot de la saison qui se termine avant de la remplacer
+      const oldSeason = { ...this.state.rpg.season.current };
       this.applySeasonTransition();
+      // Phase 4 — afficher le modal de fin de saison
+      setTimeout(() => this.showSeasonEndModal(oldSeason), 800);
     }
   },
 
@@ -1986,19 +2074,26 @@ const app = {
     const newMultiplier = Math.min((old.xpMultiplier || 1.0) + bonus, 1.25);
 
     // Archiver (max 8 entrées — FIFO)
+    const now = new Date();
     season.history.push({
       id: old.id,
       name: old.name,
       rank: old.rank,
       xpEarned: old.xp,
-      endDate: new Date().toISOString().split('T')[0],
+      endDate: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
       heritageBonus: bonus,
     });
     if (season.history.length > 8) season.history.shift();
 
+    // Phase 4 — accorder le badge de rang saisonnier correspondant
+    const rankBadgeMap = { 'Bronze': 'season-bronze', 'Argent': 'season-silver', 'Or': 'season-gold', 'Platine': 'season-platinum', 'Maître': 'season-master' };
+    const badgeId = rankBadgeMap[old.rank];
+    if (badgeId && !this.state.unlockedBadges[badgeId]) {
+      this.state.unlockedBadges[badgeId] = this.getDateKey(now);
+    }
+
     // Nouvelle saison
     const newSD = this.getCurrentSeason();
-    const now = new Date();
     season.current = {
       id: this.getSeasonIdForDate(now),
       name: newSD.name,
@@ -2009,7 +2104,43 @@ const app = {
     };
 
     this.saveData();
-    this.showToast(`🌟 Nouvelle saison : ${newSD.emoji} ${newSD.name} ! Héritage +${Math.round(bonus * 100)}% XP`);
+  },
+
+  // Modal récapitulatif de fin de saison (Phase 4)
+  showSeasonEndModal(oldSeason) {
+    const rankEmojis = { 'Bronze': '🥉', 'Argent': '🥈', 'Or': '🥇', 'Platine': '💎', 'Maître': '👑' };
+    const rankEmoji = rankEmojis[oldSeason.rank] || '🏅';
+    const bonusPct = Math.round(this.getHeritageBonus(oldSeason.rank) * 100);
+    const newSd = this.getCurrentSeason();
+    const overlay = document.getElementById('modalOverlay');
+    const container = document.getElementById('modalContainer');
+    if (!overlay || !container) return;
+    container.innerHTML = `
+      <div class="modal-header">
+        <h2 class="modal-title">🌟 Fin de Saison</h2>
+        <button class="modal-close" onclick="app.closeModal()">✕</button>
+      </div>
+      <div class="modal-body season-end-modal">
+        <div class="season-end-icon">${rankEmoji}</div>
+        <h3 class="season-end-rank">${oldSeason.name} — ${oldSeason.rank}</h3>
+        <p class="season-end-xp">${Math.round(oldSeason.xp)} XP saisonnière accumulée</p>
+        <div class="season-end-bonus">
+          <span>Bonus Héritage obtenu :</span>
+          <strong>+${bonusPct}% XP permanents</strong>
+        </div>
+        <p class="season-end-next">Prochaine saison : ${newSd.emoji} <strong>${newSd.name}</strong></p>
+        <button class="btn btn-primary reward-btn" onclick="app.startNewSeason()">Commencer la nouvelle saison !</button>
+      </div>
+    `;
+    overlay.classList.add('active');
+  },
+
+  // Ferme le modal de fin de saison et rafraîchit l'UI
+  startNewSeason() {
+    this.closeModal();
+    this.updateSeasonIndicator();
+    this.renderSeasonWidget();
+    this.renderDashboard();
   },
 
   // Met à jour l'indicateur visuel de saison dans le banner
@@ -2022,6 +2153,15 @@ const app = {
     const rankEmojis = { 'Bronze': '🥉', 'Argent': '🥈', 'Or': '🥇', 'Platine': '💎', 'Maître': '👑' };
     el.textContent = `${sd.emoji} ${season.name} · ${rankEmojis[season.rank] || ''} ${season.rank}`;
     el.title = `Saison ${season.name} — ${Math.round(season.xp)} XP saisonnière`;
+    this.applySeasonTheme(sd.key);
+  },
+
+  // Applique le thème CSS saisonnier sur <body> (transition CSS 1.5s définie en CSS)
+  applySeasonTheme(seasonKey) {
+    const themes = ['theme-spring', 'theme-summer', 'theme-autumn', 'theme-winter'];
+    const keyMap = { spring: 'theme-spring', summer: 'theme-summer', autumn: 'theme-autumn', winter: 'theme-winter' };
+    themes.forEach(t => document.body.classList.remove(t));
+    if (keyMap[seasonKey]) document.body.classList.add(keyMap[seasonKey]);
   },
 
   // Utilitaire debug (console) : forcer une saison pour tester la transition
@@ -2035,6 +2175,7 @@ const app = {
     this.state.rpg.season.current.startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
     this.saveData();
     this.updateSeasonIndicator();
+    this.applySeasonTheme(key);
     console.log('[LifeFlow] Saison forcée :', key, this.state.rpg.season.current);
   },
 
@@ -2583,8 +2724,12 @@ const app = {
     const runIcon = log.km > 0 ? '🏃' : '🛌';
     const jpIcon = log.japanese > 0 ? '🇯🇵' : '🤷';
 
+    // Phase 4 — résumé narratif en haut du modal
+    const narrative = this._generateDayNarrative(log, habits);
+
     document.getElementById('modalTitle').textContent = `📅 Résumé du ${dateKey}`;
     document.getElementById('modalBody').innerHTML = `
+      ${narrative ? `<div class="day-narrative">${narrative}</div>` : ''}
       <div style="display: flex; gap: var(--space-md); margin-bottom: var(--space-md);">
         <div class="card" style="flex: 1; text-align: center; padding: var(--space-sm);">
           <div style="font-size: 1.5rem;">${runIcon}</div>
@@ -2611,6 +2756,40 @@ const app = {
       <button class="btn btn-primary" onclick="app.closeModal()">Fermer</button>
     `;
     this.openModal();
+  },
+
+  // Génère un court résumé narratif de la journée liant les exploits réels aux exploits RPG
+  _generateDayNarrative(log, habits) {
+    const heroLvl = this.state.rpg?.hero?.lvl || 1;
+    const lines = [];
+
+    const checkedCount = this.state.habits.filter(h => habits[h.id]).length;
+    const totalHabits  = this.state.habits.length;
+    const isPerfect    = totalHabits > 0 && checkedCount === totalHabits;
+
+    if (isPerfect) {
+      lines.push(`⚔️ Journée Parfaite ! Le héros (niv.${heroLvl}) affronte les boss avec toutes ses forces.`);
+    } else if (checkedCount > 0) {
+      lines.push(`🛡️ ${checkedCount}/${totalHabits} habitude${checkedCount > 1 ? 's' : ''} accomplie${checkedCount > 1 ? 's' : ''} — le héros gagne en endurance.`);
+    }
+
+    if (log.km > 0) {
+      const dplusStr = log.dplus > 0 ? ` (+${log.dplus}m D+)` : '';
+      lines.push(`🏃 ${log.km} km courus${dplusStr} — l'ATK du héros grimpe en flèche !`);
+    }
+
+    if (log.japanese > 0) {
+      lines.push(`🇯🇵 ${log.japanese} min de japonais — sagesse et concentration renforcées.`);
+    }
+
+    if (log.mood >= 4) {
+      lines.push(`✨ Excellente humeur (${log.mood}⭐) — la Luck héros est au maximum.`);
+    } else if (log.mood && log.mood <= 2) {
+      lines.push(`😔 Journée difficile (${log.mood}⭐) — mais le héros tient bon.`);
+    }
+
+    if (lines.length === 0) return '';
+    return lines.join('<br>');
   },
 
   renderVisualCalendar() {
@@ -2708,11 +2887,16 @@ const app = {
 
       const hasActivity = hasRun || hasJp || hasJournal || hasHabits;
 
+      // Phase 4 — badge héros niveau sur les Perfect Days
+      const heroLvl = this.state.rpg?.hero?.lvl || 1;
+      const heroBadge = isPerfectDay ? `<div class="day-hero-badge" title="Héros niv.${heroLvl}">⚔️</div>` : '';
+
       html += `
-        <div class="calendar-day ${isToday ? 'today' : ''} ${isPerfectDay ? 'perfect' : ''} ${hasActivity ? 'has-activity' : ''} month-${month}" 
+        <div class="calendar-day ${isToday ? 'today' : ''} ${isPerfectDay ? 'perfect' : ''} ${hasActivity ? 'has-activity' : ''} month-${month}"
              onclick="app.showDayDetailsModal('${key}')"
-             title="${isPerfectDay ? '⭐ Journée Parfaite !' : 'Clique pour les détails'}">
+             title="${isPerfectDay ? '⭐ Journée Parfaite ! Héros niv.' + heroLvl : 'Clique pour les détails'}">
           <div class="calendar-date">${day}</div>
+          ${heroBadge}
           <div class="day-dots">
             ${dotsHtml}
           </div>
@@ -3142,6 +3326,20 @@ const app = {
     grant('level-20', this.state.level >= 20);
     grant('level-50', this.state.level >= 50);
     grant('1000-jap-min', rec.totalJapMinutes >= 1000);
+
+    // ── Badges saisonniers (accordés selon le rang atteint dans l'historique) ──
+    const rankOrder = ['Bronze', 'Argent', 'Or', 'Platine', 'Maître'];
+    const seasonHistory = this.state.rpg?.season?.history || [];
+    let highestRankIdx = -1;
+    seasonHistory.forEach(s => {
+      const idx = rankOrder.indexOf(s.rank);
+      if (idx > highestRankIdx) highestRankIdx = idx;
+    });
+    if (highestRankIdx >= 0) grant('season-bronze',   true);
+    if (highestRankIdx >= 1) grant('season-silver',   true);
+    if (highestRankIdx >= 2) grant('season-gold',     true);
+    if (highestRankIdx >= 3) grant('season-platinum', true);
+    if (highestRankIdx >= 4) grant('season-master',   true);
 
     // ── Stabilization: update badges → recalculate XP/level → re-check level badges ──
     this.state.unlockedBadges = newBadges;

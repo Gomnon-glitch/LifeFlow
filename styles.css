@@ -1954,6 +1954,17 @@ body::before {
   background: rgba(251, 191, 36, 0.05);
 }
 
+/* Phase 4 — badge héros sur les Perfect Days */
+.day-hero-badge {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  font-size: 0.6rem;
+  z-index: 3;
+  pointer-events: none;
+  line-height: 1;
+}
+
 .calendar-date {
   font-size: 0.75rem;
   font-weight: 600;
@@ -2233,4 +2244,131 @@ body::before {
 @keyframes slideUpFade {
   from { opacity: 0; transform: translateY(15px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================
+   NARRATIF JOURNALIER — modal détails jour (Phase 4)
+   ============================================ */
+
+.day-narrative {
+  background: rgba(255, 255, 255, 0.04);
+  border-left: 3px solid var(--accent-blue);
+  border-radius: 0 8px 8px 0;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* ============================================
+   MODAL FIN DE SAISON (Phase 4)
+   ============================================ */
+
+.season-end-modal {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.season-end-icon {
+  font-size: 4rem;
+  margin-bottom: 0.75rem;
+  animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.season-end-rank {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.season-end-xp {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+.season-end-bonus {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255,255,255,0.05);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+
+.season-end-bonus strong {
+  color: var(--accent-green);
+}
+
+.season-end-next {
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+}
+
+@keyframes popIn {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+/* ============================================
+   THÈMES SAISONNIERS (Phase 4)
+   --seasonal-accent : couleur d'accent saisonnière
+   --seasonal-bg     : teinte de fond subtile
+   Ne remplace PAS les variables de structure du thème sombre.
+   Transition douce appliquée aux éléments concernés.
+   ============================================ */
+
+/* 🌿 Printemps */
+body.theme-spring {
+  --seasonal-accent: #4ade80;
+  --seasonal-bg: rgba(74, 222, 128, 0.06);
+}
+
+/* ☀️ Été */
+body.theme-summer {
+  --seasonal-accent: #fbbf24;
+  --seasonal-bg: rgba(251, 191, 36, 0.06);
+}
+
+/* 🍂 Automne */
+body.theme-autumn {
+  --seasonal-accent: #fb923c;
+  --seasonal-bg: rgba(251, 146, 60, 0.06);
+}
+
+/* ❄️ Hiver */
+body.theme-winter {
+  --seasonal-accent: #60a5fa;
+  --seasonal-bg: rgba(96, 165, 250, 0.06);
+}
+
+/* Application de la teinte saisonnière sur les éléments clés */
+body.theme-spring .season-widget-card,
+body.theme-summer .season-widget-card,
+body.theme-autumn .season-widget-card,
+body.theme-winter .season-widget-card {
+  border-color: var(--seasonal-accent, var(--accent-blue));
+  background: var(--seasonal-bg, transparent);
+  transition: border-color 1.5s ease, background 1.5s ease;
+}
+
+body.theme-spring .season-indicator,
+body.theme-summer .season-indicator,
+body.theme-autumn .season-indicator,
+body.theme-winter .season-indicator {
+  color: var(--seasonal-accent, var(--accent-blue));
+  transition: color 1.5s ease;
+}
+
+body.theme-spring .now-banner,
+body.theme-summer .now-banner,
+body.theme-autumn .now-banner,
+body.theme-winter .now-banner {
+  border-left-color: var(--seasonal-accent, var(--accent-blue));
+  transition: border-left-color 1.5s ease;
 }

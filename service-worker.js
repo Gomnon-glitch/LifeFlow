@@ -3,7 +3,7 @@
    Offline caching + Notification scheduling
    ============================================ */
 
-const CACHE_NAME = 'lifeflow-v12';
+const CACHE_NAME = 'lifeflow-v13';
 const ASSETS = [
     './',
     './index.html',
