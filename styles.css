@@ -2320,55 +2320,91 @@ body::before {
    --seasonal-accent : couleur d'accent saisonnière
    --seasonal-bg     : teinte de fond subtile
    Ne remplace PAS les variables de structure du thème sombre.
-   Transition douce appliquée aux éléments concernés.
    ============================================ */
 
 /* 🌿 Printemps */
 body.theme-spring {
   --seasonal-accent: #4ade80;
-  --seasonal-bg: rgba(74, 222, 128, 0.06);
+  --seasonal-bg: rgba(74, 222, 128, 0.10);
+  --seasonal-glow: rgba(74, 222, 128, 0.25);
 }
 
 /* ☀️ Été */
 body.theme-summer {
   --seasonal-accent: #fbbf24;
-  --seasonal-bg: rgba(251, 191, 36, 0.06);
+  --seasonal-bg: rgba(251, 191, 36, 0.10);
+  --seasonal-glow: rgba(251, 191, 36, 0.25);
 }
 
 /* 🍂 Automne */
 body.theme-autumn {
   --seasonal-accent: #fb923c;
-  --seasonal-bg: rgba(251, 146, 60, 0.06);
+  --seasonal-bg: rgba(251, 146, 60, 0.10);
+  --seasonal-glow: rgba(251, 146, 60, 0.25);
 }
 
 /* ❄️ Hiver */
 body.theme-winter {
   --seasonal-accent: #60a5fa;
-  --seasonal-bg: rgba(96, 165, 250, 0.06);
+  --seasonal-bg: rgba(96, 165, 250, 0.10);
+  --seasonal-glow: rgba(96, 165, 250, 0.25);
 }
 
-/* Application de la teinte saisonnière sur les éléments clés */
-body.theme-spring .season-widget-card,
-body.theme-summer .season-widget-card,
-body.theme-autumn .season-widget-card,
-body.theme-winter .season-widget-card {
-  border-color: var(--seasonal-accent, var(--accent-blue));
-  background: var(--seasonal-bg, transparent);
-  transition: border-color 1.5s ease, background 1.5s ease;
-}
-
-body.theme-spring .season-indicator,
-body.theme-summer .season-indicator,
-body.theme-autumn .season-indicator,
-body.theme-winter .season-indicator {
-  color: var(--seasonal-accent, var(--accent-blue));
-  transition: color 1.5s ease;
-}
-
+/* ── now-banner : barre gauche colorée + lueur d'ambiance ── */
 body.theme-spring .now-banner,
 body.theme-summer .now-banner,
 body.theme-autumn .now-banner,
 body.theme-winter .now-banner {
-  border-left-color: var(--seasonal-accent, var(--accent-blue));
-  transition: border-left-color 1.5s ease;
+  border-left: 4px solid var(--seasonal-accent);
+  border-top-color: var(--seasonal-accent);
+  box-shadow: -4px 0 16px var(--seasonal-glow), inset 0 0 30px var(--seasonal-bg);
+  transition: border-color 1.5s ease, box-shadow 1.5s ease;
+}
+
+/* ── Halo radial dans le now-banner (remplace le bleu statique) ── */
+body.theme-spring .now-banner::before { background: radial-gradient(circle, rgba(74, 222, 128, 0.15) 0%, transparent 70%); }
+body.theme-summer .now-banner::before { background: radial-gradient(circle, rgba(251, 191, 36, 0.15) 0%, transparent 70%); }
+body.theme-autumn .now-banner::before { background: radial-gradient(circle, rgba(251, 146, 60, 0.15) 0%, transparent 70%); }
+body.theme-winter .now-banner::before { background: radial-gradient(circle, rgba(96, 165, 250, 0.15) 0%, transparent 70%); }
+
+/* ── Season widget card : bordure + fond + lueur ── */
+body.theme-spring .season-widget-card,
+body.theme-summer .season-widget-card,
+body.theme-autumn .season-widget-card,
+body.theme-winter .season-widget-card {
+  border-color: var(--seasonal-accent);
+  background: var(--seasonal-bg);
+  box-shadow: 0 0 14px var(--seasonal-glow);
+  transition: border-color 1.5s ease, background 1.5s ease, box-shadow 1.5s ease;
+}
+
+/* ── Season indicator badge : texte coloré + fond teinté ── */
+body.theme-spring .season-indicator,
+body.theme-summer .season-indicator,
+body.theme-autumn .season-indicator,
+body.theme-winter .season-indicator {
+  color: var(--seasonal-accent);
+  background: var(--seasonal-bg);
+  border-radius: 6px;
+  padding: 2px 6px;
+  transition: color 1.5s ease, background 1.5s ease;
+}
+
+/* ── XP bar de la saison reprend la couleur d'accent ── */
+body.theme-spring .season-widget-bar-fill,
+body.theme-summer .season-widget-bar-fill,
+body.theme-autumn .season-widget-bar-fill,
+body.theme-winter .season-widget-bar-fill {
+  background: var(--seasonal-accent);
+  box-shadow: 0 0 8px var(--seasonal-glow);
+  transition: background 1.5s ease, box-shadow 1.5s ease;
+}
+
+/* ── Barre de progression de validation de créneau ── */
+body.theme-spring .streak-badge,
+body.theme-summer .streak-badge,
+body.theme-autumn .streak-badge,
+body.theme-winter .streak-badge {
+  color: var(--seasonal-accent);
+  transition: color 1.5s ease;
 }
