@@ -20,6 +20,7 @@
   /* Thèmes saisonniers — valeurs par défaut (transparentes avant init JS) */
   --seasonal-accent: rgba(255, 255, 255, 0.08);
   --seasonal-bg: transparent;
+  --seasonal-border: rgba(255, 255, 255, 0.08);
   --seasonal-glow: transparent;
 
   --text-primary: #f1f5f9;
@@ -2370,47 +2371,45 @@ body.theme-winter .now-banner::before { background: radial-gradient(circle, rgba
 }
 
 /* ============================================
-   NIVEAU 1 — Accents interactifs saisonniers
+   NIVEAU 1 -- Accents interactifs saisonniers
    ============================================ */
 
 /* Bouton primaire */
 .btn-primary {
-  background: color-mix(in srgb, var(--seasonal-accent, #3b82f6) 15%, transparent);
-  border-color: color-mix(in srgb, var(--seasonal-accent, #3b82f6) 35%, transparent);
+  background: var(--seasonal-bg, rgba(59, 130, 246, 0.15));
+  border-color: var(--seasonal-border, rgba(59, 130, 246, 0.3));
   color: var(--seasonal-accent, var(--accent-blue));
   transition: background 1.5s ease, border-color 1.5s ease, color 1.5s ease, box-shadow var(--transition-base);
 }
 
 .btn-primary:hover {
-  background: color-mix(in srgb, var(--seasonal-accent, #3b82f6) 28%, transparent);
+  background: var(--seasonal-border, rgba(59, 130, 246, 0.25));
   box-shadow: 0 0 16px var(--seasonal-glow, var(--shadow-glow-blue));
 }
 
 /* Onglet actif de la navigation */
 .nav-tab.active {
-  background: color-mix(in srgb, var(--seasonal-accent, #3b82f6) 12%, transparent);
-  border-color: color-mix(in srgb, var(--seasonal-accent, #3b82f6) 28%, transparent);
+  background: var(--seasonal-bg, rgba(59, 130, 246, 0.12));
+  border-color: var(--seasonal-border, rgba(59, 130, 246, 0.25));
   box-shadow: 0 0 12px var(--seasonal-glow, var(--shadow-glow-blue));
   transition: background 1.5s ease, border-color 1.5s ease, box-shadow 1.5s ease;
 }
 
 /* Barre XP principale (niveau global) */
 .game-xp-fill {
-  background: linear-gradient(90deg,
-    color-mix(in srgb, var(--seasonal-accent, #8b5cf6) 80%, #1e1b4b),
-    var(--seasonal-accent, #3b82f6)
-  );
+  background: var(--seasonal-accent, var(--accent-blue));
+  box-shadow: 0 0 10px var(--seasonal-glow, transparent);
   transition: width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94), background 1.5s ease;
 }
 
 /* ============================================
-   NIVEAU 2 — Structures de page saisonnières
+   NIVEAU 2 -- Structures de page saisonnières
    ============================================ */
 
-/* Cellule "aujourd'hui" dans le calendrier */
+/* Cellule aujourd'hui dans le calendrier */
 .calendar-day.today {
   border-color: var(--seasonal-accent, rgba(255,255,255,0.4));
-  background: color-mix(in srgb, var(--seasonal-accent, #fff) 10%, transparent);
+  background: var(--seasonal-bg, rgba(255, 255, 255, 0.08));
   box-shadow: 0 0 10px var(--seasonal-glow, transparent);
   transition: border-color 1.5s ease, background 1.5s ease, box-shadow 1.5s ease;
 }
@@ -2421,7 +2420,7 @@ body.theme-winter .now-banner::before { background: radial-gradient(circle, rgba
   transition: color 1.5s ease;
 }
 
-/* Cartes KPI — top-border accent */
+/* Cartes KPI -- top-border accent */
 .kpi-card {
   border-top: 2px solid var(--seasonal-accent, var(--border-glass));
   transition: border-color 1.5s ease, transform var(--transition-base), box-shadow var(--transition-base);
@@ -2431,13 +2430,13 @@ body.theme-winter .now-banner::before { background: radial-gradient(circle, rgba
   box-shadow: 0 4px 20px var(--seasonal-glow, var(--shadow-md));
 }
 
-/* Dot d'habitude du jour courant — halo saisonnier */
+/* Dot d'habitude du jour courant -- halo saisonnier */
 .calendar-day.today .day-dot {
   box-shadow: 0 0 8px var(--seasonal-glow, transparent);
   transition: box-shadow 1.5s ease;
 }
 
-/* Timer Focus — affichage + barre HP */
+/* Timer Focus -- affichage + barre HP */
 .focus-timer-display {
   color: var(--seasonal-accent, var(--text-primary));
   text-shadow: 0 0 20px var(--seasonal-glow, transparent);
@@ -2445,9 +2444,6 @@ body.theme-winter .now-banner::before { background: radial-gradient(circle, rgba
 }
 
 .focus-bar-fill {
-  background: linear-gradient(90deg,
-    color-mix(in srgb, var(--seasonal-accent, #22c55e) 60%, #166534),
-    var(--seasonal-accent, #22c55e)
-  );
+  background: var(--seasonal-accent, #22c55e);
   transition: width 0.3s ease, background 1.5s ease;
 }

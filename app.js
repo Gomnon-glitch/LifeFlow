@@ -2160,15 +2160,16 @@ const app = {
   // + ajoute la classe body.theme-X pour les règles CSS qui en ont besoin
   applySeasonTheme(seasonKey) {
     const palette = {
-      spring: { accent: '#4ade80', bg: 'rgba(74, 222, 128, 0.12)',  glow: 'rgba(74, 222, 128, 0.28)' },
-      summer: { accent: '#fbbf24', bg: 'rgba(251, 191, 36, 0.12)',  glow: 'rgba(251, 191, 36, 0.28)' },
-      autumn: { accent: '#fb923c', bg: 'rgba(251, 146, 60, 0.12)',  glow: 'rgba(251, 146, 60, 0.28)' },
-      winter: { accent: '#60a5fa', bg: 'rgba(96, 165, 250, 0.12)',  glow: 'rgba(96, 165, 250, 0.28)' },
+      spring: { accent: '#4ade80', bg: 'rgba(74, 222, 128, 0.12)',  border: 'rgba(74, 222, 128, 0.35)',  glow: 'rgba(74, 222, 128, 0.28)' },
+      summer: { accent: '#fbbf24', bg: 'rgba(251, 191, 36, 0.12)',  border: 'rgba(251, 191, 36, 0.35)',  glow: 'rgba(251, 191, 36, 0.28)' },
+      autumn: { accent: '#fb923c', bg: 'rgba(251, 146, 60, 0.12)',  border: 'rgba(251, 146, 60, 0.35)',  glow: 'rgba(251, 146, 60, 0.28)' },
+      winter: { accent: '#60a5fa', bg: 'rgba(96, 165, 250, 0.12)',  border: 'rgba(96, 165, 250, 0.35)',  glow: 'rgba(96, 165, 250, 0.28)' },
     };
     const c = palette[seasonKey] || palette.spring;
     const root = document.documentElement;
     root.style.setProperty('--seasonal-accent', c.accent);
     root.style.setProperty('--seasonal-bg',     c.bg);
+    root.style.setProperty('--seasonal-border', c.border);
     root.style.setProperty('--seasonal-glow',   c.glow);
     // Classe body pour les règles CSS ::before et éventuels overrides
     ['theme-spring','theme-summer','theme-autumn','theme-winter'].forEach(t => document.body.classList.remove(t));
