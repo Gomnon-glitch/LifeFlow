@@ -3276,9 +3276,11 @@ const app = {
     const newBadges = {};
     const today = this.getDateKey(new Date());
 
-    // Helper: grant badge if condition met, preserving original unlock date
+    // Helper: grant badge if condition met, OR if already unlocked (sticky).
+    // Badges are achievements — once earned they are never removed here.
+    // Exception: level badges are explicitly removed below when level drops.
     const grant = (id, condition) => {
-      if (condition) {
+      if (condition || oldBadges[id]) {
         newBadges[id] = oldBadges[id] || today;
       }
     };
