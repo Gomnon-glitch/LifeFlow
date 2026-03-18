@@ -400,6 +400,15 @@ const app = {
     // ───── 🎭 POLYVALENCE ─────
     { id: 'all-rounder',     emoji: '🎭', name: 'Touche-à-tout',       desc: 'Débloquer les 4 badges "Premier" (run, japonais, habitude, découverte)', category: 'général', horizon: 'medium' },
     { id: 'perfect-3',       emoji: '💫', name: 'Triplé Parfait',      desc: '3 Journées Parfaites consécutives',      category: 'général', horizon: 'long'   },
+    // ───── ⚔️ IDLE RPG ─────
+    { id: 'rpg-wave-10',     emoji: '⚔️',  name: 'Première Vague',   desc: 'Atteindre la vague 10 en combat',         category: 'rpg', horizon: 'quick'  },
+    { id: 'rpg-wave-50',     emoji: '🏰',  name: 'Assiégeant',       desc: 'Atteindre la vague 50 en combat',         category: 'rpg', horizon: 'medium' },
+    { id: 'rpg-wave-100',    emoji: '🐉',  name: 'Dragon Slayer',    desc: 'Atteindre la vague 100 en combat',        category: 'rpg', horizon: 'long'   },
+    { id: 'rpg-prestige-1',  emoji: '🌟',  name: 'Renaissance',      desc: 'Effectuer son premier Prestige',          category: 'rpg', horizon: 'long'   },
+    { id: 'rpg-full-equip',  emoji: '🛡️',  name: 'Chevalier Équipé', desc: 'Équiper les 8 emplacements',             category: 'rpg', horizon: 'medium' },
+    { id: 'rpg-forged-epic', emoji: '🔨',  name: 'Forgeron',         desc: 'Forger un item de rareté Epic ou +',      category: 'rpg', horizon: 'long'   },
+    { id: 'rpg-kanji-1',     emoji: '漢',  name: 'Premier Sort',     desc: 'Débloquer un sort Kanji',                category: 'rpg', horizon: 'quick'  },
+    { id: 'rpg-skill-node',  emoji: '🌳',  name: 'Nœud Débloqué',   desc: 'Débloquer un nœud de l\'Arbre BioFeedback', category: 'rpg', horizon: 'medium' },
   ],
 
   // ============================================
@@ -472,6 +481,91 @@ const app = {
   ],
 
   // ============================================
+  // PHASE RPG — DONNÉES STATIQUES
+  // ============================================
+  heroSection: 'combat',
+  combatInterval: null,
+
+  kanjiSpellPool: [
+    { id: 'kj-fire',    kanji: '火', name: 'Flamme',   emoji: '🔥', desc: 'Dégâts ×1.5 ce tour',          type: 'damage_boost',  value: 0.5, turns: 1, cost: 1 },
+    { id: 'kj-water',   kanji: '水', name: 'Flux',     emoji: '💧', desc: 'ATK ennemie −30% / 3 tours',   type: 'debuff_atk',    value: 0.3, turns: 3, cost: 1 },
+    { id: 'kj-wind',    kanji: '風', name: 'Vent',     emoji: '💨', desc: '+0.5 vitesse / 5 tours',        type: 'speed_boost',   value: 0.5, turns: 5, cost: 2 },
+    { id: 'kj-earth',   kanji: '土', name: 'Terre',    emoji: '⛰️', desc: '+10 DEF / 3 tours',             type: 'def_boost',     value: 10,  turns: 3, cost: 1 },
+    { id: 'kj-thunder', kanji: '雷', name: 'Tonnerre', emoji: '⚡', desc: 'Frappe 3× ATK instantanée',    type: 'instant_damage', value: 3,  turns: 1, cost: 2 },
+    { id: 'kj-heal',    kanji: '癒', name: 'Guérison', emoji: '✨', desc: 'Restaure 40% HP max',           type: 'heal',          value: 0.4, turns: 1, cost: 2 },
+    { id: 'kj-gold',    kanji: '金', name: 'Fortune',  emoji: '💰', desc: 'Double gold prochaine victoire',type: 'gold_boost',    value: 2,   turns: 1, cost: 1 },
+    { id: 'kj-shadow',  kanji: '影', name: 'Ombre',    emoji: '🌑', desc: 'Esquive prochaine attaque',     type: 'dodge',         value: 1,   turns: 1, cost: 1 },
+  ],
+
+  skillTreeDefs: {
+    endurance: {
+      label: '🏃 Endurance', kpiKey: 'trail', kpiThreshold: 0.6,
+      nodes: [
+        { id: 'end-1', name: 'Muscles d\'Acier',   desc: '+2 ATK',                    cost: 1, bonus: { atk: 2 } },
+        { id: 'end-2', name: 'Souffle Long',        desc: '+10% HP max',               cost: 2, bonus: { hpPct: 0.1 } },
+        { id: 'end-3', name: 'Frappe Rapide',       desc: '+0.2 vitesse attaque',      cost: 3, bonus: { speed: 0.2 } },
+        { id: 'end-4', name: 'Buff Strava ×2',      desc: 'Bonus Strava doublé',       cost: 5, bonus: { stravaX2: true } },
+        { id: 'end-5', name: 'Maître du Trail',     desc: '+5 ATK, +0.3 vitesse',      cost: 8, bonus: { atk: 5, speed: 0.3 } },
+      ],
+    },
+    concentration: {
+      label: '🧘 Concentration', kpiKey: 'focus', kpiThreshold: 3,
+      nodes: [
+        { id: 'con-1', name: 'Lucidité',            desc: '+1 Luck',                   cost: 1, bonus: { luck: 1 } },
+        { id: 'con-2', name: 'Armure Mentale',      desc: '+3 DEF',                    cost: 2, bonus: { def: 3 } },
+        { id: 'con-3', name: 'XP Focus ×1.5',       desc: 'XP Focus multiplié ×1.5',  cost: 3, bonus: { focusXP: 1.5 } },
+        { id: 'con-4', name: 'Pause Réduite',        desc: 'Pause Pomodoro −1 min',    cost: 5, bonus: { pauseReduce: 1 } },
+        { id: 'con-5', name: 'Maître du Focus',      desc: '+5 DEF, +3 Luck',          cost: 8, bonus: { def: 5, luck: 3 } },
+      ],
+    },
+    discipline: {
+      label: '📿 Discipline', kpiKey: 'habit', kpiThreshold: 3,
+      nodes: [
+        { id: 'dis-1', name: 'Volonté',             desc: '+20 HP max',                cost: 1, bonus: { hp: 20 } },
+        { id: 'dis-2', name: 'Rigueur',             desc: '+2 DEF',                    cost: 2, bonus: { def: 2 } },
+        { id: 'dis-3', name: 'Streak XP',           desc: '+10% XP par habitude',      cost: 3, bonus: { habitXP: 1.1 } },
+        { id: 'dis-4', name: 'Résilience',          desc: '+2 Luck',                   cost: 5, bonus: { luck: 2 } },
+        { id: 'dis-5', name: 'Maître Discipline',   desc: '+30 HP max, +5 DEF',        cost: 8, bonus: { hp: 30, def: 5 } },
+      ],
+    },
+    curiosity: {
+      label: '🔍 Curiosité', kpiKey: 'discovery', kpiThreshold: 2,
+      nodes: [
+        { id: 'cur-1', name: 'Œil Avisé',           desc: 'Loot tier +1',              cost: 1, bonus: { lootTierBonus: 1 } },
+        { id: 'cur-2', name: 'Intuition',            desc: '+5% chance de loot',        cost: 2, bonus: { dropRate: 0.05 } },
+        { id: 'cur-3', name: 'Connaissance',         desc: '+2 ATK',                    cost: 3, bonus: { atk: 2 } },
+        { id: 'cur-4', name: 'Sorts Kanji',          desc: 'Débloque les sorts Kanji',  cost: 5, bonus: { kanjiUnlock: true } },
+        { id: 'cur-5', name: 'Maître Curiosité',     desc: '+10% loot, Loot tier +2',  cost: 8, bonus: { dropRate: 0.1, lootTierBonus: 2 } },
+      ],
+    },
+  },
+
+  itemNamePool: {
+    weapon: ['Bâton de Trail', 'Kodachi de Saison', 'Katana du Marcheur', 'Épée de l\'Aube', 'Lame Kanji', 'Bâton d\'Endurance'],
+    head:   ['Casque de Sentier', 'Bandeau Kanji', 'Capuche du Randonneur', 'Kasa du Guerrier', 'Heaume du Pic'],
+    torso:  ['Armure de Montagne', 'Veste d\'Endurance', 'Kimono de Combat', 'Cuirasse du Trail', 'Manteau Saisonnier'],
+    gloves: ['Gants de Prise', 'Protège-poignets Ninja', 'Gantelets d\'Escalade', 'Gants du Grimpeur'],
+    legs:   ['Jambières de Trail', 'Hakama du Guerrier', 'Cuissardes de Montagne', 'Jambières Renforcées'],
+    boots:  ['Bottes de Trail', 'Sandales du Ninja', 'Chaussures d\'Alpiniste', 'Tabis du Vide', 'Bottes de Sprint'],
+    amulet: ['Amulette de Concentration', 'Fuda Saisonnier', 'Talisman de Streak', 'Magatama Kanji', 'Pierre de Chance'],
+    accessory: ['Ceinture de Force', 'Bague de Luck', 'Bracelet du Focus', 'Sash du Randonneur', 'Médaille d\'Honneur'],
+  },
+
+  enemyData: [
+    { minWave: 1,  emoji: '🐀', name: 'Rat de Montagne'    },
+    { minWave: 5,  emoji: '👺', name: 'Gobelin des Brumes'  },
+    { minWave: 10, emoji: '💀', name: 'Squelette Ancien'    },
+    { minWave: 15, emoji: '🧌', name: 'Troll de la Forêt'   },
+    { minWave: 20, emoji: '🐉', name: 'Dragon de Bronze'    },
+    { minWave: 25, emoji: '👹', name: 'Démon Rouge'         },
+    { minWave: 30, emoji: '🦇', name: 'Vampire des Neiges'  },
+    { minWave: 35, emoji: '🕷️', name: 'Araignée Géante'     },
+    { minWave: 40, emoji: '🐍', name: 'Hydre Venimeuse'     },
+    { minWave: 45, emoji: '🦂', name: 'Scorpion Géant'      },
+    { minWave: 50, emoji: '👑', name: 'Titan du Chaos'      },
+  ],
+
+  // ============================================
   // INITIALIZATION
   // ============================================
   init() {
@@ -479,6 +573,7 @@ const app = {
     this.loadData();
     // Phase 2 — gains hors-ligne, transition de saison, indicateur
     this.calculateOfflineGains();
+    this.checkRPGBadges();
     this.checkSeasonTransition();
     this.updateSeasonIndicator();
     // Phase 3 — réinitialiser le timer focus si le chargement interrompt une session
@@ -882,6 +977,17 @@ const app = {
           history: [],
         };
       }
+      // Phase RPG-A — Migration
+      if (typeof this.state.rpg.hero.gold !== 'number') this.state.rpg.hero.gold = 0;
+      if (!Array.isArray(this.state.rpg.combatLog)) this.state.rpg.combatLog = [];
+      if (!Array.isArray(this.state.rpg.pendingLoot)) this.state.rpg.pendingLoot = [];
+      if (typeof this.state.rpg.offlineProcessed !== 'number') this.state.rpg.offlineProcessed = 0;
+      // Phase RPG-D — Migration
+      if (typeof this.state.rpg.hero.fragments !== 'number') this.state.rpg.hero.fragments = 0;
+      if (!Array.isArray(this.state.rpg.kanji)) this.state.rpg.kanji = [];
+      if (this.state.rpg.stravaBuff === undefined) this.state.rpg.stravaBuff = null;
+      if (!this.state.rpg.combatState) this.state.rpg.combatState = null;
+      if (typeof this.state.rpg.hero.hpMax !== 'number') this.state.rpg.hero.hpMax = 100;
     } catch (e) {
       console.warn('Could not load saved data:', e);
     }
@@ -1131,6 +1237,13 @@ const app = {
     // Update content
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.getElementById(`content-${tabName}`).classList.add('active');
+    // Hero tab — start/stop combat tick
+    if (tabName === 'hero') {
+      this.renderHeroTab();
+      this.startCombatTick();
+    } else {
+      this.stopCombatTick();
+    }
   },
 
   // ============================================
@@ -1275,6 +1388,11 @@ const app = {
       mood: this.state.ratings.mood,
       sleep: this.state.ratings.sleep,
     };
+    // RPG-D: Strava buff from manual log + Kanji unlock
+    const logKm = parseFloat(document.getElementById('log-km')?.value) || 0;
+    const logJap = parseFloat(document.getElementById('log-japanese')?.value) || 0;
+    if (logKm > 0) this.addStravaBuff(logKm);
+    if (logJap >= 10) this.checkKanjiUnlock(logJap);
     this.saveData();
     this.recalculateXP();
     this.updateRecords();
@@ -1702,7 +1820,7 @@ const app = {
           this.saveData();
       }
       // Assuming rendering is done via UI interactions
-      this.renderGamification();
+      this.renderGameSection();
   },
 
   // ============================================
@@ -2042,51 +2160,111 @@ const app = {
     }
   },
 
-  // Calcule les gains accumulés hors-ligne depuis la dernière visite
-  // Capped à 480 min (8h) pour éviter l'inflation
   calculateOfflineGains() {
     const rpg = this.state.rpg;
     if (!rpg?.hero || !rpg.lastUpdate) {
       rpg.lastUpdate = Date.now();
       return;
     }
+    // Idempotency guard
+    if (rpg.offlineProcessed === rpg.lastUpdate) return;
     const elapsed = Date.now() - rpg.lastUpdate;
     const minutes = Math.min(Math.floor(elapsed / 60000), 480);
     if (minutes < 1) {
+      rpg.offlineProcessed = rpg.lastUpdate;
       rpg.lastUpdate = Date.now();
       return;
     }
-    const hero = rpg.hero;
-    const gained = Math.floor(minutes * (hero.speed || 1.0));
-    hero.xp = (hero.xp || 0) + gained;
+    const hero = this.getHeroStats();
+    const wave = rpg.currentWave || 1;
+    const enemy = this.getEnemyStats(wave);
+    // Vagues par minute selon les stats du héros
+    const heroDmg = Math.max(1, (hero.atk - enemy.def));
+    const hitsToKill = Math.ceil(enemy.hp / heroDmg);
+    const secsPerWave = (hitsToKill * 3) / (hero.speed || 1);
+    const wavesPerMin = 60 / secsPerWave;
+    const wavesGained = Math.min(Math.floor(minutes * wavesPerMin), minutes * 5);
+    let xpGained = 0, goldGained = 0, lootCount = 0;
+    for (let i = 0; i < wavesGained; i++) {
+      const e = this.getEnemyStats(wave + i);
+      xpGained += e.xp;
+      goldGained += e.gold;
+      if ((i + 1) % 5 === 0) {
+        const luck = hero.luck || 10;
+        const lootRate = this.getLootRate(luck);
+        if (Math.random() < lootRate) {
+          lootCount++;
+          const item = this.generateItem(wave + i, luck);
+          this.addToInventory(item);
+        }
+      }
+    }
+    xpGained = Math.min(xpGained, 50000);
+    goldGained = Math.min(goldGained, 20000);
+    rpg.hero.xp = (rpg.hero.xp || 0) + xpGained;
+    rpg.hero.gold = (rpg.hero.gold || 0) + goldGained;
+    if (wavesGained > 0) {
+      rpg.currentWave = wave + wavesGained;
+      if (rpg.currentWave > (rpg.highestWave || 1)) rpg.highestWave = rpg.currentWave;
+    }
     this.checkLevelUp();
+    this.checkRPGBadges();
+    rpg.offlineProcessed = rpg.lastUpdate;
     rpg.lastUpdate = Date.now();
-    if (gained > 0) {
-      this.showToast(`⏰ +${gained} XP héros accumulés hors-ligne (${minutes} min)`);
+    const parts = [];
+    if (xpGained > 0) parts.push(`+${xpGained} XP`);
+    if (goldGained > 0) parts.push(`+${goldGained}💰`);
+    if (wavesGained > 0) parts.push(`${wavesGained} vagues`);
+    if (lootCount > 0) parts.push(`${lootCount} item(s)`);
+    if (parts.length > 0) {
+      this.showToast(`⏰ Hors-ligne (${minutes} min) : ${parts.join(' · ')}`);
     }
   },
 
-  // Retourne les stats effectives du héros (base + bonus équipement)
   getHeroStats() {
     const hero = this.state.rpg?.hero;
     if (!hero) return null;
     const eq = this.state.rpg?.equipment || {};
-    let atkBonus = 0, defBonus = 0, hpBonus = 0;
+    let atkBonus = 0, defBonus = 0, hpBonus = 0, speedBonus = 0, luckBonus = 0;
     Object.values(eq).forEach(item => {
       if (!item) return;
-      atkBonus += item.atk || 0;
-      defBonus += item.def || 0;
-      hpBonus  += item.hp  || 0;
+      atkBonus  += item.atk  || 0;
+      defBonus  += item.def  || 0;
+      hpBonus   += item.hp   || 0;
+      if (item.special?.type === 'speed') speedBonus += item.special.value;
     });
+    // Strava buff
+    const stravaBuff = this.state.rpg?.stravaBuff;
+    if (stravaBuff && stravaBuff.expiresAt > Date.now()) {
+      speedBonus += stravaBuff.speedBonus || 0;
+    }
+    // Skill tree bonuses
+    const tree = this.state.rpg?.skillTree || {};
+    Object.keys(tree).forEach(nodeId => {
+      if (!tree[nodeId]) return;
+      const node = this.getSkillNode(nodeId);
+      if (!node) return;
+      const b = node.bonus;
+      atkBonus  += b.atk   || 0;
+      defBonus  += b.def   || 0;
+      hpBonus   += b.hp    || 0;
+      speedBonus += b.speed || 0;
+      luckBonus  += b.luck  || 0;
+    });
+    // hpPct bonus from skill tree
+    const hpPct = this.getSkillBonus('hpPct');
+    const hpPctBonus = Math.round((hero.hpMax || 100) * hpPct);
     return {
       lvl:   hero.lvl,
       hp:    hero.hp,
-      hpMax: hero.hpMax + hpBonus,
-      atk:   hero.atk + atkBonus,
-      def:   hero.def + defBonus,
-      speed: hero.speed,
-      luck:  hero.luck,
+      hpMax: (hero.hpMax || 100) + hpBonus + hpPctBonus,
+      atk:   (hero.atk || 10) + atkBonus,
+      def:   (hero.def || 10) + defBonus,
+      speed: Math.max(0.1, (hero.speed || 1.0) + speedBonus),
+      luck:  Math.min(25, (hero.luck || 10) + luckBonus),
       xp:    hero.xp,
+      gold:  hero.gold || 0,
+      fragments: hero.fragments || 0,
     };
   },
 
@@ -3613,6 +3791,9 @@ const app = {
     grant('all-rounder',     firstBadgesDone);
     grant('perfect-3',       habitPerfectStreak >= 3);
 
+    // ── Phase RPG — Badges RPG ──
+    this.checkRPGBadges();
+
     // ── Phase 5 — Quêtes Saisonnières : vérifier complétion + accorder badge ──
     this.checkSeasonQuestProgress(silent);
     const sqHistory = this.state.rpg?.seasonQuests?.history || [];
@@ -3850,6 +4031,754 @@ const app = {
     document.querySelectorAll('.badge-filter').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.filter === filter);
     });
+  },
+
+  // ============================================
+  // PHASE RPG-A — MOTEUR DE COMBAT
+  // ============================================
+
+  getEnemyStats(wave) {
+    const w = Math.max(1, wave);
+    const p15 = Math.pow(1.15, w - 1);
+    const p12 = Math.pow(1.12, w - 1);
+    let name = 'Rat de Montagne', emoji = '🐀';
+    for (const e of this.enemyData) {
+      if (w >= e.minWave) { name = e.name; emoji = e.emoji; }
+    }
+    return {
+      wave: w, name: `${name} (vague ${w})`, emoji,
+      hp:   Math.round(50  * p15),
+      atk:  Math.round(8   * p15),
+      def:  Math.round(3   * p15),
+      gold: Math.min(5000, Math.round(5  * p12)),
+      xp:   Math.min(10000,Math.round(10 * p12)),
+    };
+  },
+
+  getLootRate(luck) {
+    return Math.min(0.25, 0.04 + (luck - 10) * 0.014 + this.getSkillBonus('dropRate'));
+  },
+
+  startCombatTick() {
+    this.stopCombatTick();
+    this.combatInterval = setInterval(() => this.tickCombat(), 3000);
+  },
+
+  stopCombatTick() {
+    if (this.combatInterval) { clearInterval(this.combatInterval); this.combatInterval = null; }
+  },
+
+  tickCombat() {
+    const rpg = this.state.rpg;
+    if (!rpg?.hero) return;
+    if (this.state.currentTab !== 'hero') { this.stopCombatTick(); return; }
+    const hero = this.getHeroStats();
+    const enemy = this.getEnemyStats(rpg.currentWave);
+    if (!rpg.combatState || rpg.combatState.wave !== rpg.currentWave) {
+      rpg.combatState = { wave: rpg.currentWave, enemyHp: enemy.hp };
+    }
+    // Hero attack
+    const heroDmg = Math.max(1, Math.round((hero.atk - enemy.def) * hero.speed));
+    let finalHeroDmg = heroDmg;
+    if (rpg.activeSpell?.type === 'damage_boost') finalHeroDmg = Math.round(heroDmg * (1 + rpg.activeSpell.value));
+    if (rpg.activeSpell?.type === 'instant_damage') finalHeroDmg += Math.round(hero.atk * rpg.activeSpell.value);
+    rpg.combatState.enemyHp -= finalHeroDmg;
+    if (rpg.activeSpell) { rpg.activeSpell.turnsLeft--; if (rpg.activeSpell.turnsLeft <= 0) delete rpg.activeSpell; }
+    if (rpg.combatState.enemyHp <= 0) {
+      // Victoire
+      let goldGain = enemy.gold;
+      if (rpg.activeSpell?.type === 'gold_boost') { goldGain *= rpg.activeSpell.value; delete rpg.activeSpell; }
+      rpg.hero.gold = (rpg.hero.gold || 0) + Math.round(goldGain);
+      rpg.hero.xp   = (rpg.hero.xp   || 0) + enemy.xp;
+      this.checkLevelUp();
+      rpg.currentWave++;
+      if (rpg.currentWave > (rpg.highestWave || 1)) rpg.highestWave = rpg.currentWave;
+      rpg.combatState = null;
+      // Loot
+      const lootRate = this.getLootRate(hero.luck);
+      if (Math.random() < lootRate) {
+        const item = this.generateItem(rpg.currentWave - 1, hero.luck);
+        this.addToInventory(item);
+        rpg.pendingLoot = rpg.pendingLoot || [];
+        rpg.pendingLoot.push(item.id);
+        this.showToast(`📦 ${item.emoji} ${item.name} (Tier ${item.tier}) !`);
+      }
+      rpg.combatLog = rpg.combatLog || [];
+      rpg.combatLog.unshift(`Vague ${rpg.currentWave-1} ✓ +${Math.round(goldGain)}💰 +${enemy.xp}XP`);
+      if (rpg.combatLog.length > 10) rpg.combatLog = rpg.combatLog.slice(0, 10);
+      this.checkRPGBadges();
+      this.saveData();
+    } else {
+      // Riposte ennemie
+      let enemyDmg = Math.max(1, enemy.atk - hero.def);
+      if (rpg.activeSpell?.type === 'dodge') { enemyDmg = 0; delete rpg.activeSpell; }
+      else if (rpg.activeSpell?.type === 'debuff_atk') enemyDmg = Math.round(enemyDmg * (1 - rpg.activeSpell.value));
+      else if (rpg.activeSpell?.type === 'def_boost') enemyDmg = Math.max(0, enemyDmg - rpg.activeSpell.value);
+      rpg.hero.hp -= enemyDmg;
+      if (rpg.hero.hp <= 0) {
+        rpg.hero.hp = Math.ceil((hero.hpMax || 100) * 0.5);
+        rpg.combatState = null;
+        this.showToast('💀 Héros vaincu ! HP restauré à 50%');
+      }
+    }
+    this.renderCombatSection();
+  },
+
+  castKanjiSpell(spellId) {
+    const rpg = this.state.rpg;
+    const spell = this.kanjiSpellPool.find(s => s.id === spellId);
+    if (!spell || !rpg.kanji.includes(spellId)) return;
+    const focusCost = spell.cost;
+    if ((rpg.focusSessionsCompleted || 0) < focusCost) {
+      this.showToast(`⚡ Il faut ${focusCost} session(s) Focus pour lancer ce sort !`); return;
+    }
+    rpg.focusSessionsCompleted -= focusCost;
+    if (spell.type === 'heal') {
+      const hero = this.getHeroStats();
+      rpg.hero.hp = Math.min(hero.hpMax, Math.round(rpg.hero.hp + hero.hpMax * spell.value));
+    } else {
+      rpg.activeSpell = { type: spell.type, value: spell.value, turnsLeft: spell.turns };
+    }
+    this.saveData();
+    this.showToast(`✨ Sort ${spell.emoji} ${spell.name} lancé !`);
+    this.renderCombatSection();
+  },
+
+  renderHeroTab() {
+    const el = document.getElementById('heroContent');
+    if (!el) return;
+    const section = this.heroSection || 'combat';
+    // Update pills
+    document.querySelectorAll('.hero-pill').forEach(p => {
+      p.classList.toggle('active', p.dataset.section === section);
+    });
+    switch(section) {
+      case 'combat':    el.innerHTML = this.buildCombatHTML(); break;
+      case 'inventory': el.innerHTML = this.buildInventoryHTML(); break;
+      case 'forge':     el.innerHTML = this.buildForgeHTML(); break;
+      case 'tree':      el.innerHTML = this.buildSkillTreeHTML(); break;
+      case 'prestige':  el.innerHTML = this.buildPrestigeHTML(); break;
+      default:          el.innerHTML = this.buildCombatHTML();
+    }
+  },
+
+  switchHeroSection(section) {
+    this.heroSection = section;
+    this.renderHeroTab();
+  },
+
+  renderCombatSection() {
+    if (this.state.currentTab !== 'hero' || this.heroSection !== 'combat') return;
+    const el = document.getElementById('heroContent');
+    if (!el) return;
+    el.innerHTML = this.buildCombatHTML();
+  },
+
+  buildCombatHTML() {
+    const rpg = this.state.rpg;
+    const hero = this.getHeroStats();
+    if (!hero) return '<p>Erreur : héros introuvable</p>';
+    const enemy = this.getEnemyStats(rpg.currentWave || 1);
+    const cs = rpg.combatState;
+    const enemyHp = cs ? cs.enemyHp : enemy.hp;
+    const enemyHpPct = Math.max(0, Math.min(100, (enemyHp / enemy.hp) * 100));
+    const heroHpPct  = Math.max(0, Math.min(100, (rpg.hero.hp / hero.hpMax) * 100));
+    const xpForNext = (rpg.hero.lvl || 1) * 100;
+    const xpPct = Math.min(100, ((rpg.hero.xp || 0) / xpForNext) * 100);
+    // Offline summary
+    const offlineSummary = (rpg.combatLog || []).length > 0
+      ? `<div class="combat-log">${(rpg.combatLog||[]).slice(0,3).map(l=>`<div class="combat-log-entry">${l}</div>`).join('')}</div>` : '';
+    // Kanji spells
+    const unlocked = rpg.kanji || [];
+    const spellsHtml = unlocked.length > 0 ? `
+      <div class="combat-spells">
+        <div class="combat-spells-title">✨ Sorts (${rpg.focusSessionsCompleted||0} Focus dispo)</div>
+        <div class="spells-grid">
+          ${unlocked.map(id => {
+            const s = this.kanjiSpellPool.find(sp => sp.id === id);
+            if (!s) return '';
+            const canCast = (rpg.focusSessionsCompleted || 0) >= s.cost;
+            return `<button class="spell-btn ${canCast ? '' : 'disabled'}" onclick="app.castKanjiSpell('${s.id}')" title="${s.desc} (Coût: ${s.cost} Focus)">
+              <span class="spell-kanji">${s.kanji}</span>
+              <span class="spell-name">${s.emoji} ${s.name}</span>
+              <span class="spell-cost">${s.cost}⚡</span>
+            </button>`;
+          }).join('')}
+        </div>
+      </div>` : '';
+    // Active buff display
+    const buffHtml = rpg.activeSpell ? `<div class="active-buff">✨ ${rpg.activeSpell.type} (${rpg.activeSpell.turnsLeft} tours)</div>` : '';
+    // Strava buff
+    const strava = rpg.stravaBuff && rpg.stravaBuff.expiresAt > Date.now()
+      ? `<div class="strava-buff">🏃 Buff Strava actif : +${(rpg.stravaBuff.speedBonus * 100).toFixed(0)}% vitesse</div>` : '';
+    return `
+      <div class="combat-arena">
+        <div class="wave-header">
+          <span>Vague <strong>${rpg.currentWave}</strong></span>
+          <span style="color:var(--text-muted)">Record : ${rpg.highestWave||1}</span>
+        </div>
+        <div class="enemy-section">
+          <div class="enemy-emoji">${enemy.emoji}</div>
+          <div class="enemy-name">${enemy.name}</div>
+          <div class="hp-bar-container">
+            <div class="hp-bar-label"><span>HP Ennemi</span><span>${Math.max(0,enemyHp)} / ${enemy.hp}</span></div>
+            <div class="hp-bar"><div class="hp-bar-fill enemy-hp" style="width:${enemyHpPct}%"></div></div>
+          </div>
+        </div>
+        <div class="hero-combat-section">
+          <div class="hero-combat-title">⚔️ Héros — Niv. ${hero.lvl}</div>
+          <div class="hp-bar-container">
+            <div class="hp-bar-label"><span>HP</span><span>${Math.round(rpg.hero.hp)} / ${hero.hpMax}</span></div>
+            <div class="hp-bar"><div class="hp-bar-fill hero-hp" style="width:${heroHpPct}%"></div></div>
+          </div>
+          <div class="hp-bar-container" style="margin-top:0.4rem">
+            <div class="hp-bar-label"><span>XP Niv.${hero.lvl}</span><span>${rpg.hero.xp||0}/${xpForNext}</span></div>
+            <div class="hp-bar"><div class="hp-bar-fill xp-bar" style="width:${xpPct}%"></div></div>
+          </div>
+          <div class="hero-stats-grid">
+            <div class="stat-chip">⚔️ ATK <strong>${hero.atk}</strong></div>
+            <div class="stat-chip">🛡️ DEF <strong>${hero.def}</strong></div>
+            <div class="stat-chip">⚡ SPD <strong>${hero.speed.toFixed(1)}</strong></div>
+            <div class="stat-chip">🎲 Luck <strong>${hero.luck}</strong></div>
+            <div class="stat-chip">💰 Gold <strong>${rpg.hero.gold||0}</strong></div>
+            <div class="stat-chip">🔮 Frag <strong>${rpg.hero.fragments||0}</strong></div>
+          </div>
+        </div>
+        ${buffHtml}${strava}
+        <div class="combat-status">
+          ${this.combatInterval ? '▶️ Combat actif' : '⏸ Combat en pause (ouvre cet onglet)'}
+        </div>
+        ${offlineSummary}
+        ${spellsHtml}
+        <!-- Équipement équipé -->
+        <div class="equipped-section">
+          <div class="equipped-title">🛡️ Équipement</div>
+          <div class="equipped-grid">
+            ${['weapon','head','torso','gloves','legs','boots','amulet','accessory'].map(slot => {
+              const item = (rpg.equipment||{})[slot];
+              const slotEmojis = {weapon:'⚔️',head:'🪖',torso:'🥋',gloves:'🧤',legs:'👖',boots:'👟',amulet:'📿',accessory:'💍'};
+              return `<div class="equip-slot ${item ? 'filled' : 'empty'}" title="${item ? item.name : slot}" onclick="${item ? `app.openItemModal('${item.id}')` : ''}">
+                ${item ? `<span>${item.emoji}</span><span class="equip-tier">${'★'.repeat(item.tier)}</span>` : `<span style="opacity:0.3">${slotEmojis[slot]}</span>`}
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  // ============================================
+  // PHASE RPG-B — LOOT & ÉQUIPEMENT
+  // ============================================
+
+  generateItem(wave, luck) {
+    const slots = Object.keys(this.itemNamePool);
+    const slot = slots[Math.floor(Math.random() * slots.length)];
+    const tierBonus = this.getSkillBonus('lootTierBonus');
+    const tier = Math.min(5, Math.max(1, Math.floor(wave / 10) + 1 + tierBonus));
+    const rarity = tier >= 5 ? 'legendary' : tier >= 4 ? 'epic' : tier >= 3 ? 'rare' : 'common';
+    const names = this.itemNamePool[slot] || ['Objet Mystérieux'];
+    const name = names[Math.floor(Math.random() * names.length)];
+    const emojis = {weapon:'⚔️',head:'🪖',torso:'🥋',gloves:'🧤',legs:'👖',boots:'👟',amulet:'📿',accessory:'💍'};
+    const atk = slot === 'weapon' ? tier * 4 : Math.max(0, tier - 1);
+    const def = ['torso','legs'].includes(slot) ? tier * 3 : ['head','gloves','boots'].includes(slot) ? tier * 2 : tier;
+    const hp  = slot === 'torso' ? tier * 10 : Math.max(0, tier * 2 - 2);
+    return {
+      id: `item_${Date.now()}_${Math.random().toString(36).substr(2,5)}`,
+      slot, tier, rarity, name, emoji: emojis[slot] || '📦',
+      atk, def, hp,
+      special: tier >= 3 ? this.generateSpecial(tier) : null,
+    };
+  },
+
+  generateSpecial(tier) {
+    const pool = [
+      { type: 'speed',    label: `+${(tier*0.05).toFixed(2)} vitesse`,    value: tier * 0.05 },
+      { type: 'luck',     label: `+${tier} Luck`,                         value: tier },
+      { type: 'xp',       label: `+${(tier*3)}% XP`,                      value: tier * 0.03 },
+      { type: 'hp_regen', label: `+${tier*2} régén HP`,                   value: tier * 2 },
+    ];
+    return pool[Math.floor(Math.random() * pool.length)];
+  },
+
+  addToInventory(item) {
+    const inv = this.state.rpg.inventory;
+    inv.push(item);
+    // Cap at 60 items: FIFO on commons
+    if (inv.length > 60) {
+      const commonIdx = inv.findIndex(i => i.rarity === 'common' && !(this.state.rpg.equipment?.[i.slot]?.id === i.id));
+      if (commonIdx >= 0) inv.splice(commonIdx, 1);
+      else inv.shift();
+    }
+  },
+
+  equipItem(itemId) {
+    const inv = this.state.rpg.inventory;
+    const item = inv.find(i => i.id === itemId);
+    if (!item) return;
+    const eq = this.state.rpg.equipment;
+    // Unequip current item in that slot back to inventory
+    if (eq[item.slot]) {
+      const old = eq[item.slot];
+      if (!inv.find(i => i.id === old.id)) inv.push(old);
+    }
+    eq[item.slot] = item;
+    // Remove from inventory
+    const idx = inv.findIndex(i => i.id === itemId);
+    if (idx >= 0) inv.splice(idx, 1);
+    this.checkRPGBadges();
+    this.saveData();
+    this.showToast(`🛡️ ${item.emoji} ${item.name} équipé !`);
+    this.renderHeroTab();
+  },
+
+  unequipItem(slot) {
+    const eq = this.state.rpg.equipment;
+    const item = eq[slot];
+    if (!item) return;
+    this.addToInventory(item);
+    eq[slot] = null;
+    this.saveData();
+    this.showToast(`📦 ${item.name} retiré.`);
+    this.renderHeroTab();
+  },
+
+  openItemModal(itemId) {
+    const allItems = [...this.state.rpg.inventory, ...Object.values(this.state.rpg.equipment).filter(Boolean)];
+    const item = allItems.find(i => i.id === itemId);
+    if (!item) return;
+    const equipped = this.state.rpg.equipment[item.slot];
+    const isEquipped = equipped?.id === itemId;
+    const rarityColors = {common:'var(--text-muted)',rare:'var(--accent-blue)',epic:'var(--accent-purple)',legendary:'var(--accent-orange)'};
+    const compare = equipped && !isEquipped ? `
+      <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border-color)">
+        <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem">Actuellement équipé :</div>
+        <div style="font-size:0.85rem">${equipped.emoji} ${equipped.name} (T${equipped.tier}) — ATK:${equipped.atk} DEF:${equipped.def} HP:${equipped.hp}</div>
+        <div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.25rem">
+          Δ ATK: ${item.atk-equipped.atk>=0?'+':''}${item.atk-equipped.atk} · DEF: ${item.def-equipped.def>=0?'+':''}${item.def-equipped.def} · HP: ${item.hp-equipped.hp>=0?'+':''}${item.hp-equipped.hp}
+        </div>
+      </div>` : '';
+    document.getElementById('modalTitle').textContent = `${item.emoji} ${item.name}`;
+    document.getElementById('modalBody').innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:0.5rem">
+        <div style="color:${rarityColors[item.rarity]};font-weight:600;text-transform:capitalize">${item.rarity} — Tier ${item.tier} — ${'★'.repeat(item.tier)}</div>
+        <div style="font-size:0.85rem;color:var(--text-muted)">Slot : ${item.slot}</div>
+        <div class="hero-stats-grid" style="margin-top:0.5rem">
+          <div class="stat-chip">⚔️ ATK <strong>+${item.atk}</strong></div>
+          <div class="stat-chip">🛡️ DEF <strong>+${item.def}</strong></div>
+          <div class="stat-chip">❤️ HP <strong>+${item.hp}</strong></div>
+        </div>
+        ${item.special ? `<div style="margin-top:0.5rem;padding:0.5rem;background:rgba(139,92,246,0.1);border-radius:8px;font-size:0.85rem">✨ Passif : ${item.special.label}</div>` : ''}
+        ${compare}
+      </div>
+    `;
+    document.getElementById('modalFooter').innerHTML = isEquipped
+      ? `<button class="btn" onclick="app.unequipItem('${item.slot}');app.closeModal()">📦 Déséquiper</button>`
+      : `<button class="btn btn-primary" onclick="app.equipItem('${itemId}');app.closeModal()">🛡️ Équiper</button>
+         <button class="btn" onclick="app.closeModal()">Fermer</button>`;
+    document.getElementById('modalOverlay').classList.add('active');
+  },
+
+  buildInventoryHTML() {
+    const inv = this.state.rpg.inventory || [];
+    const eq  = this.state.rpg.equipment || {};
+    const equippedIds = new Set(Object.values(eq).filter(Boolean).map(i => i.id));
+    const rarityColors = {common:'var(--text-muted)',rare:'var(--accent-blue)',epic:'var(--accent-purple)',legendary:'var(--accent-orange)'};
+    if (inv.length === 0) return `
+      <div class="hero-section-card">
+        <h3 class="hero-section-title">📦 Inventaire (0/60)</h3>
+        <p style="color:var(--text-muted);text-align:center;padding:2rem">Aucun item pour l'instant. Combats pour obtenir du loot !</p>
+      </div>`;
+    return `
+      <div class="hero-section-card">
+        <h3 class="hero-section-title">📦 Inventaire (${inv.length}/60)</h3>
+        <div class="inventory-grid">
+          ${inv.map(item => `
+            <div class="inv-item" onclick="app.openItemModal('${item.id}')" style="border-color:${rarityColors[item.rarity]}">
+              <div class="inv-item-emoji">${item.emoji}</div>
+              <div class="inv-item-name">${item.name}</div>
+              <div class="inv-item-tier" style="color:${rarityColors[item.rarity]}">${'★'.repeat(item.tier)} T${item.tier}</div>
+              <div class="inv-item-stats">ATK+${item.atk} DEF+${item.def}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  },
+
+  // ============================================
+  // PHASE RPG-C — FORGE & ÉCONOMIE
+  // ============================================
+
+  buildForgeHTML() {
+    const inv = this.state.rpg.inventory || [];
+    const slots = ['weapon','head','torso','gloves','legs','boots','amulet','accessory'];
+    const rarityColors = {common:'var(--text-muted)',rare:'var(--accent-blue)',epic:'var(--accent-purple)',legendary:'var(--accent-orange)'};
+    // Group by slot+tier
+    const groups = {};
+    inv.forEach(item => {
+      const key = `${item.slot}-${item.tier}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(item);
+    });
+    const forgeableGroups = Object.entries(groups).filter(([,items]) => items.length >= 3);
+    const forgeHtml = forgeableGroups.length > 0 ? forgeableGroups.map(([key, items]) => {
+      const [slot, tierStr] = key.split('-');
+      const tier = parseInt(tierStr);
+      const sample = items[0];
+      return `
+        <div class="forge-group">
+          <div class="forge-group-info">
+            <span>${sample.emoji} ${slot} T${tier} ×${items.length}</span>
+            <span style="color:var(--text-muted);font-size:0.8rem">${items.length >= 3 ? '→ Peut forger T'+(tier+1) : `Besoin ${3-items.length} de plus`}</span>
+          </div>
+          ${items.length >= 3 && tier < 5 ? `<button class="btn btn-primary" onclick="app.forgeItems('${slot}',${tier})">🔨 Forger (T${tier+1})</button>` : ''}
+        </div>`;
+    }).join('') : '<p style="color:var(--text-muted);text-align:center;padding:1rem">Pas assez d\'items identiques. Accumule 3 items du même slot et tier !</p>';
+    // Shop
+    const hero = this.getHeroStats();
+    return `
+      <div class="hero-section-card">
+        <h3 class="hero-section-title">🔨 Forge</h3>
+        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem">3 items (même slot, même tier) → 1 item tier supérieur</p>
+        ${forgeHtml}
+      </div>
+      <div class="hero-section-card" style="margin-top:1rem">
+        <h3 class="hero-section-title">🏪 Boutique (💰 ${hero.gold})</h3>
+        <div class="shop-item">
+          <div>
+            <div style="font-weight:600">🧪 Potion de Soin</div>
+            <div style="font-size:0.8rem;color:var(--text-muted)">Restaure 50% HP max</div>
+          </div>
+          <button class="btn btn-primary" onclick="app.buyPotion()" ${(hero.gold||0) < 50 ? 'disabled' : ''}>50💰</button>
+        </div>
+        <div class="shop-item" style="margin-top:0.75rem">
+          <div>
+            <div style="font-weight:600">⚡ Fragment de Code</div>
+            <div style="font-size:0.8rem;color:var(--text-muted)">Échange 200💰 contre 1 Fragment</div>
+          </div>
+          <button class="btn" onclick="app.buyFragment()" ${(hero.gold||0) < 200 ? 'disabled' : ''}>200💰</button>
+        </div>
+      </div>
+    `;
+  },
+
+  forgeItems(slot, tier) {
+    const inv = this.state.rpg.inventory;
+    const toForge = inv.filter(i => i.slot === slot && i.tier === tier).slice(0, 3);
+    if (toForge.length < 3) { this.showToast('❌ Pas assez d\'items à forger !'); return; }
+    if (tier >= 5) { this.showToast('❌ Tier 5 est le maximum !'); return; }
+    // Remove the 3 items
+    toForge.forEach(item => {
+      const idx = inv.findIndex(i => i.id === item.id);
+      if (idx >= 0) inv.splice(idx, 1);
+    });
+    // Create tier+1 item
+    const newItem = this.generateItem((tier) * 10, this.getHeroStats()?.luck || 10);
+    newItem.slot = slot;
+    newItem.tier = tier + 1;
+    newItem.rarity = tier + 1 >= 5 ? 'legendary' : tier + 1 >= 4 ? 'epic' : tier + 1 >= 3 ? 'rare' : 'common';
+    this.addToInventory(newItem);
+    if (tier + 1 >= 3) this.checkRPGBadges();
+    this.saveData();
+    this.showToast(`🔨 Forgé : ${newItem.emoji} ${newItem.name} Tier ${newItem.tier} !`);
+    this.renderHeroTab();
+  },
+
+  buyPotion() {
+    const hero = this.getHeroStats();
+    if ((hero.gold || 0) < 50) { this.showToast('❌ Pas assez d\'or !'); return; }
+    this.state.rpg.hero.gold -= 50;
+    const heal = Math.round(hero.hpMax * 0.5);
+    this.state.rpg.hero.hp = Math.min(hero.hpMax, (this.state.rpg.hero.hp || 0) + heal);
+    this.saveData();
+    this.showToast(`🧪 Potion utilisée : +${heal} HP !`);
+    this.renderHeroTab();
+  },
+
+  buyFragment() {
+    const hero = this.getHeroStats();
+    if ((hero.gold || 0) < 200) { this.showToast('❌ Pas assez d\'or !'); return; }
+    this.state.rpg.hero.gold -= 200;
+    this.state.rpg.hero.fragments = (this.state.rpg.hero.fragments || 0) + 1;
+    this.saveData();
+    this.showToast('🔮 Fragment de Code obtenu !');
+    this.renderHeroTab();
+  },
+
+  // ============================================
+  // PHASE RPG-D — ARBRE BIOFEEDBACK & SYNERGIES IRL
+  // ============================================
+
+  getSkillNode(nodeId) {
+    for (const branch of Object.values(this.skillTreeDefs)) {
+      const node = branch.nodes.find(n => n.id === nodeId);
+      if (node) return node;
+    }
+    return null;
+  },
+
+  getSkillBonus(bonusType) {
+    const tree = this.state.rpg?.skillTree || {};
+    let total = 0;
+    Object.keys(tree).forEach(nodeId => {
+      if (!tree[nodeId]) return;
+      const node = this.getSkillNode(nodeId);
+      if (node?.bonus[bonusType]) total += node.bonus[bonusType];
+    });
+    return total;
+  },
+
+  isKPIUnlocked(branchKey) {
+    const weekDates = this.getWeekDates(0);
+    const mon = weekDates[0];
+    const weekKey = this.getWeekKey(mon);
+    switch(branchKey) {
+      case 'trail': {
+        const weekKm = weekDates.reduce((sum, d) => sum + (this.state.logs[this.getDateKey(d)]?.km || 0), 0);
+        return (weekKm / (this.state.config.weeklyKm || 40)) >= 0.6;
+      }
+      case 'focus':
+        return (this.state.rpg?.focusSessionsCompleted || 0) >= 3;
+      case 'habit': {
+        // Check if last 3 days had at least one habit checked
+        let streak3 = 0;
+        const today = new Date();
+        for (let i = 0; i < 3; i++) {
+          const d = new Date(today); d.setDate(d.getDate() - i);
+          const checks = this.state.habitChecks[this.getDateKey(d)] || {};
+          if (Object.values(checks).some(v => v)) streak3++;
+        }
+        return streak3 >= 3;
+      }
+      case 'discovery': {
+        const accepted = this.state.discoveryAccepted[weekKey] || [];
+        return accepted.length >= 2;
+      }
+      default: return false;
+    }
+  },
+
+  unlockSkill(nodeId) {
+    const node = this.getSkillNode(nodeId);
+    if (!node) return;
+    const branchEntry = Object.entries(this.skillTreeDefs).find(([,b]) => b.nodes.find(n => n.id === nodeId));
+    if (!branchEntry) return;
+    const [branchKey, branch] = branchEntry;
+    // Check prerequisites: previous node in branch must be unlocked
+    const nodeIndex = branch.nodes.findIndex(n => n.id === nodeId);
+    if (nodeIndex > 0) {
+      const prevNode = branch.nodes[nodeIndex - 1];
+      if (!this.state.rpg.skillTree[prevNode.id]) {
+        this.showToast('❌ Débloque d\'abord le nœud précédent !'); return;
+      }
+    }
+    // Check KPI
+    if (!this.isKPIUnlocked(branch.kpiKey)) {
+      this.showToast(`❌ KPI ${branch.label} insuffisant cette semaine !`); return;
+    }
+    // Check fragments
+    if ((this.state.rpg.hero.fragments || 0) < node.cost) {
+      this.showToast(`❌ Il faut ${node.cost} Fragment(s) de Code !`); return;
+    }
+    this.state.rpg.hero.fragments -= node.cost;
+    this.state.rpg.skillTree[nodeId] = true;
+    // Special unlock: kanji spells
+    if (node.bonus.kanjiUnlock) {
+      this.unlockRandomKanji();
+    }
+    this.checkRPGBadges();
+    this.saveData();
+    this.showToast(`🌳 Nœud débloqué : ${node.name} !`);
+    this.renderHeroTab();
+  },
+
+  unlockRandomKanji() {
+    const rpg = this.state.rpg;
+    rpg.kanji = rpg.kanji || [];
+    const locked = this.kanjiSpellPool.filter(s => !rpg.kanji.includes(s.id));
+    if (locked.length === 0) return;
+    const spell = locked[Math.floor(Math.random() * locked.length)];
+    rpg.kanji.push(spell.id);
+    this.showToast(`⚡ Sort Kanji débloqué : ${spell.emoji} ${spell.kanji} ${spell.name} !`);
+    this.checkAllBadges(true);
+  },
+
+  buildSkillTreeHTML() {
+    const tree = this.state.rpg?.skillTree || {};
+    const hero = this.getHeroStats();
+    return `
+      <div class="hero-section-card">
+        <h3 class="hero-section-title">🌳 Arbre BioFeedback</h3>
+        <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:1rem">Fragments disponibles : <strong>${hero.fragments||0}</strong> 🔮</p>
+        ${Object.entries(this.skillTreeDefs).map(([branchKey, branch]) => {
+          const kpiOk = this.isKPIUnlocked(branch.kpiKey);
+          return `
+            <div class="skill-branch ${kpiOk ? 'kpi-ok' : 'kpi-locked'}">
+              <div class="branch-header">
+                <span class="branch-label">${branch.label}</span>
+                <span class="branch-kpi ${kpiOk ? 'ok' : 'fail'}">${kpiOk ? '✅ KPI atteint' : '❌ KPI insuffisant'}</span>
+              </div>
+              <div class="branch-nodes">
+                ${branch.nodes.map((node, idx) => {
+                  const unlocked = !!tree[node.id];
+                  const prevOk = idx === 0 || !!tree[branch.nodes[idx-1].id];
+                  const canUnlock = !unlocked && prevOk && kpiOk && (hero.fragments||0) >= node.cost;
+                  return `
+                    <div class="skill-node ${unlocked ? 'unlocked' : canUnlock ? 'available' : 'locked'}">
+                      <div class="skill-node-name">${node.name}</div>
+                      <div class="skill-node-desc">${node.desc}</div>
+                      ${unlocked ? '<div class="skill-node-status">✅ Débloqué</div>'
+                        : `<button class="btn skill-unlock-btn ${canUnlock ? '' : 'disabled'}" onclick="app.unlockSkill('${node.id}')" ${canUnlock ? '' : 'disabled'}>
+                          🔮 ${node.cost} Fragment(s)
+                        </button>`}
+                    </div>`;
+                }).join('<div class="node-connector">→</div>')}
+              </div>
+            </div>`;
+        }).join('')}
+        <!-- Sorts Kanji débloqués -->
+        ${(this.state.rpg?.kanji||[]).length > 0 ? `
+          <div class="kanji-unlocked">
+            <div class="branch-header"><span class="branch-label">⚡ Sorts Kanji débloqués</span></div>
+            <div class="spells-grid">
+              ${(this.state.rpg.kanji||[]).map(id => {
+                const s = this.kanjiSpellPool.find(sp => sp.id === id);
+                return s ? `<div class="spell-card">${s.emoji} ${s.kanji} <strong>${s.name}</strong><br><span style="font-size:0.75rem;color:var(--text-muted)">${s.desc}</span></div>` : '';
+              }).join('')}
+            </div>
+          </div>` : ''}
+      </div>
+    `;
+  },
+
+  addStravaBuff(km) {
+    if (!km || km <= 0) return;
+    const speedBonus = Math.min(1.5, km * 0.05);
+    const doubleStrava = this.getSkillBonus('stravaX2') > 0;
+    this.state.rpg.stravaBuff = {
+      expiresAt: Date.now() + 86400000,
+      speedBonus: doubleStrava ? speedBonus * 2 : speedBonus,
+      km,
+    };
+    this.saveData();
+    this.showToast(`🏃 Buff Strava activé 24h : +${(speedBonus * 100).toFixed(0)}% vitesse !`);
+  },
+
+  checkKanjiUnlock(japMinutes) {
+    if (!japMinutes || japMinutes < 10) return;
+    const rpg = this.state.rpg;
+    rpg.kanji = rpg.kanji || [];
+    if (rpg.kanji.length >= this.kanjiSpellPool.length) return;
+    // 30% chance per session ≥10min
+    if (Math.random() < 0.3) {
+      this.unlockRandomKanji();
+    }
+  },
+
+  // ============================================
+  // PHASE RPG-E — PRESTIGE
+  // ============================================
+
+  canPrestige() {
+    return (this.state.rpg?.currentWave || 1) >= 50;
+  },
+
+  doPrestige() {
+    const rpg = this.state.rpg;
+    if (!this.canPrestige()) { this.showToast('❌ Atteins la vague 50 pour le Prestige !'); return; }
+    const fragments = Math.floor((rpg.currentWave || 1) / 10);
+    rpg.hero.fragments = (rpg.hero.fragments || 0) + fragments;
+    rpg.prestigePoints = (rpg.prestigePoints || 0) + fragments;
+    rpg.hero.resets = (rpg.hero.resets || 0) + 1;
+    // Save highestWave and skillTree/equipment
+    const savedHighest   = rpg.highestWave;
+    const savedSkillTree = { ...rpg.skillTree };
+    const savedEquipment = { ...rpg.equipment };
+    const savedFragments = rpg.hero.fragments;
+    const savedResets    = rpg.hero.resets;
+    const savedPPoints   = rpg.prestigePoints;
+    // Reset hero
+    rpg.hero = { hp: 100, hpMax: 100, atk: 10, def: 10, speed: 1.0, lvl: 1, xp: 0, luck: 10, gold: 0, prestigePoints: savedPPoints, resets: savedResets, fragments: savedFragments };
+    rpg.currentWave  = 1;
+    rpg.highestWave  = savedHighest;
+    rpg.skillTree    = savedSkillTree;
+    rpg.equipment    = savedEquipment;
+    rpg.combatState  = null;
+    rpg.combatLog    = [];
+    this.checkRPGBadges();
+    this.saveData();
+    this.closeModal();
+    this.showToast(`🌟 Prestige ! +${fragments} Fragments de Code. Reset de la progression !`);
+    this.renderHeroTab();
+  },
+
+  buildPrestigeHTML() {
+    const rpg = this.state.rpg;
+    const hero = this.getHeroStats();
+    const canP = this.canPrestige();
+    const fragmentsGain = Math.floor((rpg.currentWave || 1) / 10);
+    return `
+      <div class="hero-section-card">
+        <h3 class="hero-section-title">⭐ Prestige</h3>
+        <div class="prestige-info">
+          <div class="prestige-stat"><span>Prestige effectués</span><strong>${rpg.hero.resets||0}</strong></div>
+          <div class="prestige-stat"><span>Vague actuelle</span><strong>${rpg.currentWave||1}</strong></div>
+          <div class="prestige-stat"><span>Meilleure vague</span><strong>${rpg.highestWave||1}</strong></div>
+          <div class="prestige-stat"><span>Fragments gagnés</span><strong>${rpg.prestigePoints||0}</strong></div>
+        </div>
+        ${canP ? `
+          <div class="prestige-available">
+            <p>🌟 Tu peux effectuer un Prestige !</p>
+            <p style="font-size:0.85rem;color:var(--text-muted)">Gain : <strong>+${fragmentsGain} Fragment(s) de Code</strong></p>
+            <p style="font-size:0.8rem;color:var(--accent-orange)">⚠️ Reset : Vague, Niveau, or, HP/ATK/DEF retournent à 1.<br>Conservés : Arbre des Compétences, Équipement, Meilleure Vague.</p>
+            <button class="btn btn-primary" onclick="app.confirmPrestige()">⭐ Effectuer le Prestige</button>
+          </div>` : `
+          <div class="prestige-locked">
+            <p style="color:var(--text-muted)">🔒 Déblocage à la vague 50</p>
+            <div class="hp-bar-container" style="margin-top:0.75rem">
+              <div class="hp-bar-label"><span>Progression</span><span>Vague ${rpg.currentWave||1}/50</span></div>
+              <div class="hp-bar"><div class="hp-bar-fill xp-bar" style="width:${Math.min(100,((rpg.currentWave||1)/50)*100)}%"></div></div>
+            </div>
+          </div>`}
+      </div>
+    `;
+  },
+
+  confirmPrestige() {
+    document.getElementById('modalTitle').textContent = '⭐ Confirmer le Prestige ?';
+    document.getElementById('modalBody').innerHTML = `
+      <p style="color:var(--text-secondary)">Un Prestige réinitialisera ta vague, niveau, or et stats de base.</p>
+      <p style="color:var(--accent-orange)">En échange, tu reçois des <strong>Fragments de Code</strong> pour l'Arbre BioFeedback.</p>
+      <p>Ton équipement et ton Arbre sont conservés.</p>`;
+    document.getElementById('modalFooter').innerHTML = `
+      <button class="btn btn-primary" onclick="app.doPrestige()">⭐ Confirmer</button>
+      <button class="btn" onclick="app.closeModal()">Annuler</button>`;
+    document.getElementById('modalOverlay').classList.add('active');
+  },
+
+  // ============================================
+  // PHASE RPG — BADGES RPG
+  // ============================================
+
+  checkRPGBadges() {
+    const rpg = this.state.rpg;
+    if (!rpg) return;
+    const badges = this.state.unlockedBadges;
+    const today = this.getDateKey(new Date());
+    const grant = (id, cond) => { if (cond && !badges[id]) { badges[id] = today; this.showToast(`🏅 Badge : ${this.badges.find(b=>b.id===id)?.emoji||''} ${this.badges.find(b=>b.id===id)?.name||id} !`); } };
+    grant('rpg-wave-10',    (rpg.highestWave || 0) >= 10);
+    grant('rpg-wave-50',    (rpg.highestWave || 0) >= 50);
+    grant('rpg-wave-100',   (rpg.highestWave || 0) >= 100);
+    grant('rpg-prestige-1', (rpg.hero.resets || 0) >= 1);
+    const equippedCount = Object.values(rpg.equipment || {}).filter(Boolean).length;
+    grant('rpg-full-equip', equippedCount >= 8);
+    // Check forged epic: any item in inventory or equipped with rarity epic/legendary
+    const allItems = [...(rpg.inventory||[]), ...Object.values(rpg.equipment||{}).filter(Boolean)];
+    grant('rpg-forged-epic', allItems.some(i => i.rarity === 'epic' || i.rarity === 'legendary'));
+    grant('rpg-kanji-1',    (rpg.kanji||[]).length >= 1);
+    const unlockedNodes = Object.values(rpg.skillTree||{}).filter(Boolean).length;
+    grant('rpg-skill-node', unlockedNodes >= 1);
   },
 
   // ============================================

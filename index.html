@@ -54,9 +54,9 @@
           <span class="tab-icon">⚙️</span>
           <span class="tab-label">Config</span>
         </li>
-        <li class="nav-tab" data-tab="install" id="tab-install">
-          <span class="tab-icon">📲</span>
-          <span class="tab-label">Installer</span>
+        <li class="nav-tab" data-tab="hero" id="tab-hero">
+          <span class="tab-icon">⚔️</span>
+          <span class="tab-label">Héros</span>
         </li>
       </ul>
 
@@ -488,6 +488,22 @@
             </div>
           </div>
 
+          <!-- Install instructions (déplacées depuis l'ancien onglet) -->
+          <div class="config-section" id="installSection">
+            <h3>📲 Installer LifeFlow</h3>
+            <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1rem;">Pour utiliser LifeFlow comme appli native (Android/PC) :</p>
+            <div style="display:flex;flex-direction:column;gap:0.75rem;">
+              <div style="padding:0.75rem;border-radius:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);">
+                <p style="font-size:0.85rem;color:var(--accent-green);"><strong>Android :</strong> Chrome → ⋮ → "Ajouter à l'écran d'accueil"</p>
+              </div>
+              <div style="padding:0.75rem;border-radius:10px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);">
+                <p style="font-size:0.85rem;color:var(--accent-purple);"><strong>PC :</strong> Chrome/Edge → icône 📲 dans la barre d'adresse → Installer</p>
+              </div>
+            </div>
+            <div id="pwaStatus" style="font-size:0.9rem;color:var(--text-secondary);margin-top:1rem;"></div>
+            <button class="btn btn-primary mt-md hidden" id="installPwaBtn" onclick="app.installPwa()">📲 Installer LifeFlow</button>
+          </div>
+
           <!-- Strava SDK Config -->
           <div class="config-section">
             <h3>🏃‍♂️ Import Automatique Strava</h3>
@@ -515,134 +531,16 @@
         </div>
       </section>
 
-      <!-- ========== INSTALL TAB ========== -->
-      <section class="tab-content" id="content-install">
-        <h2 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 1.5rem;">📲 Installer LifeFlow sur ton téléphone
-        </h2>
-
-        <div class="config-grid" style="grid-template-columns: 1fr;">
-
-          <!-- Important note -->
-          <div class="config-section"
-            style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1)); border-color: rgba(59, 130, 246, 0.2);">
-            <h3>⚠️ Pré-requis important</h3>
-            <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.7;">
-              Pour installer LifeFlow comme une application sur ton Pixel, les fichiers doivent être <strong>servis via
-                un serveur web</strong> (pas juste ouverts en tant que fichier local). Deux options :
-            </p>
-            <div style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
-              <div
-                style="padding: 0.75rem; border-radius: 10px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2);">
-                <p style="font-size: 0.85rem; color: var(--accent-green);"><strong>Option A — GitHub Pages
-                    (gratuit)</strong><br>Pousse les fichiers sur un repo GitHub → active GitHub Pages → accède à l'URL
-                  depuis ton Pixel.</p>
-              </div>
-              <div
-                style="padding: 0.75rem; border-radius: 10px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.2);">
-                <p style="font-size: 0.85rem; color: var(--accent-purple);"><strong>Option B — Serveur local (réseau
-                    WiFi)</strong><br>Sur ton PC, lance <code
-                    style='background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;'>python -m http.server 3000</code>
-                  dans le dossier Lifestyle, puis accède à <code
-                    style='background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;'>http://[IP-PC]:3000</code>
-                  depuis ton Pixel (même WiFi).</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Step by step Android -->
-          <div class="config-section">
-            <h3>📱 Étapes — Android (Pixel)</h3>
-            <div style="display: flex; flex-direction: column; gap: 1.25rem;">
-              <div style="display: flex; gap: 1rem; align-items: flex-start;">
-                <div
-                  style="min-width: 36px; height: 36px; border-radius: 50%; background: rgba(59, 130, 246, 0.2); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--accent-blue); font-size: 1rem;">
-                  1</div>
-                <div>
-                  <p style="font-size: 0.9rem;"><strong>Ouvre Chrome</strong> sur ton Pixel et va à l'adresse de
-                    LifeFlow (GitHub Pages ou IP locale)</p>
-                </div>
-              </div>
-              <div style="display: flex; gap: 1rem; align-items: flex-start;">
-                <div
-                  style="min-width: 36px; height: 36px; border-radius: 50%; background: rgba(59, 130, 246, 0.2); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--accent-blue); font-size: 1rem;">
-                  2</div>
-                <div>
-                  <p style="font-size: 0.9rem;"><strong>Attends le bandeau</strong> "Ajouter LifeFlow à l'écran
-                    d'accueil" qui apparaît en bas. Si il n'apparaît pas : tape les <strong>3 points ⋮</strong> en haut
-                    à droite</p>
-                </div>
-              </div>
-              <div style="display: flex; gap: 1rem; align-items: flex-start;">
-                <div
-                  style="min-width: 36px; height: 36px; border-radius: 50%; background: rgba(59, 130, 246, 0.2); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--accent-blue); font-size: 1rem;">
-                  3</div>
-                <div>
-                  <p style="font-size: 0.9rem;"><strong>Sélectionne "Installer l'application"</strong> ou "Ajouter à
-                    l'écran d'accueil"</p>
-                </div>
-              </div>
-              <div style="display: flex; gap: 1rem; align-items: flex-start;">
-                <div
-                  style="min-width: 36px; height: 36px; border-radius: 50%; background: rgba(59, 130, 246, 0.2); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--accent-blue); font-size: 1rem;">
-                  4</div>
-                <div>
-                  <p style="font-size: 0.9rem;"><strong>Confirme</strong> → L'icône LifeFlow ⚡ apparaît sur ton écran
-                    d'accueil !</p>
-                </div>
-              </div>
-              <div style="display: flex; gap: 1rem; align-items: flex-start;">
-                <div
-                  style="min-width: 36px; height: 36px; border-radius: 50%; background: rgba(16, 185, 129, 0.2); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--accent-green); font-size: 1rem;">
-                  5</div>
-                <div>
-                  <p style="font-size: 0.9rem;"><strong>Active les notifications</strong> → Ouvre l'app → onglet Config
-                    → section 🔔 Notifications → "Activer les notifications"</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Step by step PC -->
-          <div class="config-section">
-            <h3>💻 Étapes — PC (Chrome / Edge)</h3>
-            <div style="display: flex; flex-direction: column; gap: 1.25rem;">
-              <div style="display: flex; gap: 1rem; align-items: flex-start;">
-                <div
-                  style="min-width: 36px; height: 36px; border-radius: 50%; background: rgba(139, 92, 246, 0.2); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--accent-purple); font-size: 1rem;">
-                  1</div>
-                <div>
-                  <p style="font-size: 0.9rem;"><strong>Ouvre la page LifeFlow</strong> dans Chrome ou Edge</p>
-                </div>
-              </div>
-              <div style="display: flex; gap: 1rem; align-items: flex-start;">
-                <div
-                  style="min-width: 36px; height: 36px; border-radius: 50%; background: rgba(139, 92, 246, 0.2); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--accent-purple); font-size: 1rem;">
-                  2</div>
-                <div>
-                  <p style="font-size: 0.9rem;"><strong>Clique sur l'icône 📲</strong> dans la barre d'adresse (à
-                    droite) ou va dans les <strong>3 points ⋮ → Installer LifeFlow</strong></p>
-                </div>
-              </div>
-              <div style="display: flex; gap: 1rem; align-items: flex-start;">
-                <div
-                  style="min-width: 36px; height: 36px; border-radius: 50%; background: rgba(139, 92, 246, 0.2); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--accent-purple); font-size: 1rem;">
-                  3</div>
-                <div>
-                  <p style="font-size: 0.9rem;"><strong>Confirme l'installation</strong> → LifeFlow s'ouvre comme une
-                    fenêtre dédiée sans barre d'URL !</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- PWA status -->
-          <div class="config-section" style="text-align: center;">
-            <div id="pwaStatus" style="font-size: 0.9rem; color: var(--text-secondary);"></div>
-            <button class="btn btn-primary mt-md hidden" id="installPwaBtn" onclick="app.installPwa()">📲 Installer
-              LifeFlow maintenant</button>
-          </div>
-
+      <!-- ========== HERO TAB ========== -->
+      <section class="tab-content" id="content-hero">
+        <div class="hero-subnav" id="heroSubnav">
+          <button class="hero-pill active" data-section="combat" onclick="app.switchHeroSection('combat')">⚔️ Combat</button>
+          <button class="hero-pill" data-section="inventory" onclick="app.switchHeroSection('inventory')">📦 Inventaire</button>
+          <button class="hero-pill" data-section="forge" onclick="app.switchHeroSection('forge')">🔨 Forge</button>
+          <button class="hero-pill" data-section="tree" onclick="app.switchHeroSection('tree')">🌳 Arbre</button>
+          <button class="hero-pill" data-section="prestige" onclick="app.switchHeroSection('prestige')">⭐ Prestige</button>
         </div>
+        <div id="heroContent"><!-- Rendered by app.renderHeroTab() --></div>
       </section>
 
     </main>
