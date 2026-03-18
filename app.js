@@ -377,6 +377,12 @@ const app = {
     { id: 'winter-fortress', emoji: '🏔️', name: 'Forteresse',          desc: 'Planning streak de 3 semaines',          category: 'saison', horizon: 'medium' },
     { id: 'winter-iron',     emoji: '⚔️', name: 'Acier Trempé',        desc: '10 jours consécutifs d\'habitudes parfaites', category: 'saison', horizon: 'long' },
 
+    // ───── 🏆 QUÊTES SAISONNIÈRES (Phase 5) ─────
+    { id: 'quest-spring', emoji: '🌸', name: 'Bourgeon d\'Or',    desc: 'Accomplir la Quête Saisonnière de Printemps', category: 'saison', horizon: 'medium' },
+    { id: 'quest-summer', emoji: '🌞', name: 'Soleil Invaincu',   desc: 'Accomplir la Quête Saisonnière d\'Été',       category: 'saison', horizon: 'medium' },
+    { id: 'quest-autumn', emoji: '🦉', name: 'Chouette de Bronze',desc: 'Accomplir la Quête Saisonnière d\'Automne',   category: 'saison', horizon: 'medium' },
+    { id: 'quest-winter', emoji: '🔮', name: 'Cristal d\'Éternité',desc: 'Accomplir la Quête Saisonnière d\'Hiver',    category: 'saison', horizon: 'medium' },
+
     // ───── 📅 PLANNING ─────
     { id: 'planner-1',       emoji: '📅', name: 'Premier Plan',        desc: 'Valider une semaine de planning',        category: 'planning', horizon: 'quick'  },
     { id: 'planner-5',       emoji: '🗓️', name: 'Planificateur',       desc: 'Planning streak de 5 semaines',          category: 'planning', horizon: 'long'   },
@@ -869,6 +875,13 @@ const app = {
           history: [],
         };
       }
+      // Phase 5 — Migration : quêtes saisonnières
+      if (!this.state.rpg.seasonQuests) {
+        this.state.rpg.seasonQuests = {
+          active: this.initSeasonalQuest(),
+          history: [],
+        };
+      }
     } catch (e) {
       console.warn('Could not load saved data:', e);
     }
@@ -991,14 +1004,24 @@ const app = {
       // Une meilleure implémentation gèrerait les conflits selon _lastModified
       const { _lastModified, ...cleanCloudState } = cloudState;
 
+      // Préserver les badges gagnés localement (le cloud peut être plus ancien)
+      const localBadges = { ...this.state.unlockedBadges };
+
       this.state = { ...this.state, ...cleanCloudState };
       this.state.config = { ...this.state.config, ...cleanCloudState.config };
+
+      // Merge: on garde l'union des badges locaux et cloud (jamais de régression)
+      this.state.unlockedBadges = { ...cleanCloudState.unlockedBadges, ...localBadges };
 
       // Sauvegarde dans le localStorage
       localStorage.setItem('lifeflow-data', JSON.stringify(this.state));
 
       this.showToast('☁️ Données synchronisées depuis le Cloud !');
       this.updateSyncIndicator('success');
+
+      // Re-évaluer les badges avec le state mergé (sans toast) + pousser vers le cloud
+      this.checkAllBadges(true);  // silent=true — pas de nouveaux toasts
+      // saveData() est appelé dans checkAllBadges(), ce qui push aussi vers le cloud
 
       // Re-render everything
       this.renderDashboard();
@@ -2094,13 +2117,119 @@ const app = {
   },
 
   // Vérifie si la saison a changé depuis la dernière sauvegarde ; déclenche la transition si besoin
+  // ============================================
+  // PHASE 5 — QUÊTES SAISONNIÈRES
+  // ============================================
+
+  initSeasonalQuest() {
+    const season = this.state.rpg?.season?.current;
+    const seasonType = season?.id?.split('-')[0] || 'spring';
+    const questDefs = {
+      spring: { type: 'discoveries', label: 'Découvertes de Printemps', emoji: '🌸', defaultTarget: 5,   badgeId: 'quest-spring', xpReward: 200, unit: 'découvertes' },
+      summer: { type: 'km',          label: 'Conquête Estivale',        emoji: '🌞', defaultTarget: 200,  badgeId: 'quest-summer', xpReward: 300, unit: 'km' },
+      autumn: { type: 'jap_streak',  label: 'Sagesse d\'Automne',       emoji: '🦉', defaultTarget: 30,   badgeId: 'quest-autumn', xpReward: 250, unit: 'jours streak' },
+      winter: { type: 'habit_days',  label: 'Discipline Hivernale',     emoji: '🔮', defaultTarget: 7,    badgeId: 'quest-winter', xpReward: 200, unit: 'jours parfaits' },
+    };
+    const def = questDefs[seasonType] || questDefs.spring;
+    return {
+      id: season?.id || this.getSeasonIdForDate(new Date()),
+      season: seasonType,
+      type: def.type,
+      label: def.label,
+      emoji: def.emoji,
+      unit: def.unit,
+      target: def.defaultTarget,
+      completed: false,
+      completedDate: null,
+      badgeId: def.badgeId,
+      xpReward: def.xpReward,
+    };
+  },
+
+  computeSeasonQuestProgress() {
+    const q = this.state.rpg?.seasonQuests?.active;
+    if (!q) return 0;
+    const startDate = this.state.rpg?.season?.current?.startDate || '2000-01-01';
+
+    if (q.type === 'discoveries') {
+      let count = 0;
+      Object.entries(this.state.discoveryAccepted).forEach(([date, arr]) => {
+        if (date >= startDate) count += arr.length;
+      });
+      return count;
+    }
+    if (q.type === 'km') {
+      let total = 0;
+      Object.entries(this.state.logs).forEach(([date, log]) => {
+        if (date >= startDate) total += log.km || 0;
+      });
+      return Math.round(total * 10) / 10;
+    }
+    if (q.type === 'jap_streak') {
+      return this.calculateStreak('japanese');
+    }
+    if (q.type === 'habit_days') {
+      let count = 0;
+      const habitCount = this.state.habits.length;
+      if (habitCount === 0) return 0;
+      Object.entries(this.state.habitChecks).forEach(([date, checks]) => {
+        if (date >= startDate && this.state.habits.every(h => checks[h.id])) count++;
+      });
+      return count;
+    }
+    return 0;
+  },
+
+  checkSeasonQuestProgress(silent = false) {
+    const q = this.state.rpg?.seasonQuests?.active;
+    if (!q || q.completed) return;
+    const current = this.computeSeasonQuestProgress();
+    if (current >= q.target) {
+      q.completed = true;
+      q.completedDate = this.getDateKey(new Date());
+      // Grant badge directly (avoid recursion — checkAllBadges called this)
+      if (q.badgeId && !this.state.unlockedBadges[q.badgeId]) {
+        this.state.unlockedBadges[q.badgeId] = q.completedDate;
+      }
+      this.addXP('quest', q.xpReward);
+      if (!silent) {
+        this.showToast(`🎉 Quête Saisonnière : ${q.emoji} ${q.label} accomplie ! (+${q.xpReward} XP)`);
+      }
+    }
+  },
+
+  updateSeasonQuestTarget(value) {
+    const q = this.state.rpg?.seasonQuests?.active;
+    if (!q || q.completed) return;
+    const v = Math.max(1, Math.min(9999, parseInt(value) || 1));
+    q.target = v;
+    this.saveData();
+    this.renderSeasonWidget();
+  },
+
   checkSeasonTransition() {
     if (!this.state.rpg?.season?.current) return;
     const expectedId = this.getSeasonIdForDate(new Date());
     if (expectedId !== this.state.rpg.season.current.id) {
       // Snapshot de la saison qui se termine avant de la remplacer
       const oldSeason = { ...this.state.rpg.season.current };
+
+      // Phase 5 — archiver la quête saisonnière terminée
+      if (this.state.rpg.seasonQuests?.active) {
+        const endedQuest = { ...this.state.rpg.seasonQuests.active };
+        endedQuest.endedAt = this.getDateKey(new Date());
+        this.state.rpg.seasonQuests.history = [
+          ...(this.state.rpg.seasonQuests.history || []),
+          endedQuest,
+        ].slice(-8);
+      }
+
       this.applySeasonTransition();
+
+      // Phase 5 — créer la quête pour la nouvelle saison
+      if (!this.state.rpg.seasonQuests) this.state.rpg.seasonQuests = { active: null, history: [] };
+      this.state.rpg.seasonQuests.active = this.initSeasonalQuest();
+
       // Phase 4 — afficher le modal de fin de saison
       setTimeout(() => this.showSeasonEndModal(oldSeason), 800);
     }
@@ -2321,6 +2450,45 @@ const app = {
       : null;
     const luck = this.state.rpg?.hero?.luck || 10;
 
+    // ── Quête saisonnière active ──
+    const sq = this.state.rpg?.seasonQuests?.active;
+    let questHtml = '';
+    if (sq) {
+      const sqProgress = this.computeSeasonQuestProgress();
+      const sqPct      = Math.min((sqProgress / sq.target) * 100, 100);
+      const sqDone     = sq.completed;
+      questHtml = `
+        <div class="season-quest-card ${sqDone ? 'completed' : ''}">
+          <div class="season-quest-header">
+            <span class="season-quest-emoji">${sq.emoji}</span>
+            <div style="flex:1">
+              <div class="season-quest-title">${sq.label}</div>
+              <div class="season-quest-sub">${sqDone ? '✅ Accomplie !' : `${sqProgress} / ${sq.target} ${sq.unit}`}</div>
+            </div>
+            <div class="season-quest-badge-preview" title="Badge récompense">${sq.emoji}</div>
+          </div>
+          <div class="season-quest-bar-wrap">
+            <div class="season-quest-bar">
+              <div class="season-quest-bar-fill" style="width:${sqPct}%"></div>
+            </div>
+            <span class="season-quest-pct">${Math.round(sqPct)}%</span>
+          </div>
+          ${!sqDone ? `
+          <div class="season-quest-footer">
+            <span style="font-size:0.75rem;color:var(--text-muted)">Objectif :</span>
+            <input class="season-quest-input" type="number" min="1" max="9999" value="${sq.target}"
+              onchange="app.updateSeasonQuestTarget(this.value)" />
+            <span style="font-size:0.75rem;color:var(--text-muted)">${sq.unit}</span>
+            <span style="margin-left:auto;font-size:0.75rem;color:var(--accent-purple)">+${sq.xpReward} XP</span>
+          </div>` : `
+          <div class="season-quest-footer">
+            <span style="font-size:0.75rem;color:var(--accent-green)">🏅 Badge ${sq.emoji} débloqué !</span>
+            <span style="margin-left:auto;font-size:0.75rem;color:var(--accent-purple)">+${sq.xpReward} XP accordés</span>
+          </div>`}
+        </div>
+      `;
+    }
+
     el.innerHTML = `
       <div class="season-widget-card">
         <div class="season-widget-header">
@@ -2347,6 +2515,7 @@ const app = {
           ${season.history?.length > 0 ? `<span>📜 ${season.history.length} saison${season.history.length > 1 ? 's' : ''} archivée${season.history.length > 1 ? 's' : ''}</span>` : ''}
         </div>
       </div>
+      ${questHtml}
     `;
   },
 
@@ -3269,7 +3438,7 @@ const app = {
     return true;
   },
 
-  checkAllBadges() {
+  checkAllBadges(silent = false) {
     const logs = this.state.logs;
     const rec = this.state.records;
     const weekLogs = this.getWeekLogs();
@@ -3318,20 +3487,20 @@ const app = {
     const weekJap      = weekLogs.reduce((s, l) => s + (l?.japanese || 0), 0);
     const moodDays     = Object.values(logs).filter(l => l.mood > 0).length;
     const focusDone    = this.state.rpg?.focusSessionsCompleted || 0;
-    const heroLvl      = this.state.rpg?.hero?.lvl || 1;
     const activeHabits = this.state.habits.length;
 
-    // ── Build fresh badge map (recalculate from scratch) ──
-    const oldBadges = { ...this.state.unlockedBadges };
-    const newBadges = {};
+    // ── Additive badge system: only ADD to existing unlockedBadges, never wipe ──
+    // This means cloud sync or any timing issue can never cause a badge to "disappear".
+    if (!this.state.unlockedBadges) this.state.unlockedBadges = {};
+    const badges = this.state.unlockedBadges;
     const today = this.getDateKey(new Date());
+    const newlyGranted = [];  // track which badges are granted THIS call (for toasts)
 
-    // Helper: grant badge if condition met, OR if already unlocked (sticky).
-    // Badges are achievements — once earned they are never removed here.
-    // Exception: level badges are explicitly removed below when level drops.
+    // Helper: add badge if condition met AND not yet earned. Never removes (except level badges below).
     const grant = (id, condition) => {
-      if (condition || oldBadges[id]) {
-        newBadges[id] = oldBadges[id] || today;
+      if (condition && !badges[id]) {
+        badges[id] = today;
+        newlyGranted.push(id);
       }
     };
 
@@ -3364,7 +3533,6 @@ const app = {
     grant('habits-100-week', habitPerfectStreak >= 7);
     grant('streak-7-log', this.calculateLogStreak() >= 7);
     grant('4-sessions-4weeks', fourSessionWeeks >= 4);
-    grant('level-5', this.state.level >= 5);
 
     // ── Long badges ──
     grant('streak-60-jap', japStreak >= 60);
@@ -3376,7 +3544,6 @@ const app = {
     grant('10000m-dplus', rec.totalDplus >= 10000);
     grant('80km-week', weekKm >= 80);
     grant('25-discoveries', totalDisc >= 25);
-    grant('level-10', this.state.level >= 10);
     grant('habits-100-month', habitPerfectStreak >= 30);
     grant('500-jap-min', rec.totalJapMinutes >= 500);
 
@@ -3387,8 +3554,6 @@ const app = {
     grant('5000km-total', rec.totalKm >= 5000);
     grant('50000m-dplus', rec.totalDplus >= 50000);
     grant('50-discoveries', totalDisc >= 50);
-    grant('level-20', this.state.level >= 20);
-    grant('level-50', this.state.level >= 50);
     grant('1000-jap-min', rec.totalJapMinutes >= 1000);
 
     // ── Badges saisonniers (accordés selon le rang atteint dans l'historique) ──
@@ -3444,37 +3609,45 @@ const app = {
     grant('mood-tracker',    moodDays >= 7);
 
     // ── Badges Polyvalence ──
-    const firstBadgesDone = ['first-run','first-japanese','first-habit','first-discovery'].every(id => newBadges[id]);
+    const firstBadgesDone = ['first-run','first-japanese','first-habit','first-discovery'].every(id => badges[id]);
     grant('all-rounder',     firstBadgesDone);
     grant('perfect-3',       habitPerfectStreak >= 3);
 
-    // ── Stabilization: update badges → recalculate XP/level → re-check level badges ──
-    this.state.unlockedBadges = newBadges;
-    this.recalculateXP();  // recalc XP with updated badge count → updates level
+    // ── Phase 5 — Quêtes Saisonnières : vérifier complétion + accorder badge ──
+    this.checkSeasonQuestProgress(silent);
+    const sqHistory = this.state.rpg?.seasonQuests?.history || [];
+    const sqActive  = this.state.rpg?.seasonQuests?.active;
+    const completedSeasons = new Set([
+      ...sqHistory.filter(q => q.completed).map(q => q.season),
+      ...(sqActive?.completed ? [sqActive.season] : []),
+    ]);
+    grant('quest-spring', completedSeasons.has('spring'));
+    grant('quest-summer', completedSeasons.has('summer'));
+    grant('quest-autumn', completedSeasons.has('autumn'));
+    grant('quest-winter', completedSeasons.has('winter'));
 
-    // Re-check level-dependent badges after XP recalculation
-    grant('level-5', this.state.level >= 5);
-    grant('level-10', this.state.level >= 10);
-    grant('level-20', this.state.level >= 20);
-    grant('level-50', this.state.level >= 50);
-
-    // Remove level badges that no longer qualify
-    ['level-5', 'level-10', 'level-20', 'level-50'].forEach(id => {
-      const thresholds = { 'level-5': 5, 'level-10': 10, 'level-20': 20, 'level-50': 50 };
-      if (this.state.level < thresholds[id]) delete newBadges[id];
-    });
-
-    // Final apply
-    this.state.unlockedBadges = newBadges;
-    this.recalculateXP();  // Final XP with correct badge count
-
-    // ── Show toasts only for newly unlocked badges ──
-    Object.keys(newBadges).forEach(id => {
-      if (!oldBadges[id]) {
-        const badge = this.badges.find(b => b.id === id);
-        if (badge) this.showToast(`🏅 Badge débloqué : ${badge.emoji} ${badge.name} !`);
+    // ── Level badges: recalculate XP/level first, then grant/revoke ──
+    this.recalculateXP();  // updates this.state.level based on current badge count
+    const levelThresholds = { 'level-5': 5, 'level-10': 10, 'level-20': 20, 'level-50': 50 };
+    Object.entries(levelThresholds).forEach(([id, threshold]) => {
+      if (this.state.level >= threshold) {
+        grant(id, true);
+      } else {
+        // Revoke level badge if level drops below threshold
+        if (badges[id]) delete badges[id];
       }
     });
+
+    // Recalculate XP one more time to account for level badge changes
+    this.recalculateXP();
+
+    // ── Show toasts only for badges earned THIS call (not in silent mode) ──
+    if (!silent) {
+      newlyGranted.forEach(id => {
+        const badge = this.badges.find(b => b.id === id);
+        if (badge) this.showToast(`🏅 Badge débloqué : ${badge.emoji} ${badge.name} !`);
+      });
+    }
 
     this.saveData();
     this.renderGameSection();
@@ -3633,16 +3806,33 @@ const app = {
       const horizonLabels = { quick: '1 sem', medium: '1 mois', long: '3-6 mois', epic: '1 an+' };
 
       // Accent : couleur saisonnière si badge de saison, sinon couleur de rareté
-      let accent;
-      if      (b.id.startsWith('spring-')) accent = 'spring';
-      else if (b.id.startsWith('summer-')) accent = 'summer';
-      else if (b.id.startsWith('autumn-')) accent = 'autumn';
-      else if (b.id.startsWith('winter-')) accent = 'winter';
-      else if (b.category === 'saison')    accent = 'season';  // badges de rang
-      else                                  accent = b.horizon; // quick/medium/long/epic
+      const accentPalette = {
+        quick:  { border: 'rgba(16,185,129,0.45)',  bg: 'rgba(16,185,129,0.10)',  glow: 'rgba(16,185,129,0.20)' },
+        medium: { border: 'rgba(59,130,246,0.45)',   bg: 'rgba(59,130,246,0.10)',   glow: 'rgba(59,130,246,0.20)' },
+        long:   { border: 'rgba(168,85,247,0.45)',   bg: 'rgba(168,85,247,0.10)',   glow: 'rgba(168,85,247,0.20)' },
+        epic:   { border: 'rgba(251,191,36,0.55)',   bg: 'rgba(251,191,36,0.12)',   glow: 'rgba(251,191,36,0.28)' },
+        spring: { border: 'rgba(74,222,128,0.50)',   bg: 'rgba(74,222,128,0.12)',   glow: 'rgba(74,222,128,0.24)' },
+        summer: { border: 'rgba(251,191,36,0.50)',   bg: 'rgba(251,191,36,0.12)',   glow: 'rgba(251,191,36,0.24)' },
+        autumn: { border: 'rgba(251,146,60,0.50)',   bg: 'rgba(251,146,60,0.12)',   glow: 'rgba(251,146,60,0.24)' },
+        winter: { border: 'rgba(96,165,250,0.50)',   bg: 'rgba(96,165,250,0.12)',   glow: 'rgba(96,165,250,0.24)' },
+        season: { border: 'rgba(251,191,36,0.55)',   bg: 'rgba(251,191,36,0.12)',   glow: 'rgba(251,191,36,0.28)' },
+      };
+
+      let accentKey;
+      if      (b.id.startsWith('spring-')) accentKey = 'spring';
+      else if (b.id.startsWith('summer-')) accentKey = 'summer';
+      else if (b.id.startsWith('autumn-')) accentKey = 'autumn';
+      else if (b.id.startsWith('winter-')) accentKey = 'winter';
+      else if (b.category === 'saison')    accentKey = 'season';
+      else                                  accentKey = b.horizon;
+
+      const ac = accentPalette[accentKey] || accentPalette.medium;
+      const cardStyle = unlocked
+        ? `background: linear-gradient(135deg, ${ac.bg}, rgba(0,0,0,0)); border-color: ${ac.border}; box-shadow: 0 0 14px ${ac.glow}, inset 0 0 20px ${ac.bg};`
+        : '';
 
       return `
-        <div class="badge-card ${unlocked ? 'unlocked' : 'locked'}" data-horizon="${b.horizon}" data-accent="${accent}">
+        <div class="badge-card ${unlocked ? 'unlocked' : 'locked'}" data-horizon="${b.horizon}" style="${cardStyle}">
           <div class="badge-emoji">${unlocked ? b.emoji : '🔒'}</div>
           <div class="badge-name">${unlocked ? b.name : '???'}</div>
           <div class="badge-desc">${b.desc}</div>
