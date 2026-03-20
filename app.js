@@ -958,14 +958,17 @@ const app = {
         const tokenEndpoint = 'https://polaraccesslink.com/v3/oauth2/token';
         const url = proxyUrl ? `${proxyUrl}/${tokenEndpoint}` : tokenEndpoint;
 
+        // Polar exige les credentials en HTTP Basic Auth (RFC 6749 §2.3.1)
+        const basicAuth = btoa(`${this.state.config.polarClientId}:${this.state.config.polarClientSecret}`);
         const response = await fetch(url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Authorization': `Basic ${basicAuth}`,
+          },
           body: new URLSearchParams({
             grant_type: 'refresh_token',
             refresh_token: this.state.polar.refreshToken,
-            client_id: this.state.config.polarClientId,
-            client_secret: this.state.config.polarClientSecret,
           }),
         });
 
@@ -1041,14 +1044,17 @@ const app = {
       const tokenUrl = proxyUrl ? `${proxyUrl}/${tokenEndpoint}` : tokenEndpoint;
       const redirectUri = window.location.href.split('?')[0];
 
+      // Polar exige les credentials en HTTP Basic Auth (RFC 6749 §2.3.1)
+      const basicAuth = btoa(`${clientId}:${clientSecret}`);
       const response = await fetch(tokenUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Basic ${basicAuth}`,
+        },
         body: new URLSearchParams({
           grant_type: 'authorization_code',
           code,
-          client_id: clientId,
-          client_secret: clientSecret,
           redirect_uri: redirectUri,
         }),
       });
