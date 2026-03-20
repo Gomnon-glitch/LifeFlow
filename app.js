@@ -1471,7 +1471,10 @@ const app = {
 
     const hasSleepData = days.some(d => d.sleep != null);
     const hasStepsData = days.some(d => d.steps != null);
-    if (!hasSleepData && !hasStepsData) return '';
+    if (!hasSleepData && !hasStepsData) return `
+      <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid rgba(255,255,255,0.06);font-size:0.75rem;color:var(--text-muted);text-align:center;padding-bottom:0.25rem;">
+        📊 Tendances disponibles après la première sync avec données
+      </div>`;
 
     const avgSleep = hasSleepData
       ? (days.filter(d => d.sleep != null).reduce((s, d) => s + d.sleep, 0) / days.filter(d => d.sleep != null).length).toFixed(1)
@@ -1582,6 +1585,11 @@ const app = {
           linkedSlotCategory: null,
           ...h,
         };
+      });
+      // Migration : ajouter les habitudes par défaut manquantes (ex: nouvelles habitudes Polar)
+      const existingIds = new Set(this.state.habits.map(h => h.id));
+      this.defaultHabits.forEach(def => {
+        if (!existingIds.has(def.id)) this.state.habits.push({ ...def });
       });
       // Ensure gamification state exists (for data saved before gamification was added)
       if (!this.state.questCompleted) this.state.questCompleted = {};
