@@ -2917,3 +2917,115 @@ body.theme-winter .now-banner::before { background: radial-gradient(circle, rgba
   padding: 1rem;
   color: var(--text-muted);
 }
+
+/* ============================================
+   OFFLINE RETURN RITUAL
+   ============================================ */
+
+@keyframes ormOverlayIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ormOverlayOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes ormModalIn    { from { opacity: 0; transform: translateY(32px) scale(0.93); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes ormModalOut   { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(16px) scale(0.96); } }
+@keyframes ormFloat      { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-120px) scale(0.6); opacity: 0; } }
+@keyframes ormGlow       { 0%, 100% { box-shadow: 0 0 12px rgba(var(--accent-blue-rgb, 99,179,237), 0.25); } 50% { box-shadow: 0 0 28px rgba(var(--accent-blue-rgb, 99,179,237), 0.55); } }
+@keyframes ormLvlPulse   { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+@keyframes ormValueIn    { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+.offline-return-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 10000;
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(6px);
+  align-items: center;
+  justify-content: center;
+  animation: ormOverlayIn 0.3s ease forwards;
+}
+.offline-return-overlay.active  { display: flex; }
+.offline-return-overlay.orm-exit { animation: ormOverlayOut 0.35s ease forwards; }
+
+.offline-return-modal {
+  position: relative;
+  background: var(--surface-2, #1e2a3a);
+  border: 1px solid rgba(99,179,237,0.25);
+  border-radius: 20px;
+  padding: 2rem 1.75rem 1.75rem;
+  max-width: 360px; width: 92%;
+  text-align: center;
+  overflow: hidden;
+  animation: ormModalIn 0.4s cubic-bezier(.22,.68,0,1.2) forwards;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(99,179,237,0.1);
+}
+.offline-return-overlay.orm-exit .offline-return-modal {
+  animation: ormModalOut 0.35s ease forwards;
+}
+
+/* Particules flottantes */
+.orm-particles { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.orm-particle  {
+  position: absolute; bottom: -1.5rem; font-size: 1.2rem;
+  animation: ormFloat linear forwards;
+}
+
+.orm-icon    { font-size: 2.8rem; margin-bottom: 0.4rem; display: block; }
+.orm-title   { font-size: 1.15rem; font-weight: 700; color: var(--text-primary, #e2e8f0); margin-bottom: 0.2rem; }
+.orm-subtitle{ font-size: 0.82rem; color: var(--text-muted, #718096); margin-bottom: 1.1rem; }
+
+/* Level-up banner */
+.orm-levelup-banner {
+  background: linear-gradient(90deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05));
+  border: 1px solid rgba(245,158,11,0.4);
+  border-radius: 10px;
+  padding: 0.55rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #f59e0b;
+  animation: ormLvlPulse 1.6s ease-in-out 0.5s 3;
+}
+.orm-lvl-before { color: var(--text-muted, #718096); }
+.orm-lvl-arrow  { margin: 0 0.35rem; }
+.orm-lvl-after  { font-size: 1.2rem; color: #f59e0b; }
+
+/* Grille des gains */
+.orm-gains-grid {
+  display: grid; grid-template-columns: repeat(3,1fr);
+  gap: 0.6rem; margin-bottom: 1rem;
+}
+.orm-gain-cell {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 0.7rem 0.4rem;
+  animation: ormGlow 3s ease-in-out infinite;
+}
+.orm-gain-icon  { font-size: 1.4rem; margin-bottom: 0.2rem; }
+.orm-gain-value {
+  font-size: 1.35rem; font-weight: 800;
+  color: var(--accent-blue, #63b3ed);
+  font-variant-numeric: tabular-nums;
+  min-height: 1.6rem;
+  animation: ormValueIn 0.4s ease 0.4s both;
+}
+.orm-gain-label { font-size: 0.68rem; color: var(--text-muted, #718096); margin-top: 0.15rem; }
+
+/* Loot */
+.orm-loot-section { margin-bottom: 0.9rem; }
+.orm-section-label{ font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.4rem; }
+.orm-loot-list  { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center; }
+.orm-loot-badge {
+  background: rgba(99,179,237,0.1); border: 1px solid rgba(99,179,237,0.2);
+  border-radius: 20px; padding: 0.25rem 0.65rem;
+  font-size: 0.78rem; color: var(--text-primary, #e2e8f0);
+}
+
+.orm-wave-status {
+  font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.1rem;
+}
+.orm-collect-btn {
+  width: 100%; padding: 0.8rem; font-size: 1rem; font-weight: 700;
+  border-radius: 12px; letter-spacing: 0.02em;
+  background: linear-gradient(135deg, var(--accent-blue,#63b3ed), #7c3aed);
+  border: none; cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.orm-collect-btn:active { transform: scale(0.97); }

@@ -2186,18 +2186,19 @@ const app = {
     const wavesGained = Math.min(Math.floor(minutes * wavesPerMin), minutes * 5);
     // Efficacité hors-ligne : 50% (le héros n'est pas là pour gérer les défaites)
     const offlineEfficiency = 0.5;
-    let xpGained = 0, goldGained = 0, lootCount = 0;
+    let xpGained = 0, goldGained = 0;
+    const lootItems = [];
+    const luck = hero.luck || 10;
     for (let i = 0; i < wavesGained; i++) {
       const e = this.getEnemyStats(wave + i);
       xpGained  += e.xp;
       goldGained += e.gold;
       if ((i + 1) % 5 === 0) {
-        const luck = hero.luck || 10;
         const lootRate = this.getLootRate(luck) * offlineEfficiency;
         if (Math.random() < lootRate) {
-          lootCount++;
           const item = this.generateItem(wave + i);
           this.addToInventory(item);
+          lootItems.push(item);
         }
       }
     }
@@ -2218,15 +2219,129 @@ const app = {
     rpg.offlineProcessed = rpg.lastUpdate;
     rpg.lastUpdate = Date.now();
     const lvlAfter = rpg.hero.lvl || 1;
-    const parts = [];
-    if (xpGained > 0)   parts.push(`+${xpGained} XP`);
-    if (lvlAfter > lvlBefore) parts.push(`Niv. ${lvlBefore}→${lvlAfter} ⚡`);
-    if (goldGained > 0) parts.push(`+${goldGained}💰`);
-    if (wavesGained > 0) parts.push(`${wavesGained} vagues`);
-    if (lootCount > 0)  parts.push(`${lootCount} item(s)`);
-    if (parts.length > 0) {
+    // Afficher le rituel de retour si absence significative (≥5 min), sinon toast simple
+    const hasGains = xpGained > 0 || goldGained > 0 || wavesGained > 0;
+    if (!hasGains) return;
+    if (minutes >= 5) {
+      // Délai pour laisser le DOM s'initialiser complètement
+      setTimeout(() => this.showOfflineReturnModal({
+        minutes, xpGained, goldGained, wavesGained,
+        lootItems, lvlBefore, lvlAfter,
+        currentWave: rpg.currentWave || 1,
+        highestWave: rpg.highestWave || 1,
+      }), 600);
+    } else {
+      const parts = [];
+      if (xpGained > 0)         parts.push(`+${xpGained} XP`);
+      if (lvlAfter > lvlBefore) parts.push(`Niv. ${lvlBefore}→${lvlAfter} ⚡`);
+      if (goldGained > 0)       parts.push(`+${goldGained}💰`);
+      if (wavesGained > 0)      parts.push(`${wavesGained} vagues`);
       this.showToast(`⏰ Hors-ligne (${minutes} min) : ${parts.join(' · ')}`);
     }
+  },
+
+  // ─── Rituel de Retour Hors-ligne ─────────────────────────────────────────
+  showOfflineReturnModal({ minutes, xpGained, goldGained, wavesGained, lootItems, lvlBefore, lvlAfter, currentWave, highestWave }) {
+    const overlay = document.getElementById('offlineReturnOverlay');
+    const modal   = document.getElementById('offlineReturnModal');
+    if (!overlay || !modal) {
+      // fallback toast
+      this.showToast(`⏰ Hors-ligne (${minutes} min) : +${xpGained} XP · +${goldGained}💰`);
+      return;
+    }
+
+    const fmt = (m) => m >= 60
+      ? `${Math.floor(m / 60)}h${m % 60 > 0 ? String(m % 60).padStart(2,'0') : ''}`
+      : `${m} min`;
+
+    const lvlUpHtml = lvlAfter > lvlBefore ? `
+      <div class="orm-levelup-banner">
+        ⚡ Niveau <span class="orm-lvl-before">${lvlBefore}</span>
+        <span class="orm-lvl-arrow">→</span>
+        <span class="orm-lvl-after">${lvlAfter}</span>
+      </div>` : '';
+
+    const lootHtml = lootItems.length > 0 ? `
+      <div class="orm-loot-section">
+        <div class="orm-section-label">📦 Butins récupérés</div>
+        <div class="orm-loot-list">
+          ${lootItems.map(it => `<span class="orm-loot-badge">${it.emoji} ${it.name}</span>`).join('')}
+        </div>
+      </div>` : '';
+
+    modal.innerHTML = `
+      <div class="orm-particles" id="ormParticles"></div>
+      <div class="orm-icon">⏰</div>
+      <div class="orm-title">Retour après <strong>${fmt(minutes)}</strong></div>
+      <div class="orm-subtitle">Ton héros a tenu le combat en ton absence</div>
+      ${lvlUpHtml}
+      <div class="orm-gains-grid">
+        <div class="orm-gain-cell">
+          <div class="orm-gain-icon">⚡</div>
+          <div class="orm-gain-value" id="ormXp">0</div>
+          <div class="orm-gain-label">XP héros</div>
+        </div>
+        <div class="orm-gain-cell">
+          <div class="orm-gain-icon">💰</div>
+          <div class="orm-gain-value" id="ormGold">0</div>
+          <div class="orm-gain-label">Gold pillé</div>
+        </div>
+        <div class="orm-gain-cell">
+          <div class="orm-gain-icon">🌊</div>
+          <div class="orm-gain-value" id="ormWaves">0</div>
+          <div class="orm-gain-label">Vagues</div>
+        </div>
+      </div>
+      ${lootHtml}
+      <div class="orm-wave-status">
+        Vague <strong>${currentWave}</strong> · Record <strong>${highestWave}</strong>
+      </div>
+      <button class="btn btn-primary orm-collect-btn" onclick="app.closeOfflineReturnModal()">
+        ✨ Récupérer les gains
+      </button>
+    `;
+
+    overlay.classList.add('active');
+
+    // Particules flottantes
+    const particlesEl = document.getElementById('ormParticles');
+    if (particlesEl) {
+      const emojis = ['⭐','💰','⚡','🔮','✨','🎯'];
+      for (let i = 0; i < 12; i++) {
+        const p = document.createElement('span');
+        p.className = 'orm-particle';
+        p.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        p.style.cssText = `left:${5 + Math.random() * 88}%;animation-delay:${Math.random() * 2.5}s;animation-duration:${1.8 + Math.random() * 1.5}s`;
+        particlesEl.appendChild(p);
+      }
+    }
+
+    // Compteurs animés (démarrent 400ms après ouverture)
+    setTimeout(() => {
+      this.animateCountUp(document.getElementById('ormXp'),    xpGained,   1200);
+      this.animateCountUp(document.getElementById('ormGold'),  goldGained, 1000);
+      this.animateCountUp(document.getElementById('ormWaves'), wavesGained, 900);
+    }, 400);
+  },
+
+  animateCountUp(el, target, duration) {
+    if (!el) return;
+    if (target === 0) { el.textContent = '0'; return; }
+    const start = performance.now();
+    const tick = (now) => {
+      const t = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      el.textContent = Math.round(target * eased).toLocaleString('fr-FR');
+      if (t < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  },
+
+  closeOfflineReturnModal() {
+    const overlay = document.getElementById('offlineReturnOverlay');
+    if (!overlay) return;
+    overlay.classList.add('orm-exit');
+    setTimeout(() => { overlay.classList.remove('active', 'orm-exit'); }, 350);
   },
 
   getHeroStats() {
@@ -2470,7 +2585,7 @@ const app = {
     const bonusPct = Math.round(this.getHeritageBonus(oldSeason.rank) * 100);
     const newSd = this.getCurrentSeason();
     const overlay = document.getElementById('modalOverlay');
-    const container = document.getElementById('modalContainer');
+    const container = document.getElementById('modal');
     if (!overlay || !container) return;
     container.innerHTML = `
       <div class="modal-header">
