@@ -955,7 +955,7 @@ const app = {
     if (Date.now() > this.state.polar.expiresAt - 300000) {
       try {
         const proxyUrl = this.getPolarProxyUrl();
-        const tokenEndpoint = 'https://polaraccesslink.com/v3/oauth2/token';
+        const tokenEndpoint = 'https://flow.polar.com/oauth2/token';
         const url = proxyUrl ? `${proxyUrl}/${tokenEndpoint}` : tokenEndpoint;
 
         // Polar exige les credentials en HTTP Basic Auth (RFC 6749 §2.3.1)
