@@ -1040,7 +1040,7 @@ const app = {
 
     try {
       const proxyUrl = this.getPolarProxyUrl();
-      const tokenEndpoint = 'https://polaraccesslink.com/v3/oauth2/token';
+      const tokenEndpoint = 'https://polarremote.com/v2/oauth2/token';
       const tokenUrl = proxyUrl ? `${proxyUrl}/${tokenEndpoint}` : tokenEndpoint;
       const redirectUri = window.location.href.split('?')[0];
 
