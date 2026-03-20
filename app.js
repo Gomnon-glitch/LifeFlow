@@ -1210,6 +1210,7 @@ const app = {
       this.state.polar.lastSync = Date.now();
       this.saveData();
       this.autoValidatePolarHabits();
+      this.applyPolarRPGEffects();
       this.recalculateXP();
       this.checkWeeklyQuests();
       this.checkAllBadges();
@@ -1255,6 +1256,36 @@ const app = {
     if (autoValidated.length > 0) {
       const names = [...new Set(autoValidated.map(a => a.habit.name))].join(', ');
       this.showToast(`✅ Habitudes validées automatiquement : ${names}`);
+    }
+  },
+
+  applyPolarRPGEffects() {
+    const hero = this.state.rpg?.hero;
+    if (!hero) return;
+
+    // Cherche la nuit la plus récente avec données sommeil (aujourd'hui ou hier)
+    let sleep = null, recovery = null;
+    for (let i = 0; i <= 1; i++) {
+      const key = this.getDateKey(new Date(Date.now() - i * 86400000));
+      const log = this.state.logs[key] || {};
+      if (log.sleepDuration != null) { sleep = log.sleepDuration; recovery = log.recoveryScore ?? null; break; }
+    }
+    if (sleep === null) return;
+
+    const hpMax = hero.hpMax || 100;
+    if (sleep >= 7) {
+      const heal = Math.round(hpMax * 0.2);
+      hero.hp = Math.min(hpMax, (hero.hp || hpMax) + heal);
+      this.showToast(`😴 Bonne nuit (${sleep.toFixed(1)}h) ! Héros +${heal} HP`);
+    } else if (sleep < 6) {
+      const dmg = Math.round(hpMax * 0.1);
+      hero.hp = Math.max(1, (hero.hp || hpMax) - dmg);
+      this.showToast(`😴 Nuit courte (${sleep.toFixed(1)}h)... Héros −${dmg} HP`);
+    }
+
+    // Récupération excellente → bonus XP direct
+    if (recovery != null && recovery >= 70) {
+      this.showToast(`💚 Récupération ${recovery}/100 — Héros en pleine forme !`);
     }
   },
 
@@ -2099,12 +2130,44 @@ const app = {
     }
   },
 
+  renderPolarFatigueBanner() {
+    const el = document.getElementById('polarFatigueBanner');
+    if (!el) return;
+    if (!this.state.polar?.connected) { el.style.display = 'none'; return; }
+
+    const today = this.getDateKey(new Date());
+    const hier = this.getDateKey(new Date(Date.now() - 86400000));
+    const log = this.state.logs[today] || this.state.logs[hier] || {};
+    const recovery = log.recoveryScore ?? null;
+    const sleep = log.sleepDuration ?? null;
+
+    const fatigued = (recovery !== null && recovery < 40) || (sleep !== null && sleep < 6);
+    const overloaded = recovery !== null && recovery < 20;
+
+    if (!fatigued) { el.style.display = 'none'; return; }
+
+    el.style.display = 'block';
+    const msg = overloaded
+      ? `⚠️ Récupération très faible (${recovery}/100) — Privilégie le repos et les étirements aujourd'hui.`
+      : sleep !== null && sleep < 6
+        ? `💤 Nuit courte (${sleep.toFixed(1)}h) — Évite les efforts intenses, hydrate-toi bien.`
+        : `⚠️ Récupération faible (${recovery}/100) — Séance légère recommandée.`;
+    const color = overloaded ? 'rgba(220,38,38,0.15)' : 'rgba(245,158,11,0.12)';
+    const border = overloaded ? 'rgba(220,38,38,0.3)' : 'rgba(245,158,11,0.3)';
+
+    el.innerHTML = `
+      <div style="background:${color};border:1px solid ${border};border-radius:10px;padding:0.65rem 1rem;font-size:0.82rem;color:var(--text-secondary);margin-bottom:0.75rem;">
+        ${msg}
+      </div>`;
+  },
+
   // ============================================
   // DASHBOARD / KPIs
   // ============================================
   renderDashboard() {
     this.loadTodayLog();
     this.renderPolarHealthCard();
+    this.renderPolarFatigueBanner();
     this.renderKPIs();
     this.renderWeeklyScore();
     this.renderMiniCharts();
@@ -4085,6 +4148,11 @@ const app = {
       if (hasRun) dotsHtml += `<div class="day-dot dot-run" title="Course" style="${getStickerStyle(key+'run')}"></div>`;
       if (hasJp) dotsHtml += `<div class="day-dot dot-japanese" title="Japonais" style="${getStickerStyle(key+'jp')}"></div>`;
       if (hasJournal) dotsHtml += `<div class="day-dot dot-log" title="Journal" style="${getStickerStyle(key+'log')}"></div>`;
+      // Dots santé Polar
+      if (this.state.polar?.connected) {
+        if ((log.sleepDuration ?? 0) >= 7)  dotsHtml += `<div class="day-dot" title="Sommeil ≥7h 😴" style="background:var(--accent-purple);${getStickerStyle(key+'sleep')}"></div>`;
+        if ((log.steps ?? 0) >= 10000)      dotsHtml += `<div class="day-dot" title="10 000 pas 🚶" style="background:var(--accent-blue);${getStickerStyle(key+'steps')}"></div>`;
+      }
       // Gommettes colorées par habitude (Phase 0)
       this.state.habits.forEach((habit) => {
         const checked = this.state.habitChecks[key]?.[habit.id];
