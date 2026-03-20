@@ -47,7 +47,8 @@ const app = {
       accessToken: null,
       refreshToken: null,
       expiresAt: null,
-      memberId: null,
+      memberId: null,    // member-id custom (utilisé pour la registration)
+      polarUserId: null, // polar-user-id numérique (utilisé pour les appels API)
       lastSync: null,
     },
     // Gamification
@@ -1114,19 +1115,16 @@ const app = {
     });
 
     if (res.status === 409) {
-      // Utilisateur déjà enregistré dans cette app
-      if (this.state.polar.memberId) {
-        console.info('Polar: utilisateur déjà enregistré, memberId existant conservé.');
-        return;
+      console.info('Polar: utilisateur déjà enregistré dans AccessLink.');
+      // Récupérer le polar-user-id depuis le body 409 si on ne l'a pas encore
+      if (!this.state.polar.polarUserId) {
+        try {
+          const body = await res.json();
+          console.info('Polar 409 body:', JSON.stringify(body));
+          const pid = body['polar-user-id'];
+          if (pid) this.state.polar.polarUserId = String(pid);
+        } catch (_) {}
       }
-      // Tenter d'extraire le memberId depuis la réponse 409 si disponible
-      try {
-        const body = await res.json();
-        const id = body['polar-user-id'] || body['member-id'];
-        if (id) { this.state.polar.memberId = String(id); return; }
-      } catch (_) {}
-      // memberId introuvable : on prévient mais on continue (la sync échouera avec 404)
-      this.showToast('⚠️ Polar: compte déjà lié mais ID non récupéré. Si la sync échoue, déconnectez puis re-liez.', 'warning');
       return;
     }
 
@@ -1135,8 +1133,14 @@ const app = {
     }
 
     const data = await res.json();
-    this.state.polar.memberId = String(data['polar-user-id'] || data['member-id'] || '');
-    console.info(`Polar: utilisateur enregistré, memberId = ${this.state.polar.memberId}`);
+    console.info('Polar registration response:', JSON.stringify(data));
+    // polar-user-id = ID numérique Polar utilisé dans les URLs d'API
+    // member-id    = notre ID custom utilisé uniquement pour la registration
+    this.state.polar.polarUserId = String(data['polar-user-id'] || '');
+    if (!this.state.polar.polarUserId) {
+      throw new Error('Polar registration: polar-user-id absent de la réponse');
+    }
+    console.info(`Polar: enregistré — polar-user-id=${this.state.polar.polarUserId}, member-id=${this.state.polar.memberId}`);
   },
 
   disconnectPolar() {
@@ -1158,7 +1162,8 @@ const app = {
       this.showToast('❌ Polar non connecté. Liez votre compte dans Config.');
       return;
     }
-    if (!this.state.polar.memberId) {
+    const polarUserId = this.state.polar.polarUserId || this.state.polar.memberId;
+    if (!polarUserId) {
       this.showToast('❌ ID utilisateur Polar manquant. Déconnectez et re-liez votre compte.');
       return;
     }
@@ -1206,7 +1211,7 @@ const app = {
   async syncPolarSleep(fromDate, toDate) {
     const res = await this.polarFetch(
       'GET',
-      `/v3/users/${this.state.polar.memberId}/sleep?from=${fromDate}&to=${toDate}`
+      `/v3/users/${this.state.polar.polarUserId || this.state.polar.memberId}/sleep?from=${fromDate}&to=${toDate}`
     );
 
     if (res.status === 204 || res.status === 404) return; // Pas de données
@@ -1251,7 +1256,7 @@ const app = {
   },
 
   async syncPolarDailyActivity() {
-    const uid = this.state.polar.memberId;
+    const uid = this.state.polar.polarUserId || this.state.polar.memberId;
 
     // Créer une transaction d'activité
     const txRes = await this.polarFetch('POST', `/v3/users/${uid}/activity-transactions`);
