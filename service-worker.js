@@ -3,7 +3,7 @@
    Offline caching + Notification scheduling
    ============================================ */
 
-const CACHE_NAME = 'lifeflow-v26';
+const CACHE_NAME = 'lifeflow-v27';
 const ASSETS = [
     './',
     './index.html',
@@ -44,8 +44,13 @@ self.addEventListener('activate', (event) => {
 
 // ============================================
 // FETCH — Network first, fallback to cache (for offline)
+// Seuls les assets locaux sont interceptés — les API externes passent directement
 // ============================================
 self.addEventListener('fetch', (event) => {
+    // Ne pas intercepter les requêtes vers des API externes (Polar, Strava, Firebase, Cloudflare...)
+    const url = new URL(event.request.url);
+    if (url.origin !== self.location.origin) return;
+
     event.respondWith(
         fetch(event.request).then((response) => {
             // Update cache with fresh response
