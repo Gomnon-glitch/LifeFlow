@@ -1116,15 +1116,21 @@ const app = {
 
     if (res.status === 409) {
       console.info('Polar: utilisateur déjà enregistré dans AccessLink.');
-      // Récupérer le polar-user-id depuis le body 409 si on ne l'a pas encore
-      if (!this.state.polar.polarUserId) {
-        try {
-          const body = await res.json();
-          console.info('Polar 409 body:', JSON.stringify(body));
-          const pid = body['polar-user-id'];
+      try {
+        const body = await res.json();
+        console.info('Polar 409 body:', JSON.stringify(body));
+        // L'ID est dans body.error.message : "User userid:46214141 with membertag..."
+        const message = body?.error?.message || '';
+        const match = message.match(/userid:(\d+)/);
+        if (match) {
+          this.state.polar.polarUserId = match[1];
+          console.info(`Polar: polarUserId extrait du 409 = ${this.state.polar.polarUserId}`);
+        } else {
+          // Fallback : champ direct si Polar change le format
+          const pid = body['polar-user-id'] || body?.error?.['polar-user-id'];
           if (pid) this.state.polar.polarUserId = String(pid);
-        } catch (_) {}
-      }
+        }
+      } catch (_) {}
       return;
     }
 
