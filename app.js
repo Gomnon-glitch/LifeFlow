@@ -281,6 +281,8 @@ const app = {
     { id: 'hab-log',        name: '📝 Journal du soir',      icon: '📝', frequency: 'daily', color: '--accent-green',  linkedSlotCategory: null      },
     { id: 'hab-hydration',  name: '💧 Hydratation (2L+)',    icon: '💧', frequency: 'daily', color: '--accent-cyan',   linkedSlotCategory: null      },
     { id: 'hab-no-scroll',  name: '📵 Pas de scroll > 1h',  icon: '📵', frequency: 'daily', color: '--accent-pink',   linkedSlotCategory: null      },
+    { id: 'hab-sleep',      name: '😴 Dormir 7h+',           icon: '😴', frequency: 'daily', color: '--accent-purple', linkedSlotCategory: null,     polarLinked: true, polarCondition: { field: 'sleepDuration', min: 7 } },
+    { id: 'hab-steps',      name: '🚶 10 000 pas',           icon: '🚶', frequency: 'daily', color: '--accent-green',  linkedSlotCategory: null,     polarLinked: true, polarCondition: { field: 'steps', min: 10000 } },
   ],
 
   // Mapping type de créneau → catégorie générique (pour l'ancrage habitude↔planning)
@@ -331,6 +333,13 @@ const app = {
     { id: 'level-5', emoji: '🎖️', name: 'Trailer', desc: 'Atteindre le niveau 5', category: 'général', horizon: 'medium' },
     { id: '10-quests', emoji: '⚔️', name: 'Mercenaire régulier', desc: 'Compléter 10 quêtes au total', category: 'général', horizon: 'medium' },
     { id: 'perfect-week-quests', emoji: '🎯', name: 'Le compte est bon', desc: "Compléter les 3 quêtes d'une semaine", category: 'général', horizon: 'medium' },
+
+    // ───── 🫀 SANTÉ POLAR ─────
+    { id: 'polar-first-sync',   emoji: '🫀', name: 'Battement de cœur', desc: 'Première sync Polar avec des données réelles',    category: 'santé', horizon: 'quick'  },
+    { id: 'polar-perfect-day',  emoji: '⚡', name: 'Journée vitale',    desc: 'Sommeil ≥7h + 10 000 pas le même jour',           category: 'santé', horizon: 'quick'  },
+    { id: 'polar-sleep-7d',     emoji: '😴', name: 'Dormeur solide',    desc: '7 nuits consécutives avec ≥7h de sommeil',        category: 'santé', horizon: 'medium' },
+    { id: 'polar-steps-7d',     emoji: '🚶', name: 'Marcheur régulier', desc: '7 jours consécutifs à ≥10 000 pas',               category: 'santé', horizon: 'medium' },
+    { id: 'polar-recovery-pro', emoji: '💚', name: 'Récupération pro',  desc: '5 jours avec score de récupération ≥70',          category: 'santé', horizon: 'medium' },
 
     // ───── 🟣 LONG (3-6 mois) ─────
     { id: 'streak-60-jap', emoji: '🏯', name: 'Samouraï', desc: 'Streak japonais de 60 jours', category: 'japonais', horizon: 'long' },
@@ -467,6 +476,9 @@ const app = {
     perfectHabitDay: 15,    // bonus: all habits in a day
     runSession: 15,         // per session logged
     perfectPlanningDay: 25, // bonus: Perfect Day (≥80% habits + ≥3 slots validés)
+    polarSleep: 10,         // per day with sleepDuration ≥ 7h
+    polarSteps: 10,         // per day with steps ≥ 10 000
+    polarRecovery: 15,      // per day with recoveryScore ≥ 70
   },
 
   // ============================================
@@ -1197,6 +1209,7 @@ const app = {
 
       this.state.polar.lastSync = Date.now();
       this.saveData();
+      this.autoValidatePolarHabits();
       this.recalculateXP();
       this.checkWeeklyQuests();
       this.checkAllBadges();
@@ -1211,6 +1224,37 @@ const app = {
     } finally {
       if (syncBtn) syncBtn.classList.remove('loading');
       if (dashBtn) dashBtn.classList.remove('loading');
+    }
+  },
+
+  autoValidatePolarHabits() {
+    if (!this.state.polar?.connected) return;
+    const polarHabits = this.state.habits.filter(h => h.polarLinked && h.polarCondition);
+    if (!polarHabits.length) return;
+
+    // Valider sur les 7 derniers jours pour rattraper les nuits récentes
+    const autoValidated = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(Date.now() - i * 86400000);
+      const dateKey = this.getDateKey(d);
+      const log = this.state.logs[dateKey];
+      if (!log) continue;
+
+      if (!this.state.habitChecks[dateKey]) this.state.habitChecks[dateKey] = {};
+
+      for (const habit of polarHabits) {
+        const { field, min } = habit.polarCondition;
+        const value = log[field] ?? null;
+        if (value !== null && value >= min && !this.state.habitChecks[dateKey][habit.id]) {
+          this.state.habitChecks[dateKey][habit.id] = true;
+          autoValidated.push({ habit, dateKey });
+        }
+      }
+    }
+
+    if (autoValidated.length > 0) {
+      const names = [...new Set(autoValidated.map(a => a.habit.name))].join(', ');
+      this.showToast(`✅ Habitudes validées automatiquement : ${names}`);
     }
   },
 
@@ -1403,7 +1447,7 @@ const app = {
           </div>
         </div>
         ${steps != null ? `
-        <div>
+        <div style="margin-bottom:0.75rem;">
           <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">
             <span>🚶 Objectif pas quotidien</span><span>${stepsStr} / 10 000</span>
           </div>
@@ -1411,6 +1455,57 @@ const app = {
             <div style="height:100%;width:${stepsPct}%;background:${stepsColor};border-radius:3px;transition:width 0.4s;"></div>
           </div>
         </div>` : ''}
+        ${this._renderPolarWeeklyTrends()}
+      </div>`;
+  },
+
+  _renderPolarWeeklyTrends() {
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86400000);
+      const key = this.getDateKey(d);
+      const log = this.state.logs[key] || {};
+      const label = d.toLocaleDateString('fr-FR', { weekday: 'short' }).slice(0, 3);
+      days.push({ key, label, sleep: log.sleepDuration ?? null, steps: log.steps ?? null });
+    }
+
+    const hasSleepData = days.some(d => d.sleep != null);
+    const hasStepsData = days.some(d => d.steps != null);
+    if (!hasSleepData && !hasStepsData) return '';
+
+    const avgSleep = hasSleepData
+      ? (days.filter(d => d.sleep != null).reduce((s, d) => s + d.sleep, 0) / days.filter(d => d.sleep != null).length).toFixed(1)
+      : null;
+    const avgSteps = hasStepsData
+      ? Math.round(days.filter(d => d.steps != null).reduce((s, d) => s + d.steps, 0) / days.filter(d => d.steps != null).length)
+      : null;
+    const maxSteps = hasStepsData ? Math.max(...days.map(d => d.steps ?? 0), 1) : 1;
+
+    return `
+      <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid rgba(255,255,255,0.06);">
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.5rem;">
+          Tendances 7 jours
+          ${avgSleep != null ? `<span style="margin-left:0.75rem;">😴 moy. <strong style="color:var(--text-primary);">${avgSleep}h</strong></span>` : ''}
+          ${avgSteps != null ? `<span style="margin-left:0.75rem;">🚶 moy. <strong style="color:var(--text-primary);">${avgSteps.toLocaleString('fr-FR')}</strong></span>` : ''}
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;align-items:end;height:52px;">
+          ${days.map(d => {
+            const sleepH = d.sleep != null ? Math.min(Math.round((d.sleep / 9) * 100), 100) : 0;
+            const sleepColor = d.sleep == null ? 'rgba(255,255,255,0.06)' : d.sleep >= 7 ? 'var(--accent-green)' : d.sleep >= 6 ? 'var(--accent-orange)' : 'var(--accent-red)';
+            const stepsH = d.steps != null ? Math.min(Math.round((d.steps / maxSteps) * 100), 100) : 0;
+            const stepsColor = d.steps == null ? 'transparent' : d.steps >= 10000 ? 'var(--accent-blue)' : 'rgba(96,165,250,0.4)';
+            return `
+              <div style="display:flex;flex-direction:column;align-items:center;gap:2px;height:100%;">
+                ${hasSleepData ? `<div style="width:100%;height:${sleepH}%;min-height:2px;background:${sleepColor};border-radius:2px 2px 0 0;margin-top:auto;" title="${d.sleep != null ? d.sleep+'h' : 'N/A'}"></div>` : '<div style="flex:1"></div>'}
+                ${hasStepsData ? `<div style="width:100%;height:${stepsH}%;min-height:${d.steps != null ? 2 : 0}px;background:${stepsColor};border-radius:2px 2px 0 0;margin-top:auto;" title="${d.steps != null ? d.steps.toLocaleString('fr-FR')+' pas' : 'N/A'}"></div>` : ''}
+                <div style="font-size:0.6rem;color:var(--text-muted);text-align:center;">${d.label}</div>
+              </div>`;
+          }).join('')}
+        </div>
+        <div style="display:flex;gap:1rem;margin-top:0.4rem;font-size:0.68rem;color:var(--text-muted);">
+          ${hasSleepData ? '<span><span style="display:inline-block;width:8px;height:8px;background:var(--accent-green);border-radius:2px;margin-right:3px;"></span>Sommeil</span>' : ''}
+          ${hasStepsData ? '<span><span style="display:inline-block;width:8px;height:8px;background:var(--accent-blue);border-radius:2px;margin-right:3px;"></span>Pas</span>' : ''}
+        </div>
       </div>`;
   },
 
@@ -4220,6 +4315,13 @@ const app = {
       xp += (arr.length || 0) * r.discoveryTried;
     });
 
+    // XP from Polar health data
+    Object.values(this.state.logs).forEach(log => {
+      if ((log.sleepDuration ?? 0) >= 7)     xp += r.polarSleep;
+      if ((log.steps ?? 0) >= 10000)         xp += r.polarSteps;
+      if ((log.recoveryScore ?? 0) >= 70)    xp += r.polarRecovery;
+    });
+
     // XP from badges
     xp += Object.keys(this.state.unlockedBadges).length * r.badgeUnlocked;
 
@@ -4481,6 +4583,38 @@ const app = {
     grant('log-20',          totalLogs >= 20);
     grant('log-50',          totalLogs >= 50);
     grant('mood-tracker',    moodDays >= 7);
+
+    // ── Badges Santé Polar ──
+    if (this.state.polar?.connected) {
+      const allLogs = Object.values(logs);
+      const hasPolarData = allLogs.some(l => l.sleepDuration != null || l.steps != null);
+      grant('polar-first-sync', hasPolarData);
+
+      // Journée vitale : sommeil ≥7h ET steps ≥10000 le même jour
+      const hasPerfectDay = Object.values(logs).some(l => (l.sleepDuration ?? 0) >= 7 && (l.steps ?? 0) >= 10000);
+      grant('polar-perfect-day', hasPerfectDay);
+
+      // Streak sommeil ≥7h sur 7 jours consécutifs
+      let sleepStreak = 0, maxSleepStreak = 0;
+      const sortedKeys = Object.keys(logs).sort();
+      sortedKeys.forEach(k => {
+        if ((logs[k]?.sleepDuration ?? 0) >= 7) { sleepStreak++; maxSleepStreak = Math.max(maxSleepStreak, sleepStreak); }
+        else sleepStreak = 0;
+      });
+      grant('polar-sleep-7d', maxSleepStreak >= 7);
+
+      // Streak steps ≥10000 sur 7 jours consécutifs
+      let stepsStreak = 0, maxStepsStreak = 0;
+      sortedKeys.forEach(k => {
+        if ((logs[k]?.steps ?? 0) >= 10000) { stepsStreak++; maxStepsStreak = Math.max(maxStepsStreak, stepsStreak); }
+        else stepsStreak = 0;
+      });
+      grant('polar-steps-7d', maxStepsStreak >= 7);
+
+      // 5 jours avec récupération ≥70
+      const goodRecoveryDays = allLogs.filter(l => (l.recoveryScore ?? 0) >= 70).length;
+      grant('polar-recovery-pro', goodRecoveryDays >= 5);
+    }
 
     // ── Badges Polyvalence ──
     const firstBadgesDone = ['first-run','first-japanese','first-habit','first-discovery'].every(id => badges[id]);
