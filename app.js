@@ -951,8 +951,9 @@ const app = {
   async getValidPolarToken() {
     if (!this.state.polar?.connected) return null;
 
-    // Rafraîchir si expiration dans moins de 5 minutes
-    if (Date.now() > this.state.polar.expiresAt - 300000) {
+    // Rafraîchir si expiration connue et dans moins de 5 minutes
+    const expiresAt = this.state.polar.expiresAt;
+    if (expiresAt && this.state.polar.refreshToken && Date.now() > expiresAt - 300000) {
       try {
         const proxyUrl = this.getPolarProxyUrl();
         const tokenEndpoint = 'https://polarremote.com/v2/oauth2/token';
