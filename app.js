@@ -28,7 +28,10 @@ const app = {
       discoveries: 2,
       monthGoal: '',
       notes: '',
-      enableSounds: true
+      enableSounds: true,
+      polarClientId: '',
+      polarClientSecret: '',
+      polarProxyUrl: '',
     },
     discoveryAccepted: {},  // { weekKey: [index, index] }
     weekPlannings: {},      // { "2026-W10": { "mon-evening1": { type: 'run', label: '...' } } }
@@ -38,6 +41,14 @@ const app = {
       refreshToken: null,
       expiresAt: null,
       athleteId: null
+    },
+    polar: {
+      connected: false,
+      accessToken: null,
+      refreshToken: null,
+      expiresAt: null,
+      memberId: null,
+      lastSync: null,
     },
     // Gamification
     level: 1,
@@ -595,8 +606,9 @@ const app = {
     this.updateRecords();
     this.checkAllBadges();
 
-    // Check strava params if returning from oauth
+    // Check OAuth callbacks (Strava & Polar)
     this.checkStravaAuthCallback();
+    this.checkPolarAuthCallback();
 
     // Update "now" banner every minute
     setInterval(() => this.updateNowBanner(), 60000);
@@ -826,6 +838,8 @@ const app = {
 
   async checkStravaAuthCallback() {
     const urlParams = new URLSearchParams(window.location.search);
+    // Guard: ne pas traiter si c'est un callback Polar
+    if (urlParams.get('state') === 'polar_oauth') return;
     const code = urlParams.get('code');
     const error = urlParams.get('error');
 
@@ -897,6 +911,276 @@ const app = {
       
       // Release the lock after a short delay to allow Firebase to settle
       setTimeout(() => { this.isResolvingStrava = false; }, 5000);
+    }
+  },
+
+  // ============================================
+  // POLAR INTEGRATION
+  // ============================================
+
+  // Helper : requête authentifiée vers l'API Polar avec support proxy CORS optionnel
+  async polarFetch(method, path, body = null) {
+    const token = this.state.polar?.accessToken;
+    if (!token) throw new Error('No Polar access token');
+
+    const baseUrl = 'https://www.polaraccesslink.com';
+    const proxyUrl = this.state.config.polarProxyUrl?.trim() || '';
+    const targetUrl = `${baseUrl}${path}`;
+    const fullUrl = proxyUrl ? `${proxyUrl}/${targetUrl}` : targetUrl;
+
+    const opts = {
+      method,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+      },
+    };
+    if (body !== null) {
+      opts.headers['Content-Type'] = 'application/json';
+      opts.body = JSON.stringify(body);
+    }
+
+    return fetch(fullUrl, opts);
+  },
+
+  async getValidPolarToken() {
+    if (!this.state.polar?.connected) return null;
+
+    // Rafraîchir si expiration dans moins de 5 minutes
+    if (Date.now() > this.state.polar.expiresAt - 300000) {
+      try {
+        const proxyUrl = this.state.config.polarProxyUrl?.trim() || '';
+        const tokenEndpoint = 'https://polaraccesslink.com/v3/oauth2/token';
+        const url = proxyUrl ? `${proxyUrl}/${tokenEndpoint}` : tokenEndpoint;
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            grant_type: 'refresh_token',
+            refresh_token: this.state.polar.refreshToken,
+            client_id: this.state.config.polarClientId,
+            client_secret: this.state.config.polarClientSecret,
+          }),
+        });
+
+        if (!response.ok) throw new Error(`Polar token refresh failed: ${response.status}`);
+        const data = await response.json();
+
+        this.state.polar.accessToken = data.access_token;
+        if (data.refresh_token) this.state.polar.refreshToken = data.refresh_token;
+        this.state.polar.expiresAt = Date.now() + (data.expires_in * 1000);
+        this.saveData();
+
+      } catch (err) {
+        console.error('Erreur renouvellement token Polar:', err);
+        return null;
+      }
+    }
+
+    return this.state.polar.accessToken;
+  },
+
+  async connectPolar() {
+    this.saveConfig();
+    const clientId = this.state.config.polarClientId?.trim();
+
+    if (!clientId) {
+      this.showToast('❌ Veuillez renseigner le Client ID Polar.');
+      return;
+    }
+
+    const redirectUri = window.location.href.split('?')[0];
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      scope: 'accesslink.read_all',
+      state: 'polar_oauth',   // Identifiant pour distinguer du callback Strava
+    });
+
+    window.location.href = `https://flow.polar.com/oauth2/authorization?${params.toString()}`;
+  },
+
+  async checkPolarAuthCallback() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const oauthState = urlParams.get('state');
+    const code = urlParams.get('code');
+    const error = urlParams.get('error');
+
+    // Traiter uniquement les callbacks Polar
+    if (oauthState !== 'polar_oauth') return;
+
+    if (error) {
+      this.showToast('❌ Connexion Polar refusée.');
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return;
+    }
+
+    if (!code) return;
+
+    this.showToast('🔄 Finalisation de la connexion Polar...');
+
+    const clientId = this.state.config.polarClientId?.trim();
+    const clientSecret = this.state.config.polarClientSecret?.trim();
+
+    if (!clientId || !clientSecret) {
+      this.showToast('❌ Client ID ou Secret Polar manquant. Reconfigurez.');
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return;
+    }
+
+    try {
+      const proxyUrl = this.state.config.polarProxyUrl?.trim() || '';
+      const tokenEndpoint = 'https://polaraccesslink.com/v3/oauth2/token';
+      const tokenUrl = proxyUrl ? `${proxyUrl}/${tokenEndpoint}` : tokenEndpoint;
+      const redirectUri = window.location.href.split('?')[0];
+
+      const response = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          code,
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: redirectUri,
+        }),
+      });
+
+      if (!response.ok) {
+        const errBody = await response.text().catch(() => '');
+        throw new Error(`Token exchange failed (${response.status}): ${errBody}`);
+      }
+
+      const data = await response.json();
+
+      // Stocker les tokens (avant de marquer connected=true)
+      this.state.polar.accessToken = data.access_token;
+      this.state.polar.refreshToken = data.refresh_token;
+      this.state.polar.expiresAt = Date.now() + (data.expires_in * 1000);
+
+      // Étape obligatoire : enregistrer l'utilisateur dans AccessLink
+      await this.registerPolarUser(data.access_token);
+
+      this.state.polar.connected = true;
+      this.state.polar.lastSync = null;
+      this.saveData();
+      this.updatePolarStatus();
+      this.showToast('✅ Polar connecté avec succès ! Synchronisez vos données.');
+
+    } catch (err) {
+      console.error('Polar Auth Error:', err);
+      // Réinitialiser les tokens en cas d'échec
+      this.state.polar.accessToken = null;
+      this.state.polar.refreshToken = null;
+      this.state.polar.expiresAt = null;
+      this.showToast('❌ Erreur lors de la connexion Polar. Vérifiez vos identifiants.');
+    }
+
+    window.history.replaceState({}, document.title, window.location.pathname);
+  },
+
+  async registerPolarUser(accessToken) {
+    const proxyUrl = this.state.config.polarProxyUrl?.trim() || '';
+    const endpoint = 'https://www.polaraccesslink.com/v3/users';
+    const url = proxyUrl ? `${proxyUrl}/${endpoint}` : endpoint;
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (res.status === 409) {
+      // Utilisateur déjà enregistré dans cette app
+      if (this.state.polar.memberId) {
+        console.info('Polar: utilisateur déjà enregistré, memberId existant conservé.');
+        return;
+      }
+      // Tenter d'extraire le memberId depuis la réponse 409 si disponible
+      try {
+        const body = await res.json();
+        const id = body['polar-user-id'] || body['member-id'];
+        if (id) { this.state.polar.memberId = String(id); return; }
+      } catch (_) {}
+      // memberId introuvable : on prévient mais on continue (la sync échouera avec 404)
+      this.showToast('⚠️ Polar: compte déjà lié mais ID non récupéré. Si la sync échoue, déconnectez puis re-liez.', 'warning');
+      return;
+    }
+
+    if (!res.ok) {
+      throw new Error(`Polar registration failed: ${res.status}`);
+    }
+
+    const data = await res.json();
+    this.state.polar.memberId = String(data['polar-user-id'] || data['member-id'] || '');
+    console.info(`Polar: utilisateur enregistré, memberId = ${this.state.polar.memberId}`);
+  },
+
+  disconnectPolar() {
+    this.state.polar = {
+      connected: false,
+      accessToken: null,
+      refreshToken: null,
+      expiresAt: null,
+      memberId: null,
+      lastSync: null,
+    };
+    this.saveData();
+    this.updatePolarStatus();
+    this.showToast('🔌 Polar déconnecté.');
+  },
+
+  updatePolarStatus() {
+    const statusEl = document.getElementById('polarStatus');
+    const btnConnect = document.getElementById('btnConnectPolar');
+    const btnDisconnect = document.getElementById('btnDisconnectPolar');
+    const syncBtn = document.getElementById('polarSyncBtn');
+    const lastSyncEl = document.getElementById('polarLastSync');
+    const dashboardBtn = document.getElementById('dashboardSyncPolarBtn');
+
+    const connected = this.state.polar?.connected;
+
+    if (connected) {
+      if (statusEl) {
+        statusEl.textContent = 'Statut : Connecté à Polar ✅';
+        statusEl.style.color = 'var(--accent-green)';
+        statusEl.style.display = 'block';
+      }
+      if (btnConnect) {
+        btnConnect.textContent = '🔄 Reconnecter';
+        btnConnect.classList.remove('btn-primary');
+        btnConnect.classList.add('btn-outline');
+      }
+      if (btnDisconnect) btnDisconnect.style.display = 'inline-flex';
+      if (syncBtn) syncBtn.style.display = 'block';
+      if (dashboardBtn) dashboardBtn.style.display = 'block';
+      if (lastSyncEl) {
+        const ls = this.state.polar.lastSync;
+        lastSyncEl.textContent = ls
+          ? `Dernière sync : ${new Date(ls).toLocaleString('fr-FR')}`
+          : 'Jamais synchronisé';
+        lastSyncEl.style.display = 'block';
+      }
+    } else {
+      if (statusEl) {
+        statusEl.textContent = 'Statut : Déconnecté';
+        statusEl.style.color = 'var(--text-secondary)';
+        statusEl.style.display = 'block';
+      }
+      if (btnConnect) {
+        btnConnect.textContent = '🔗 Lier mon compte Polar';
+        btnConnect.classList.remove('btn-outline');
+        btnConnect.classList.add('btn-primary');
+      }
+      if (btnDisconnect) btnDisconnect.style.display = 'none';
+      if (syncBtn) syncBtn.style.display = 'none';
+      if (dashboardBtn) dashboardBtn.style.display = 'none';
+      if (lastSyncEl) lastSyncEl.style.display = 'none';
     }
   },
 
@@ -988,6 +1272,14 @@ const app = {
       if (this.state.rpg.stravaBuff === undefined) this.state.rpg.stravaBuff = null;
       if (!this.state.rpg.combatState) this.state.rpg.combatState = null;
       if (typeof this.state.rpg.hero.hpMax !== 'number') this.state.rpg.hero.hpMax = 100;
+      // Polar — Migration
+      if (!this.state.polar) this.state.polar = { connected: false, accessToken: null, refreshToken: null, expiresAt: null, memberId: null, lastSync: null };
+      if (!this.state.config.polarClientId) this.state.config.polarClientId = '';
+      if (!this.state.config.polarClientSecret) this.state.config.polarClientSecret = '';
+      if (!this.state.config.polarProxyUrl) this.state.config.polarProxyUrl = '';
+      // Polar RPG buffs — Migration
+      if (this.state.rpg.polarStepsBuff === undefined) this.state.rpg.polarStepsBuff = null;
+      if (this.state.rpg.polarSleepDebuff === undefined) this.state.rpg.polarSleepDebuff = null;
     } catch (e) {
       console.warn('Could not load saved data:', e);
     }
@@ -3573,7 +3865,7 @@ const app = {
   // CONFIG
   // ============================================
   saveConfig() {
-    const fields = ['name', 'wakeTime', 'bedTime', 'workEnd', 'weeklyKm', 'runningSessions', 'weeklyDplus', 'japaneseWords', 'maxScreentime', 'discoveries', 'monthGoal', 'notes', 'stravaClientId', 'stravaClientSecret'];
+    const fields = ['name', 'wakeTime', 'bedTime', 'workEnd', 'weeklyKm', 'runningSessions', 'weeklyDplus', 'japaneseWords', 'maxScreentime', 'discoveries', 'monthGoal', 'notes', 'stravaClientId', 'stravaClientSecret', 'polarClientId', 'polarClientSecret', 'polarProxyUrl'];
     fields.forEach(field => {
       const el = document.getElementById(`config-${field}`);
       if (el) {
@@ -3592,6 +3884,7 @@ const app = {
       if (el) el.value = config[key] || '';
     });
     this.updateStravaStatus();
+    this.updatePolarStatus();
   },
 
   // ============================================

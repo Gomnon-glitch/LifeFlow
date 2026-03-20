@@ -85,6 +85,9 @@
           <button class="btn" id="dashboardSyncStravaBtn" style="position: absolute; bottom: 20px; right: 20px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); display: none;" onclick="app.syncStravaActivities()">
             🔄 Sync Strava
           </button>
+          <button class="btn" id="dashboardSyncPolarBtn" style="position: absolute; bottom: 20px; right: 130px; background: rgba(220,38,38,0.2); border: 1px solid rgba(220,38,38,0.3); display: none;" onclick="app.syncPolarData()">
+            🫀 Sync Polar
+          </button>
         </div>
 
         <!-- Quick Daily Log -->
@@ -526,6 +529,75 @@
             <div id="stravaStatus" style="display: none; font-size: 0.85rem; text-align: center; margin-top: 1rem; color: var(--text-secondary);">
               Statut: Déconnecté
             </div>
+          </div>
+
+          <!-- Polar AccessLink Config -->
+          <div class="config-section">
+            <h3>🫀 Import Automatique Polar</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+              Synchronise ton sommeil, ta récupération et ton activité quotidienne depuis ton compte Polar Flow.
+            </p>
+            <div class="form-group">
+              <label>Client ID (API Polar)</label>
+              <input type="text" class="form-input" id="config-polarClientId" placeholder="Ex: abc123def456"
+                onchange="app.saveConfig()">
+            </div>
+            <div class="form-group">
+              <label>Client Secret (API Polar)</label>
+              <input type="password" class="form-input" id="config-polarClientSecret" placeholder="Ton secret (ne le partage pas)"
+                onchange="app.saveConfig()">
+            </div>
+            <div class="form-group">
+              <label style="display:flex;align-items:center;gap:6px;">
+                Proxy CORS
+                <span title="Optionnel. Si les appels Polar échouent (CORS), entre ici l'URL de ton proxy Cloudflare Worker. Ex: https://mon-proxy.workers.dev" style="cursor:help;font-size:0.8rem;color:var(--accent-blue);">ℹ️</span>
+              </label>
+              <input type="text" class="form-input" id="config-polarProxyUrl" placeholder="https://mon-proxy.workers.dev (optionnel)"
+                onchange="app.saveConfig()">
+            </div>
+            <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
+              <button class="btn btn-primary" onclick="app.connectPolar()" id="btnConnectPolar" style="flex:1;justify-content:center;">
+                🔗 Lier mon compte Polar
+              </button>
+              <button class="btn btn-danger" onclick="app.disconnectPolar()" id="btnDisconnectPolar" style="display:none;">
+                🔌 Délier
+              </button>
+            </div>
+            <button class="btn btn-outline" onclick="app.syncPolarData()" id="polarSyncBtn" style="width:100%;justify-content:center;margin-top:0.5rem;display:none;">
+              🔄 Synchroniser les données Polar
+            </button>
+            <div id="polarStatus" style="font-size: 0.85rem; text-align: center; margin-top: 0.75rem; color: var(--text-secondary);">
+              Statut : Déconnecté
+            </div>
+            <div id="polarLastSync" style="display:none;font-size:0.75rem;color:var(--text-muted);text-align:center;margin-top:0.25rem;"></div>
+            <!-- Instructions CORS proxy -->
+            <details style="margin-top:1rem;">
+              <summary style="font-size:0.8rem;color:var(--text-secondary);cursor:pointer;">💡 Aide — Proxy CORS (si nécessaire)</summary>
+              <div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.5rem;line-height:1.6;">
+                <p>Si la connexion échoue avec une erreur CORS, crée un proxy <strong>Cloudflare Worker</strong> gratuit :</p>
+                <ol style="padding-left:1.2rem;margin-top:0.4rem;">
+                  <li>Va sur <strong>dash.cloudflare.com</strong> → Workers &amp; Pages → Create Worker</li>
+                  <li>Remplace le code par :</li>
+                </ol>
+                <pre style="background:rgba(0,0,0,0.3);padding:0.5rem;border-radius:6px;font-size:0.72rem;overflow-x:auto;margin-top:0.4rem;">export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+    const target = request.url.replace(url.origin + '/', '');
+    const res = await fetch(target, {
+      method: request.method,
+      headers: request.headers,
+      body: request.method !== 'GET' ? request.body : undefined,
+    });
+    const r = new Response(res.body, res);
+    r.headers.set('Access-Control-Allow-Origin', '*');
+    r.headers.set('Access-Control-Allow-Headers',
+      'Authorization, Content-Type, Accept');
+    return r;
+  }
+};</pre>
+                <p style="margin-top:0.4rem;">3. Déploie et copie l'URL du worker dans le champ "Proxy CORS" ci-dessus.</p>
+              </div>
+            </details>
           </div>
 
         </div>
