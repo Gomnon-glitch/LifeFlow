@@ -918,13 +918,18 @@ const app = {
   // POLAR INTEGRATION
   // ============================================
 
+  // Retourne l'URL du proxy CORS sans slash final (évite les doubles slashes)
+  getPolarProxyUrl() {
+    return (this.state.config.polarProxyUrl || '').trim().replace(/\/+$/, '');
+  },
+
   // Helper : requête authentifiée vers l'API Polar avec support proxy CORS optionnel
   async polarFetch(method, path, body = null) {
     const token = this.state.polar?.accessToken;
     if (!token) throw new Error('No Polar access token');
 
     const baseUrl = 'https://www.polaraccesslink.com';
-    const proxyUrl = this.state.config.polarProxyUrl?.trim() || '';
+    const proxyUrl = this.getPolarProxyUrl();
     const targetUrl = `${baseUrl}${path}`;
     const fullUrl = proxyUrl ? `${proxyUrl}/${targetUrl}` : targetUrl;
 
@@ -949,7 +954,7 @@ const app = {
     // Rafraîchir si expiration dans moins de 5 minutes
     if (Date.now() > this.state.polar.expiresAt - 300000) {
       try {
-        const proxyUrl = this.state.config.polarProxyUrl?.trim() || '';
+        const proxyUrl = this.getPolarProxyUrl();
         const tokenEndpoint = 'https://polaraccesslink.com/v3/oauth2/token';
         const url = proxyUrl ? `${proxyUrl}/${tokenEndpoint}` : tokenEndpoint;
 
@@ -1031,7 +1036,7 @@ const app = {
     }
 
     try {
-      const proxyUrl = this.state.config.polarProxyUrl?.trim() || '';
+      const proxyUrl = this.getPolarProxyUrl();
       const tokenEndpoint = 'https://polaraccesslink.com/v3/oauth2/token';
       const tokenUrl = proxyUrl ? `${proxyUrl}/${tokenEndpoint}` : tokenEndpoint;
       const redirectUri = window.location.href.split('?')[0];
@@ -1082,7 +1087,7 @@ const app = {
   },
 
   async registerPolarUser(accessToken) {
-    const proxyUrl = this.state.config.polarProxyUrl?.trim() || '';
+    const proxyUrl = this.getPolarProxyUrl();
     const endpoint = 'https://www.polaraccesslink.com/v3/users';
     const url = proxyUrl ? `${proxyUrl}/${endpoint}` : endpoint;
 
