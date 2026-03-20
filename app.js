@@ -1217,7 +1217,9 @@ const app = {
       this.renderDashboard();
       this.renderVisualCalendar();
       this.updatePolarStatus();
-      this.showToast('✅ Polar synchronisé !');
+      const todayKey = this.getDateKey(new Date());
+      const score = this.computeLifeFlowScore(todayKey);
+      this.showToast(`✅ Polar synchronisé !${score != null ? ` Score LifeFlow : ${score}/100` : ''}`);
 
     } catch (err) {
       console.error('Polar sync error:', err);
@@ -1257,6 +1259,35 @@ const app = {
       const names = [...new Set(autoValidated.map(a => a.habit.name))].join(', ');
       this.showToast(`✅ Habitudes validées automatiquement : ${names}`);
     }
+  },
+
+  // Score LifeFlow (0-100) : sommeil 35%, récupération 35%, pas 30%
+  // Normalisé sur les métriques disponibles — retourne null si aucune donnée
+  computeLifeFlowScore(dateKey) {
+    const log = this.state.logs[dateKey] || {};
+    const parts = [];
+
+    // Sommeil (max 35 pts)
+    if (log.sleepDuration != null) {
+      const s = log.sleepDuration;
+      const pts = s >= 8 ? 35 : s >= 7 ? 28 : s >= 6 ? 18 : 5;
+      parts.push({ pts, max: 35 });
+    }
+
+    // Récupération (max 35 pts)
+    if (log.recoveryScore != null) {
+      parts.push({ pts: Math.round((log.recoveryScore / 100) * 35), max: 35 });
+    }
+
+    // Pas (max 30 pts)
+    if (log.steps != null) {
+      parts.push({ pts: Math.min(Math.round((log.steps / 10000) * 30), 30), max: 30 });
+    }
+
+    if (!parts.length) return null;
+    const totalPts = parts.reduce((s, p) => s + p.pts, 0);
+    const totalMax = parts.reduce((s, p) => s + p.max, 0);
+    return Math.round((totalPts / totalMax) * 100);
   },
 
   applyPolarRPGEffects() {
@@ -1430,6 +1461,9 @@ const app = {
       return;
     }
 
+    // Score LifeFlow
+    const lifeflowScore = this.computeLifeFlowScore(today);
+
     // Couleurs dynamiques
     const rec = log.recoveryScore ?? null;
     const recColor = rec == null ? 'var(--text-muted)' : rec >= 70 ? 'var(--accent-green)' : rec >= 40 ? 'var(--accent-orange)' : 'var(--accent-red)';
@@ -1452,6 +1486,7 @@ const app = {
           <div class="card-title">🫀 Santé Polar</div>
           <button class="btn btn-outline" style="font-size:0.8rem;padding:4px 10px;" onclick="app.syncPolarData()">🔄 Sync</button>
         </div>
+        ${this._renderLifeFlowScore(lifeflowScore)}
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem;text-align:center;margin-bottom:1rem;">
           <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:0.75rem 0.25rem;">
             <div style="font-size:1.4rem;">😴</div>
@@ -1539,6 +1574,30 @@ const app = {
         <div style="display:flex;gap:1rem;margin-top:0.4rem;font-size:0.68rem;color:var(--text-muted);">
           ${hasSleepData ? '<span><span style="display:inline-block;width:8px;height:8px;background:var(--accent-green);border-radius:2px;margin-right:3px;"></span>Sommeil</span>' : ''}
           ${hasStepsData ? '<span><span style="display:inline-block;width:8px;height:8px;background:var(--accent-blue);border-radius:2px;margin-right:3px;"></span>Pas</span>' : ''}
+        </div>
+      </div>`;
+  },
+
+  _renderLifeFlowScore(score) {
+    if (score === null) return '';
+    const color = score >= 80 ? 'var(--accent-green)' : score >= 60 ? '#86efac' : score >= 40 ? 'var(--accent-orange)' : 'var(--accent-red)';
+    const label = score >= 80 ? 'Excellent' : score >= 60 ? 'Bon' : score >= 40 ? 'Moyen' : 'Faible';
+    const r = 32, circ = +(2 * Math.PI * r).toFixed(1);
+    const dash = +((score / 100) * circ).toFixed(1);
+    return `
+      <div style="display:flex;align-items:center;gap:1.25rem;padding:0.75rem;background:rgba(255,255,255,0.03);border-radius:12px;margin-bottom:1rem;border:1px solid rgba(255,255,255,0.06);">
+        <svg width="80" height="80" viewBox="0 0 80 80" style="flex-shrink:0;">
+          <circle cx="40" cy="40" r="${r}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="7"/>
+          <circle cx="40" cy="40" r="${r}" fill="none" stroke="${color}" stroke-width="7"
+            stroke-dasharray="${dash} ${circ}" stroke-linecap="round"
+            transform="rotate(-90 40 40)"/>
+          <text x="40" y="37" text-anchor="middle" font-size="18" font-weight="700" fill="${color}" font-family="Inter,sans-serif">${score}</text>
+          <text x="40" y="50" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.35)" font-family="Inter,sans-serif">/100</text>
+        </svg>
+        <div>
+          <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:2px;">Score LifeFlow du jour</div>
+          <div style="font-size:1.5rem;font-weight:800;color:${color};line-height:1.1;">${label}</div>
+          <div style="font-size:0.68rem;color:var(--text-muted);margin-top:5px;">😴 Sommeil &nbsp;·&nbsp; 💚 Récupération &nbsp;·&nbsp; 🚶 Activité</div>
         </div>
       </div>`;
   },
