@@ -1135,6 +1135,256 @@ const app = {
     this.showToast('🔌 Polar déconnecté.');
   },
 
+  async syncPolarData() {
+    if (!this.state.polar?.connected) {
+      this.showToast('❌ Polar non connecté. Liez votre compte dans Config.');
+      return;
+    }
+    if (!this.state.polar.memberId) {
+      this.showToast('❌ ID utilisateur Polar manquant. Déconnectez et re-liez votre compte.');
+      return;
+    }
+
+    this.showToast('🔄 Synchronisation Polar en cours...');
+    const syncBtn = document.getElementById('polarSyncBtn');
+    const dashBtn = document.getElementById('dashboardSyncPolarBtn');
+    if (syncBtn) syncBtn.classList.add('loading');
+    if (dashBtn) dashBtn.classList.add('loading');
+
+    try {
+      const token = await this.getValidPolarToken();
+      if (!token) {
+        this.showToast('❌ Token Polar expiré. Veuillez vous reconnecter.');
+        return;
+      }
+
+      // 1. Sommeil — 7 derniers jours (endpoint direct, pas de transaction)
+      const today = this.getDateKey(new Date());
+      const weekAgo = this.getDateKey(new Date(Date.now() - 7 * 24 * 3600 * 1000));
+      await this.syncPolarSleep(weekAgo, today);
+
+      // 2. Activité quotidienne — steps + calories (via transaction)
+      await this.syncPolarDailyActivity();
+
+      this.state.polar.lastSync = Date.now();
+      this.saveData();
+      this.recalculateXP();
+      this.checkWeeklyQuests();
+      this.checkAllBadges();
+      this.renderDashboard();
+      this.renderVisualCalendar();
+      this.updatePolarStatus();
+      this.showToast('✅ Polar synchronisé !');
+
+    } catch (err) {
+      console.error('Polar sync error:', err);
+      this.showToast('❌ Erreur sync Polar. Voir la console pour les détails.');
+    } finally {
+      if (syncBtn) syncBtn.classList.remove('loading');
+      if (dashBtn) dashBtn.classList.remove('loading');
+    }
+  },
+
+  async syncPolarSleep(fromDate, toDate) {
+    const res = await this.polarFetch(
+      'GET',
+      `/v3/users/${this.state.polar.memberId}/sleep?from=${fromDate}&to=${toDate}`
+    );
+
+    if (res.status === 204 || res.status === 404) return; // Pas de données
+    if (!res.ok) {
+      console.warn(`Polar sleep sync: réponse ${res.status}`);
+      return;
+    }
+
+    const data = await res.json();
+    const nights = data['nights'] || [];
+
+    for (const night of nights) {
+      const dateKey = night.date;
+      if (!dateKey) continue;
+
+      if (!this.state.logs[dateKey]) this.state.logs[dateKey] = {};
+      const log = this.state.logs[dateKey];
+
+      // Durée totale sommeil : total_sleep_time (secondes) → heures
+      if (typeof night.total_sleep_time === 'number') {
+        log.sleepDuration = parseFloat((night.total_sleep_time / 3600).toFixed(2));
+      }
+      // Score qualité sommeil 0-100
+      if (typeof night.sleep_score === 'number') {
+        log.sleepQuality = night.sleep_score;
+      }
+      // FC repos nocturne
+      if (typeof night.heart_rate_avg === 'number') {
+        log.restingHR = night.heart_rate_avg;
+      }
+      // ANS Charge (1-5) converti en score 0-100
+      if (typeof night.ans_charge === 'number') {
+        log.recoveryScore = Math.round((night.ans_charge / 5) * 100);
+      }
+      // Statut Nightly Recharge (0=N/A, 1=Perturbé, 2=Compromis, 3=Soutenu, 4=Rechargé)
+      if (typeof night.nightly_recharge_status === 'number') {
+        log.nightlyRechargeStatus = night.nightly_recharge_status;
+      }
+    }
+
+    console.info(`Polar sleep: ${nights.length} nuit(s) synchronisée(s)`);
+  },
+
+  async syncPolarDailyActivity() {
+    const uid = this.state.polar.memberId;
+
+    // Créer une transaction d'activité
+    const txRes = await this.polarFetch('POST', `/v3/users/${uid}/activity-transactions`);
+
+    // 204 = pas de nouvelles données depuis la dernière transaction
+    if (txRes.status === 204) {
+      console.info('Polar activity: aucune nouvelle donnée.');
+      return;
+    }
+    if (!txRes.ok) {
+      console.warn(`Polar activity transaction: ${txRes.status}`);
+      return;
+    }
+
+    const txLocation = txRes.headers.get('Location');
+    if (!txLocation) return;
+
+    // Chemin relatif pour polarFetch
+    const txPath = txLocation.replace('https://www.polaraccesslink.com', '');
+    let txCommitted = false;
+
+    try {
+      const listRes = await this.polarFetch('GET', txPath);
+      if (!listRes.ok) return;
+
+      const listData = await listRes.json();
+      const activityUrls = listData['activity-log'] || [];
+
+      for (const url of activityUrls) {
+        try {
+          const path = url.replace('https://www.polaraccesslink.com', '');
+          const dayRes = await this.polarFetch('GET', path);
+          if (!dayRes.ok) continue;
+
+          const day = await dayRes.json();
+          const dateKey = day.date;
+          if (!dateKey) continue;
+
+          if (!this.state.logs[dateKey]) this.state.logs[dateKey] = {};
+          const log = this.state.logs[dateKey];
+
+          // Polar v3 utilise des tirets dans les noms de champs
+          log.steps = day['active-steps'] ?? day.active_steps ?? 0;
+          log.activeCalories = day['active-calories'] ?? day.active_calories ?? 0;
+
+        } catch (e) {
+          console.warn('Polar: erreur lecture jour activité', e);
+        }
+      }
+
+      // CRITIQUE : committer la transaction (sinon les données restent bloquées)
+      const commitRes = await this.polarFetch('PUT', txPath);
+      txCommitted = commitRes.ok;
+      console.info(`Polar activity: ${activityUrls.length} jour(s), commit: ${txCommitted}`);
+
+    } catch (err) {
+      if (!txCommitted) {
+        // Transaction non committée → réessayable à la prochaine sync
+        console.warn('Polar: transaction non committée, réessai à la prochaine sync.', err);
+      }
+      throw err;
+    }
+  },
+
+  renderPolarHealthCard() {
+    const container = document.getElementById('polarHealthCard');
+    if (!container) return;
+
+    if (!this.state.polar?.connected) {
+      container.style.display = 'none';
+      return;
+    }
+
+    const today = this.getDateKey(new Date());
+    const log = this.state.logs[today] || {};
+    const hasPolarData = log.sleepDuration != null || log.steps != null || log.recoveryScore != null;
+
+    if (!hasPolarData) {
+      container.style.display = 'block';
+      container.innerHTML = `
+        <div class="card" style="border:1px solid rgba(220,38,38,0.2);background:rgba(220,38,38,0.05);">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div class="card-title">🫀 Santé Polar</div>
+            <button class="btn btn-outline" style="font-size:0.8rem;padding:4px 10px;" onclick="app.syncPolarData()">🔄 Sync</button>
+          </div>
+          <p style="font-size:0.85rem;color:var(--text-muted);margin-top:0.5rem;">
+            ${this.state.polar.lastSync ? "Aucune donnée Polar pour aujourd'hui." : 'Appuie sur Sync pour importer tes données de santé.'}
+          </p>
+        </div>`;
+      return;
+    }
+
+    // Couleurs dynamiques
+    const rec = log.recoveryScore ?? null;
+    const recColor = rec == null ? 'var(--text-muted)' : rec >= 70 ? 'var(--accent-green)' : rec >= 40 ? 'var(--accent-orange)' : 'var(--accent-red)';
+    const recLabel = rec == null ? '' : rec >= 70 ? 'Bonne' : rec >= 40 ? 'Moyenne' : 'Faible';
+
+    const sleepH = log.sleepDuration != null ? Math.floor(log.sleepDuration) : null;
+    const sleepM = log.sleepDuration != null ? Math.round((log.sleepDuration % 1) * 60) : null;
+    const sleepStr = sleepH != null ? `${sleepH}h${sleepM > 0 ? sleepM + 'm' : ''}` : '—';
+    const sleepColor = sleepH == null ? 'var(--text-muted)' : sleepH >= 8 ? 'var(--accent-green)' : sleepH >= 6 ? 'var(--accent-orange)' : 'var(--accent-red)';
+
+    const steps = log.steps ?? null;
+    const stepsStr = steps != null ? steps.toLocaleString('fr-FR') : '—';
+    const stepsPct = steps != null ? Math.min(Math.round((steps / 10000) * 100), 100) : 0;
+    const stepsColor = steps == null ? 'var(--accent-blue)' : steps >= 10000 ? 'var(--accent-green)' : steps >= 5000 ? 'var(--accent-orange)' : 'var(--accent-blue)';
+
+    container.style.display = 'block';
+    container.innerHTML = `
+      <div class="card" style="border:1px solid rgba(220,38,38,0.2);background:rgba(220,38,38,0.04);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+          <div class="card-title">🫀 Santé Polar</div>
+          <button class="btn btn-outline" style="font-size:0.8rem;padding:4px 10px;" onclick="app.syncPolarData()">🔄 Sync</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem;text-align:center;margin-bottom:1rem;">
+          <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:0.75rem 0.25rem;">
+            <div style="font-size:1.4rem;">😴</div>
+            <div style="font-size:1.1rem;font-weight:700;color:${sleepColor};">${sleepStr}</div>
+            <div style="font-size:0.72rem;color:var(--text-muted);">Sommeil</div>
+            ${log.sleepQuality != null ? `<div style="font-size:0.7rem;color:var(--text-secondary);">Score ${log.sleepQuality}</div>` : ''}
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:0.75rem 0.25rem;">
+            <div style="font-size:1.4rem;">💚</div>
+            <div style="font-size:1.1rem;font-weight:700;color:${recColor};">${rec != null ? rec : '—'}</div>
+            <div style="font-size:0.72rem;color:var(--text-muted);">Récupération</div>
+            ${recLabel ? `<div style="font-size:0.7rem;color:${recColor};">${recLabel}</div>` : ''}
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:0.75rem 0.25rem;">
+            <div style="font-size:1.4rem;">🚶</div>
+            <div style="font-size:1rem;font-weight:700;color:${stepsColor};">${stepsStr}</div>
+            <div style="font-size:0.72rem;color:var(--text-muted);">Pas</div>
+            <div style="font-size:0.7rem;color:var(--text-secondary);">${stepsPct}%</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:0.75rem 0.25rem;">
+            <div style="font-size:1.4rem;">❤️</div>
+            <div style="font-size:1.1rem;font-weight:700;color:var(--accent-red);">${log.restingHR != null ? log.restingHR : '—'}</div>
+            <div style="font-size:0.72rem;color:var(--text-muted);">FC repos</div>
+          </div>
+        </div>
+        ${steps != null ? `
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">
+            <span>🚶 Objectif pas quotidien</span><span>${stepsStr} / 10 000</span>
+          </div>
+          <div style="height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;">
+            <div style="height:100%;width:${stepsPct}%;background:${stepsColor};border-radius:3px;transition:width 0.4s;"></div>
+          </div>
+        </div>` : ''}
+      </div>`;
+  },
+
   updatePolarStatus() {
     const statusEl = document.getElementById('polarStatus');
     const btnConnect = document.getElementById('btnConnectPolar');
@@ -1712,6 +1962,7 @@ const app = {
   // ============================================
   renderDashboard() {
     this.loadTodayLog();
+    this.renderPolarHealthCard();
     this.renderKPIs();
     this.renderWeeklyScore();
     this.renderMiniCharts();
