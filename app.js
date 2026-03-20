@@ -1097,6 +1097,11 @@ const app = {
     const endpoint = 'https://www.polaraccesslink.com/v3/users';
     const url = proxyUrl ? `${proxyUrl}/${endpoint}` : endpoint;
 
+    // Générer un member-id stable (requis par Polar AccessLink)
+    if (!this.state.polar.memberId) {
+      this.state.polar.memberId = 'lifeflow-' + Math.random().toString(36).slice(2, 11);
+    }
+
     const res = await fetch(url, {
       method: 'POST',
       headers: {
@@ -1104,6 +1109,7 @@ const app = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
+      body: JSON.stringify({ 'member-id': this.state.polar.memberId }),
     });
 
     if (res.status === 409) {
