@@ -1066,10 +1066,10 @@ const app = {
 
       const data = await response.json();
 
-      // Stocker les tokens (avant de marquer connected=true)
-      this.state.polar.accessToken = data.access_token;
-      this.state.polar.refreshToken = data.refresh_token;
-      this.state.polar.expiresAt = Date.now() + (data.expires_in * 1000);
+      // Stocker les tokens — null si absent (Firebase rejette undefined)
+      this.state.polar.accessToken = data.access_token || null;
+      this.state.polar.refreshToken = data.refresh_token || null;
+      this.state.polar.expiresAt = data.expires_in ? Date.now() + (data.expires_in * 1000) : null;
 
       // Étape obligatoire : enregistrer l'utilisateur dans AccessLink
       await this.registerPolarUser(data.access_token);
