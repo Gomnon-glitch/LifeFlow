@@ -2184,38 +2184,46 @@ const app = {
     const secsPerWave = (hitsToKill * 3) / (hero.speed || 1);
     const wavesPerMin = 60 / secsPerWave;
     const wavesGained = Math.min(Math.floor(minutes * wavesPerMin), minutes * 5);
+    // Efficacité hors-ligne : 50% (le héros n'est pas là pour gérer les défaites)
+    const offlineEfficiency = 0.5;
     let xpGained = 0, goldGained = 0, lootCount = 0;
     for (let i = 0; i < wavesGained; i++) {
       const e = this.getEnemyStats(wave + i);
-      xpGained += e.xp;
+      xpGained  += e.xp;
       goldGained += e.gold;
       if ((i + 1) % 5 === 0) {
         const luck = hero.luck || 10;
-        const lootRate = this.getLootRate(luck);
+        const lootRate = this.getLootRate(luck) * offlineEfficiency;
         if (Math.random() < lootRate) {
           lootCount++;
-          const item = this.generateItem(wave + i, luck);
+          const item = this.generateItem(wave + i);
           this.addToInventory(item);
         }
       }
     }
-    xpGained = Math.min(xpGained, 50000);
-    goldGained = Math.min(goldGained, 20000);
-    rpg.hero.xp = (rpg.hero.xp || 0) + xpGained;
-    rpg.hero.gold = (rpg.hero.gold || 0) + goldGained;
+    // Appliquer l'efficacité et les caps hors-ligne
+    xpGained   = Math.round(Math.min(xpGained   * offlineEfficiency, 5000));
+    goldGained = Math.round(Math.min(goldGained  * offlineEfficiency, 5000));
+    const lvlBefore = rpg.hero.lvl || 1;
+    rpg.hero.xp   = (rpg.hero.xp   || 0) + xpGained;
+    rpg.hero.gold = (rpg.hero.gold  || 0) + goldGained;
+    // Avancer la vague (plafonné à highestWave + 5 hors-ligne)
     if (wavesGained > 0) {
-      rpg.currentWave = wave + wavesGained;
+      const maxOfflineWave = (rpg.highestWave || 1) + 5;
+      rpg.currentWave = Math.min(wave + wavesGained, maxOfflineWave);
       if (rpg.currentWave > (rpg.highestWave || 1)) rpg.highestWave = rpg.currentWave;
     }
     this.checkLevelUp();
     this.checkRPGBadges();
     rpg.offlineProcessed = rpg.lastUpdate;
     rpg.lastUpdate = Date.now();
+    const lvlAfter = rpg.hero.lvl || 1;
     const parts = [];
-    if (xpGained > 0) parts.push(`+${xpGained} XP`);
+    if (xpGained > 0)   parts.push(`+${xpGained} XP`);
+    if (lvlAfter > lvlBefore) parts.push(`Niv. ${lvlBefore}→${lvlAfter} ⚡`);
     if (goldGained > 0) parts.push(`+${goldGained}💰`);
     if (wavesGained > 0) parts.push(`${wavesGained} vagues`);
-    if (lootCount > 0) parts.push(`${lootCount} item(s)`);
+    if (lootCount > 0)  parts.push(`${lootCount} item(s)`);
     if (parts.length > 0) {
       this.showToast(`⏰ Hors-ligne (${minutes} min) : ${parts.join(' · ')}`);
     }
@@ -4097,7 +4105,7 @@ const app = {
       // Loot
       const lootRate = this.getLootRate(hero.luck);
       if (Math.random() < lootRate) {
-        const item = this.generateItem(rpg.currentWave - 1, hero.luck);
+        const item = this.generateItem(rpg.currentWave - 1);
         this.addToInventory(item);
         rpg.pendingLoot = rpg.pendingLoot || [];
         rpg.pendingLoot.push(item.id);
@@ -4118,7 +4126,13 @@ const app = {
       if (rpg.hero.hp <= 0) {
         rpg.hero.hp = Math.ceil((hero.hpMax || 100) * 0.5);
         rpg.combatState = null;
-        this.showToast('💀 Héros vaincu ! HP restauré à 50%');
+        // Régression d'une vague sur défaite (retour à la vague précédente)
+        const prevWave = rpg.currentWave || 1;
+        rpg.currentWave = Math.max(1, prevWave - 1);
+        rpg.combatLog = rpg.combatLog || [];
+        rpg.combatLog.unshift(`💀 Vague ${prevWave} perdue → retour vague ${rpg.currentWave}`);
+        if (rpg.combatLog.length > 10) rpg.combatLog = rpg.combatLog.slice(0, 10);
+        this.showToast(`💀 Vaincu vague ${prevWave} ! Retour vague ${rpg.currentWave}`);
       }
     }
     this.renderCombatSection();
@@ -4271,7 +4285,7 @@ const app = {
   // PHASE RPG-B — LOOT & ÉQUIPEMENT
   // ============================================
 
-  generateItem(wave, luck) {
+  generateItem(wave) {
     const slots = Object.keys(this.itemNamePool);
     const slot = slots[Math.floor(Math.random() * slots.length)];
     const tierBonus = this.getSkillBonus('lootTierBonus');
@@ -4284,7 +4298,7 @@ const app = {
     const def = ['torso','legs'].includes(slot) ? tier * 3 : ['head','gloves','boots'].includes(slot) ? tier * 2 : tier;
     const hp  = slot === 'torso' ? tier * 10 : Math.max(0, tier * 2 - 2);
     return {
-      id: `item_${Date.now()}_${Math.random().toString(36).substr(2,5)}`,
+      id: `item_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
       slot, tier, rarity, name, emoji: emojis[slot] || '📦',
       atk, def, hp,
       special: tier >= 3 ? this.generateSpecial(tier) : null,
@@ -4382,7 +4396,7 @@ const app = {
   buildInventoryHTML() {
     const inv = this.state.rpg.inventory || [];
     const eq  = this.state.rpg.equipment || {};
-    const equippedIds = new Set(Object.values(eq).filter(Boolean).map(i => i.id));
+    const equippedSet = new Set(Object.values(eq).filter(Boolean).map(i => i.id));
     const rarityColors = {common:'var(--text-muted)',rare:'var(--accent-blue)',epic:'var(--accent-purple)',legendary:'var(--accent-orange)'};
     if (inv.length === 0) return `
       <div class="hero-section-card">
@@ -4393,14 +4407,17 @@ const app = {
       <div class="hero-section-card">
         <h3 class="hero-section-title">📦 Inventaire (${inv.length}/60)</h3>
         <div class="inventory-grid">
-          ${inv.map(item => `
-            <div class="inv-item" onclick="app.openItemModal('${item.id}')" style="border-color:${rarityColors[item.rarity]}">
+          ${inv.map(item => {
+            const isEquipped = equippedSet.has(item.id);
+            return `
+            <div class="inv-item${isEquipped ? ' inv-item-equipped' : ''}" onclick="app.openItemModal('${item.id}')" style="border-color:${rarityColors[item.rarity]}">
+              ${isEquipped ? '<div class="inv-equipped-badge">✓</div>' : ''}
               <div class="inv-item-emoji">${item.emoji}</div>
               <div class="inv-item-name">${item.name}</div>
               <div class="inv-item-tier" style="color:${rarityColors[item.rarity]}">${'★'.repeat(item.tier)} T${item.tier}</div>
               <div class="inv-item-stats">ATK+${item.atk} DEF+${item.def}</div>
-            </div>
-          `).join('')}
+            </div>`;
+          }).join('')}
         </div>
       </div>
     `;
@@ -4412,8 +4429,6 @@ const app = {
 
   buildForgeHTML() {
     const inv = this.state.rpg.inventory || [];
-    const slots = ['weapon','head','torso','gloves','legs','boots','amulet','accessory'];
-    const rarityColors = {common:'var(--text-muted)',rare:'var(--accent-blue)',epic:'var(--accent-purple)',legendary:'var(--accent-orange)'};
     // Group by slot+tier
     const groups = {};
     inv.forEach(item => {
@@ -4564,7 +4579,7 @@ const app = {
     if (!node) return;
     const branchEntry = Object.entries(this.skillTreeDefs).find(([,b]) => b.nodes.find(n => n.id === nodeId));
     if (!branchEntry) return;
-    const [branchKey, branch] = branchEntry;
+    const [, branch] = branchEntry;
     // Check prerequisites: previous node in branch must be unlocked
     const nodeIndex = branch.nodes.findIndex(n => n.id === nodeId);
     if (nodeIndex > 0) {
@@ -4611,7 +4626,7 @@ const app = {
       <div class="hero-section-card">
         <h3 class="hero-section-title">🌳 Arbre BioFeedback</h3>
         <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:1rem">Fragments disponibles : <strong>${hero.fragments||0}</strong> 🔮</p>
-        ${Object.entries(this.skillTreeDefs).map(([branchKey, branch]) => {
+        ${Object.entries(this.skillTreeDefs).map(([, branch]) => {
           const kpiOk = this.isKPIUnlocked(branch.kpiKey);
           return `
             <div class="skill-branch ${kpiOk ? 'kpi-ok' : 'kpi-locked'}">
@@ -4715,7 +4730,6 @@ const app = {
 
   buildPrestigeHTML() {
     const rpg = this.state.rpg;
-    const hero = this.getHeroStats();
     const canP = this.canPrestige();
     const fragmentsGain = Math.floor((rpg.currentWave || 1) / 10);
     return `

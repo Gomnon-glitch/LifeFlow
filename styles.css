@@ -2770,6 +2770,8 @@ body.theme-winter .now-banner::before { background: radial-gradient(circle, rgba
   text-align: center;
 }
 .inv-item:hover { background: rgba(255,255,255,0.05); }
+.inv-item-equipped { background: rgba(34,197,94,0.08); box-shadow: 0 0 6px rgba(34,197,94,0.2); position: relative; }
+.inv-equipped-badge { position: absolute; top: 3px; right: 4px; font-size: 0.6rem; color: #22c55e; font-weight: 700; }
 .inv-item-emoji { font-size: 1.5rem; margin-bottom: 0.2rem; }
 .inv-item-name { font-size: 0.7rem; font-weight: 600; margin-bottom: 0.2rem; line-height: 1.2; }
 .inv-item-tier { font-size: 0.65rem; margin-bottom: 0.15rem; }
