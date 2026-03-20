@@ -1793,6 +1793,16 @@ const app = {
       // Merge: on garde l'union des badges locaux et cloud (jamais de régression)
       this.state.unlockedBadges = { ...cleanCloudState.unlockedBadges, ...localBadges };
 
+      // Migration habits : ajouter les habitudes par défaut absentes du cloud
+      if (!this.state.habits) this.state.habits = [];
+      const cloudHabitIds = new Set(this.state.habits.map(h => h.id));
+      this.defaultHabits.forEach(def => {
+        if (!cloudHabitIds.has(def.id)) this.state.habits.push({ ...def });
+      });
+      // Migration polar : s'assurer que polarUserId existe
+      if (!this.state.polar) this.state.polar = {};
+      if (this.state.polar.polarUserId === undefined) this.state.polar.polarUserId = null;
+
       // Sauvegarde dans le localStorage
       localStorage.setItem('lifeflow-data', JSON.stringify(this.state));
 
