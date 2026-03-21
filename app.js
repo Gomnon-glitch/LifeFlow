@@ -1209,8 +1209,8 @@ const app = {
       await this.syncPolarDailyActivity();
 
       this.state.polar.lastSync = Date.now();
-      this.saveData();
       this.autoValidatePolarHabits();
+      this.saveData();
       this.applyPolarRPGEffects();
       this.recalculateXP();
       this.checkWeeklyQuests();
