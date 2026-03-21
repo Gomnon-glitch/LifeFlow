@@ -1199,12 +1199,13 @@ const app = {
         return;
       }
 
-      // 1. Sommeil — 7 derniers jours (endpoint direct, pas de transaction)
-      const today = this.getDateKey(new Date());
-      const weekAgo = this.getDateKey(new Date(Date.now() - 7 * 24 * 3600 * 1000));
-      await this.syncPolarSleep(weekAgo, today);
+      // 1. Sommeil — SleepWise (derniers 28 jours, sans userId dans l'URL)
+      await this.syncPolarSleepWise();
 
-      // 2. Activité quotidienne — steps + calories (via transaction)
+      // 2. Charge cardio — strain/tolerance/récupération (derniers 28 jours)
+      await this.syncPolarCardioLoad();
+
+      // 3. Activité quotidienne — steps + calories (via transaction)
       await this.syncPolarDailyActivity();
 
       this.state.polar.lastSync = Date.now();
@@ -1318,6 +1319,69 @@ const app = {
     if (recovery != null && recovery >= 70) {
       this.showToast(`💚 Récupération ${recovery}/100 — Héros en pleine forme !`);
     }
+  },
+
+  async syncPolarSleepWise() {
+    const res = await this.polarFetch('GET', '/v3/users/sleepwise/alertness');
+    if (res.status === 204 || res.status === 404) return;
+    if (!res.ok) { console.warn(`SleepWise: ${res.status}`); return; }
+
+    const data = await res.json();
+    const periods = Array.isArray(data) ? data : [];
+    let count = 0;
+
+    for (const period of periods) {
+      if (!period.sleep_period_start_time || !period.sleep_period_end_time) continue;
+
+      // Date clé = matin du réveil (partie date de end_time)
+      const dateKey = period.sleep_period_end_time.split('T')[0];
+      if (!this.state.logs[dateKey]) this.state.logs[dateKey] = {};
+      const log = this.state.logs[dateKey];
+
+      // Durée en heures
+      const start = new Date(period.sleep_period_start_time);
+      const end = new Date(period.sleep_period_end_time);
+      log.sleepDuration = parseFloat(((end - start) / 3600000).toFixed(2));
+
+      // Qualité : grade 0-10 → 0-100
+      if (typeof period.grade === 'number') {
+        log.sleepQuality = Math.round(period.grade * 10);
+      }
+
+      count++;
+    }
+
+    console.info(`SleepWise: ${count} nuit(s) synchronisée(s)`);
+  },
+
+  async syncPolarCardioLoad() {
+    const res = await this.polarFetch('GET', '/v3/users/cardio-load/');
+    if (res.status === 204 || res.status === 404) return;
+    if (!res.ok) { console.warn(`Cardio Load: ${res.status}`); return; }
+
+    const data = await res.json();
+    const entries = Array.isArray(data) ? data : [];
+    let count = 0;
+
+    for (const entry of entries) {
+      if (!entry.date) continue;
+      if (!this.state.logs[entry.date]) this.state.logs[entry.date] = {};
+      const log = this.state.logs[entry.date];
+
+      log.strain = entry.strain;
+      log.tolerance = entry.tolerance;
+      log.cardioLoadRatio = entry.cardio_load_ratio;
+      log.cardioLoadStatus = entry.cardio_load_status;
+
+      // recoveryScore 0-100 : ratio 0→100, ratio 1→50, ratio 2→0
+      if (typeof entry.cardio_load_ratio === 'number') {
+        log.recoveryScore = Math.max(0, Math.min(100, Math.round((2 - entry.cardio_load_ratio) / 2 * 100)));
+      }
+
+      count++;
+    }
+
+    console.info(`Cardio Load: ${count} jour(s) synchronisé(s)`);
   },
 
   async syncPolarSleep(fromDate, toDate) {
@@ -1507,9 +1571,15 @@ const app = {
             <div style="font-size:0.7rem;color:var(--text-secondary);">${stepsPct}%</div>
           </div>
           <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:0.75rem 0.25rem;">
-            <div style="font-size:1.4rem;">❤️</div>
-            <div style="font-size:1.1rem;font-weight:700;color:var(--accent-red);">${log.restingHR != null ? log.restingHR : '—'}</div>
-            <div style="font-size:0.72rem;color:var(--text-muted);">FC repos</div>
+            <div style="font-size:1.4rem;">⚡</div>
+            ${(() => {
+              const ratio = log.cardioLoadRatio;
+              const ratioColor = ratio == null ? 'var(--text-muted)' : ratio <= 0.8 ? 'var(--accent-green)' : ratio <= 1.2 ? 'var(--accent-orange)' : 'var(--accent-red)';
+              const ratioLabel = ratio == null ? '' : ratio <= 0.8 ? 'Repos' : ratio <= 1.2 ? 'Modéré' : 'Élevé';
+              return `<div style="font-size:1.1rem;font-weight:700;color:${ratioColor};">${ratio != null ? ratio.toFixed(2) : '—'}</div>
+              <div style="font-size:0.72rem;color:var(--text-muted);">Charge cardio</div>
+              ${ratioLabel ? `<div style="font-size:0.7rem;color:${ratioColor};">${ratioLabel}</div>` : ''}`;
+            })()}
           </div>
         </div>
         ${steps != null ? `
