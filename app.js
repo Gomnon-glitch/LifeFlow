@@ -1860,6 +1860,9 @@ const app = {
       if (this.state.finance.activeSubTab === undefined) this.state.finance.activeSubTab = 'patrimoine';
       if (this.state.finance.treasurerStreak === undefined) this.state.finance.treasurerStreak = 0;
       if (this.state.finance.lastSnapshotWeek === undefined) this.state.finance.lastSnapshotWeek = '';
+      // ── Finance — Migration Phase 2 ──
+      if (this.state.finance.news.readByWeek === undefined) this.state.finance.news.readByWeek = {};
+      if (this.state.finance.news.analyseMarketBuffExpiry === undefined) this.state.finance.news.analyseMarketBuffExpiry = null;
     } catch (e) {
       console.warn('Could not load saved data:', e);
     }
@@ -6083,6 +6086,27 @@ const app = {
   },
 
   // ============================================
+  // FINANCE — RSS FEEDS CONFIG
+  // ============================================
+  RSS_FEEDS: {
+    france: {
+      economie:    ['https://www.lesechos.fr/rss/rss_une.xml', 'https://www.lefigaro.fr/rss/figaro_economie.xml'],
+      tech:        ['https://www.usine-digitale.fr/rss.xml'],
+      geopolitique:['https://www.lemonde.fr/rss/une.xml'],
+    },
+    europe: {
+      economie:    ['https://feeds.reuters.com/reuters/businessNews'],
+      geopolitique:['https://feeds.bbci.co.uk/news/world/europe/rss.xml'],
+      tech:        ['https://feeds.bbci.co.uk/news/technology/rss.xml'],
+    },
+    international: {
+      economie:    ['https://feeds.reuters.com/reuters/businessNews'],
+      tech:        ['https://feeds.wired.com/wired/index'],
+      geopolitique:['https://feeds.reuters.com/reuters/worldNews'],
+    },
+  },
+
+  // ============================================
   // FINANCE — PHASE 1 : PATRIMOINE
   // ============================================
 
@@ -6252,17 +6276,244 @@ const app = {
     `;
   },
 
-  // ── ACTUALITÉS (placeholder Phase 2) ────────
+  // ── ACTUALITÉS — Phase 2 ────────────────────
   renderFinanceActualites() {
     const el = document.getElementById('financeContent');
     if (!el) return;
+
+    const news = this.state.finance.news;
+    const geo = news.activeGeo || 'france';
+    const domain = news.activeDomain || 'all';
+
+    const geoOptions = [
+      { key: 'france',        label: '🇫🇷 France' },
+      { key: 'europe',        label: '🇪🇺 Europe' },
+      { key: 'international', label: '🌍 International' },
+    ];
+    const domainOptions = [
+      { key: 'all',         label: '📊 Tout' },
+      { key: 'economie',    label: '💹 Économie' },
+      { key: 'tech',        label: '💻 Tech' },
+      { key: 'geopolitique',label: '🌐 Géopolitique' },
+    ];
+
+    const readCount = this.getNewsReadCountThisWeek();
+    const questDone = this._isFinanceNewsQuestDone();
+    const buffActive = news.analyseMarketBuffExpiry && Date.now() < news.analyseMarketBuffExpiry;
+
+    // Cache freshness
+    let cacheLine = '';
+    if (news.lastFetch) {
+      const mins = Math.round((Date.now() - news.lastFetch) / 60000);
+      cacheLine = mins < 1 ? 'Mis à jour à l\'instant' : `Mis à jour il y a ${mins} min`;
+    }
+
     el.innerHTML = `
-      <div class="finance-empty">
-        <div class="finance-empty-icon">📰</div>
-        <h3>Actualités Économiques</h3>
-        <p>Le flux d'actualités RSS (France · Europe · International, filtré par domaine) sera disponible en Phase 2.</p>
-        <div class="finance-coming-soon-badge">Disponible prochainement</div>
-      </div>`;
+      <div class="finance-news-header">
+        <div class="finance-news-selectors">
+          <div class="finance-news-geo">
+            ${geoOptions.map(g => `<button class="finance-news-pill${geo === g.key ? ' active' : ''}" onclick="app.switchFinanceGeo('${g.key}')">${g.label}</button>`).join('')}
+          </div>
+          <div class="finance-news-domains">
+            ${domainOptions.map(d => `<button class="finance-news-pill${domain === d.key ? ' active' : ''}" onclick="app.switchFinanceDomain('${d.key}')">${d.label}</button>`).join('')}
+          </div>
+        </div>
+        <div class="finance-news-meta">
+          <span class="finance-news-cache">${cacheLine}</span>
+          <button class="finance-news-refresh" onclick="app._refreshNews()">↻ Actualiser</button>
+        </div>
+      </div>
+
+      <div class="finance-veille-progress${questDone ? ' done' : ''}">
+        ${questDone
+          ? `✅ Quête <strong>Veille de Marché</strong> accomplie cette semaine !${buffActive ? ' · <span class="buff-active">⚔️ +5% ATK actif</span>' : ''}`
+          : `📰 Quête <strong>Veille de Marché</strong> : ${readCount}/3 articles lus cette semaine${buffActive ? ' · <span class="buff-active">⚔️ +5% ATK actif</span>' : ''}`
+        }
+      </div>
+
+      <div id="finance-news-list"><div class="finance-loading">⏳ Chargement des actualités…</div></div>`;
+
+    this._loadAndRenderNews();
+  },
+
+  switchFinanceGeo(geo) {
+    this.state.finance.news.activeGeo = geo;
+    this.state.finance.news.lastFetch = null; // force refresh on geo change
+    this.state.finance.news.cache = [];
+    this.saveData();
+    this.renderFinanceActualites();
+  },
+
+  switchFinanceDomain(domain) {
+    this.state.finance.news.activeDomain = domain;
+    this.state.finance.news.lastFetch = null;
+    this.state.finance.news.cache = [];
+    this.saveData();
+    this.renderFinanceActualites();
+  },
+
+  _refreshNews() {
+    this.state.finance.news.lastFetch = null;
+    this.state.finance.news.cache = [];
+    this.renderFinanceActualites();
+  },
+
+  async _loadAndRenderNews() {
+    const listEl = document.getElementById('finance-news-list');
+    if (!listEl) return;
+    try {
+      const articles = await this.fetchFinanceNews();
+      if (!document.getElementById('finance-news-list')) return; // user navigated away
+      if (!articles.length) {
+        listEl.innerHTML = `<div class="finance-empty"><div class="finance-empty-icon">📰</div><p>Aucun article disponible pour cette sélection.<br>Vérifiez votre connexion ou changez de filtre.</p></div>`;
+        return;
+      }
+      const readByWeek = this.state.finance.news.readByWeek || {};
+      const weekKey = this.getWeekKey(new Date());
+      const readThisWeek = new Set(readByWeek[weekKey] || []);
+
+      listEl.innerHTML = articles.map(a => {
+        const isRead = readThisWeek.has(a.url);
+        const dateStr = this._relativeDate(a.pubDate);
+        return `
+          <div class="finance-news-card${isRead ? ' read' : ''}" onclick="app.markNewsArticleRead('${a.url.replace(/'/g, "\\'")}')">
+            <div class="news-card-header">
+              <span class="news-card-source">${a.source}</span>
+              <span class="news-card-date">${dateStr}</span>
+              ${isRead ? '<span class="news-card-read-badge">✓ Lu</span>' : ''}
+            </div>
+            <div class="news-card-title">${a.title}</div>
+            ${a.description ? `<div class="news-card-desc">${a.description}</div>` : ''}
+          </div>`;
+      }).join('');
+    } catch (e) {
+      if (listEl) listEl.innerHTML = `<div class="finance-empty"><div class="finance-empty-icon">⚠️</div><p>Erreur de chargement des flux RSS.<br><small>${e.message}</small></p></div>`;
+    }
+  },
+
+  // ── FETCH & PARSE RSS ───────────────────────
+  async fetchFinanceNews() {
+    const news = this.state.finance.news;
+    const THIRTY_MIN = 30 * 60 * 1000;
+
+    // Return cached if still fresh
+    if (news.lastFetch && (Date.now() - news.lastFetch < THIRTY_MIN) && news.cache.length > 0) {
+      return news.cache;
+    }
+
+    const geo = news.activeGeo || 'france';
+    const domain = news.activeDomain || 'all';
+    const feedSet = this.RSS_FEEDS[geo] || {};
+    const feeds = domain === 'all'
+      ? [...new Set(Object.values(feedSet).flat())]
+      : (feedSet[domain] || []);
+
+    if (!feeds.length) return news.cache;
+
+    const proxy = 'https://api.allorigins.win/get?url=';
+    const results = await Promise.allSettled(
+      feeds.slice(0, 3).map(url =>
+        fetch(proxy + encodeURIComponent(url), { signal: AbortSignal.timeout(9000) })
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+          .then(j => this._parseRSSItems(j.contents || '', url))
+      )
+    );
+
+    const articles = [];
+    results.forEach(r => { if (r.status === 'fulfilled') articles.push(...r.value); });
+
+    // Dedupe by URL, sort newest first, cap at 25
+    const seen = new Set();
+    const deduped = articles
+      .filter(a => { if (seen.has(a.url)) return false; seen.add(a.url); return true; })
+      .sort((a, b) => b.pubDate - a.pubDate)
+      .slice(0, 25);
+
+    news.cache = deduped;
+    news.lastFetch = Date.now();
+    this.saveData();
+    return deduped;
+  },
+
+  _parseRSSItems(xml, feedUrl) {
+    if (!xml) return [];
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(xml, 'text/xml');
+      if (doc.querySelector('parsererror')) return [];
+      const channelTitle = doc.querySelector('channel > title')?.textContent?.trim() || new URL(feedUrl).hostname;
+      const items = [...doc.querySelectorAll('item')];
+      return items.slice(0, 12).map(item => {
+        const get = tag => item.querySelector(tag)?.textContent?.trim() || '';
+        const rawTitle = get('title').replace(/\s*\|.*$/, '').trim(); // strip " | Source" suffixes
+        const rawDesc = get('description')
+          .replace(/<[^>]+>/g, '')
+          .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+          .trim().slice(0, 160);
+        const link = get('link') || get('guid');
+        const dateStr = get('pubDate') || get('dc\\:date') || get('date');
+        return {
+          title: rawTitle || 'Sans titre',
+          description: rawDesc,
+          url: link,
+          source: channelTitle,
+          pubDate: dateStr ? new Date(dateStr).getTime() : Date.now(),
+        };
+      }).filter(a => a.title !== 'Sans titre' && a.url);
+    } catch (e) {
+      return [];
+    }
+  },
+
+  markNewsArticleRead(url) {
+    const weekKey = this.getWeekKey(new Date());
+    const readByWeek = this.state.finance.news.readByWeek;
+    if (!readByWeek[weekKey]) readByWeek[weekKey] = [];
+    if (!readByWeek[weekKey].includes(url)) {
+      readByWeek[weekKey].push(url);
+    }
+    // Open article in new tab
+    window.open(url, '_blank', 'noopener');
+    this.checkFinanceNewsQuest();
+    this.saveData();
+    // Re-render just the list to update read state
+    this._loadAndRenderNews();
+  },
+
+  getNewsReadCountThisWeek() {
+    const weekKey = this.getWeekKey(new Date());
+    return (this.state.finance.news.readByWeek?.[weekKey] || []).length;
+  },
+
+  _isFinanceNewsQuestDone() {
+    const weekKey = this.getWeekKey(new Date());
+    return (this.state.questCompleted?.[weekKey] || []).includes('finance-veille-marche');
+  },
+
+  checkFinanceNewsQuest() {
+    const count = this.getNewsReadCountThisWeek();
+    if (count < 3) return;
+    if (this._isFinanceNewsQuestDone()) return;
+    const weekKey = this.getWeekKey(new Date());
+    if (!this.state.questCompleted[weekKey]) this.state.questCompleted[weekKey] = [];
+    this.state.questCompleted[weekKey].push('finance-veille-marche');
+    this.addXP('sagesse', 200);
+    // Buff ATK +5% pendant 24h
+    this.state.finance.news.analyseMarketBuffExpiry = Date.now() + 24 * 60 * 60 * 1000;
+    this.showToast('🎉 Quête : Veille de Marché ! +200 XP · Buff ⚔️ +5% ATK 24h actif !');
+    this.saveData();
+  },
+
+  _relativeDate(timestamp) {
+    if (!timestamp) return '';
+    const diff = Date.now() - timestamp;
+    const mins = Math.round(diff / 60000);
+    if (mins < 2) return 'À l\'instant';
+    if (mins < 60) return `il y a ${mins} min`;
+    const hours = Math.round(mins / 60);
+    if (hours < 24) return `il y a ${hours}h`;
+    const days = Math.round(hours / 24);
+    return `il y a ${days}j`;
   },
 
   // ── ACADÉMIE (placeholder Phase 3) ──────────
