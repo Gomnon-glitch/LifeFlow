@@ -1867,6 +1867,7 @@ const app = {
       if (this.state.finance.news.analyseMarketBuffExpiry === undefined) this.state.finance.news.analyseMarketBuffExpiry = null;
       // ── Finance — Migration Phase 3 ──
       if (this.state.finance.krachBoss === undefined) this.state.finance.krachBoss = null;
+      if (this.state.finance.artefacts === undefined) this.state.finance.artefacts = {};
     } catch (e) {
       console.warn('Could not load saved data:', e);
     }
@@ -3054,7 +3055,8 @@ const app = {
     const seasonalMult = sd.bonusTypes.includes(type) ? 1.15 : 1.0;
     // Multiplicateur héritage cumulé des saisons précédentes
     const heritageMult = season.xpMultiplier || 1.0;
-    const finalAmount = Math.round(amount * seasonalMult * heritageMult);
+    const artefactXPMult = 1 + this.getFinanceArtefactBonus('xp_bonus');
+    const finalAmount = Math.round(amount * seasonalMult * heritageMult * artefactXPMult);
     season.xp = (season.xp || 0) + finalAmount;
     season.rank = this.getSeasonRank(season.xp);
     // Phase 2 — incrémenter aussi l'XP globale du héros
@@ -4855,6 +4857,7 @@ const app = {
     const finAcadTotal = (this.state.finance?.academy?.totalAvailable || 0);
     grant('finance-academicien',    finAcadTotal > 0 && finAcadRead.length >= finAcadTotal);
     grant('finance-sage',           (this.state.finance?.sagesseTalents || 0) >= 5);
+    this.checkFinanceArtefacts();
 
     // ── Badges Planning ──
     grant('planner-1',       this.state.planningStreak >= 1);
@@ -5204,7 +5207,8 @@ const app = {
       // Victoire
       let goldGain = enemy.gold;
       if (rpg.activeSpell?.type === 'gold_boost') { goldGain *= rpg.activeSpell.value; delete rpg.activeSpell; }
-      rpg.hero.gold = (rpg.hero.gold || 0) + Math.round(goldGain);
+      const finGoldBonus = 1 + this.getFinanceArtefactBonus('gold_bonus') + Math.min(0.10, (this.state.finance?.treasurerStreak || 0) * 0.01);
+      rpg.hero.gold = (rpg.hero.gold || 0) + Math.round(goldGain * finGoldBonus);
       rpg.hero.xp   = (rpg.hero.xp   || 0) + enemy.xp;
       this.checkLevelUp();
       rpg.currentWave++;
@@ -5333,6 +5337,26 @@ const app = {
     // Strava buff
     const strava = rpg.stravaBuff && rpg.stravaBuff.expiresAt > Date.now()
       ? `<div class="strava-buff">🏃 Buff Strava actif : +${(rpg.stravaBuff.speedBonus * 100).toFixed(0)}% vitesse</div>` : '';
+    // Finance passives
+    const finClass = this.state.finance?.heroClass || 'apprenti';
+    const finClassEmojis = { apprenti: '🌱', investisseur: '📈', rentier: '🏰', magnat: '👑' };
+    const finClassLabels = { apprenti: 'Apprenti Épargnant', investisseur: 'Investisseur', rentier: 'Rentier', magnat: 'Magnat' };
+    const finClassBonuses = { apprenti: '', investisseur: '+5% XP global', rentier: '+12% gold/combat', magnat: '+20% gold/combat + légendaire' };
+    const finStreak = this.getFinanceTreasurerStreak();
+    const analyseBuffActive = (this.state.finance?.news?.analyseMarketBuffExpiry || 0) > Date.now();
+    const xpArtefactBonus = this.getFinanceArtefactBonus('xp_bonus');
+    const goldArtefactBonus = this.getFinanceArtefactBonus('gold_bonus');
+    const finPassivesHtml = `
+      <div class="finance-hero-passives">
+        <div class="fhp-title">💰 Passifs Financiers</div>
+        <div class="fhp-row">
+          <span>${finClassEmojis[finClass]} <strong>${finClassLabels[finClass]}</strong>${finClassBonuses[finClass] ? ` · ${finClassBonuses[finClass]}` : ''}</span>
+        </div>
+        ${finStreak > 0 ? `<div class="fhp-row">📅 Streak Trésorier : ${finStreak} sem. · <strong>+${Math.min(10, finStreak)}% gold/combat</strong></div>` : ''}
+        ${analyseBuffActive ? `<div class="fhp-row">⚔️ Buff Analyse de Marché actif · <strong>+5% ATK</strong></div>` : ''}
+        ${xpArtefactBonus > 0 ? `<div class="fhp-row">📖 Artefact XP · <strong>+${Math.round(xpArtefactBonus * 100)}% XP reçu</strong></div>` : ''}
+        ${goldArtefactBonus > 0 ? `<div class="fhp-row">💰 Artefact Gold · <strong>+${Math.round(goldArtefactBonus * 100)}% gold/combat</strong></div>` : ''}
+      </div>`;
     return `
       <div class="combat-arena">
         <div class="wave-header">
@@ -5367,6 +5391,7 @@ const app = {
           </div>
         </div>
         ${buffHtml}${strava}
+        ${finPassivesHtml}
         <div class="combat-status">
           ${this.combatInterval ? '▶️ Combat actif' : '⏸ Combat en pause (ouvre cet onglet)'}
         </div>
@@ -6094,6 +6119,70 @@ const app = {
   },
 
   // ============================================
+  // FINANCE — ARTEFACTS LÉGENDAIRES
+  // ============================================
+  FINANCE_ARTEFACTS: [
+    {
+      id: 'artefact_coffre_midas',
+      name: 'Le Coffre de Midas',
+      emoji: '💰',
+      slot: 'accessory',
+      desc: 'Net Worth dépasse 10 000€',
+      toast: '🏆 Artefact débloqué : Le Coffre de Midas ! +10% gold en combat.',
+      condition: f => (f.snapshots?.slice(-1)[0]?.total || 0) >= 10000,
+      atk: 0, def: 5, hp: 20,
+      special: { type: 'gold_bonus', value: 0.10, label: '+10% gold gagné au combat' },
+    },
+    {
+      id: 'artefact_livre_buffett',
+      name: 'Le Livre de Buffett',
+      emoji: '📖',
+      slot: 'amulet',
+      desc: '5 articles Académie lus',
+      toast: '📖 Artefact débloqué : Le Livre de Buffett ! +20% XP reçu.',
+      condition: f => Object.keys(f.academy?.read || {}).length >= 5,
+      atk: 0, def: 0, hp: 0,
+      special: { type: 'xp_bonus', value: 0.20, label: '+20% XP reçu' },
+    },
+    {
+      id: 'artefact_epee_investisseur',
+      name: "L'Épée de l'Investisseur",
+      emoji: '🗡️',
+      slot: 'weapon',
+      desc: '24 bilans consécutifs (6 mois)',
+      toast: "⚔️ Artefact débloqué : L'Épée de l'Investisseur ! +25 ATK permanent.",
+      condition: f => (f.treasurerStreak || 0) >= 24,
+      atk: 25, def: 0, hp: 0,
+      special: { type: 'atk_bonus', value: 25, label: '+25 ATK permanent' },
+    },
+    {
+      id: 'artefact_grimoire_alchimiste',
+      name: "Le Grimoire de l'Alchimiste",
+      emoji: '📚',
+      slot: 'amulet',
+      desc: 'Tous les articles Académie lus',
+      toast: "📚 Artefact débloqué : Le Grimoire de l'Alchimiste ! +30% XP Académie.",
+      condition: f => {
+        const total = f.academy?.totalAvailable || 0;
+        return total > 0 && Object.keys(f.academy?.read || {}).length >= total;
+      },
+      atk: 0, def: 5, hp: 0,
+      special: { type: 'xp_bonus', value: 0.30, label: '+30% XP reçu' },
+    },
+    {
+      id: 'artefact_orbe_dividendes',
+      name: "L'Orbe des Dividendes",
+      emoji: '🔮',
+      slot: 'accessory',
+      desc: 'Premier dividende enregistré',
+      toast: "🔮 Artefact débloqué : L'Orbe des Dividendes ! +15% gold en combat.",
+      condition: f => (f.dividends || []).length > 0,
+      atk: 0, def: 0, hp: 30,
+      special: { type: 'gold_bonus', value: 0.15, label: '+15% gold gagné au combat' },
+    },
+  ],
+
+  // ============================================
   // FINANCE — RSS FEEDS CONFIG
   // ============================================
   RSS_FEEDS: {
@@ -6122,6 +6211,16 @@ const app = {
     const el = document.getElementById('financeContent');
     if (!el) return;
     const subTab = this.state.finance?.activeSubTab || 'patrimoine';
+    // Saison des Bilans — banner trimestriel
+    const saisonEl = document.getElementById('finance-saison-banner');
+    if (saisonEl) saisonEl.remove();
+    if (this._isFinanceSaisonActive()) {
+      const banner = document.createElement('div');
+      banner.id = 'finance-saison-banner';
+      banner.className = 'finance-saison-banner';
+      banner.innerHTML = `🌟 <strong>Saison des Bilans</strong> — XP & Gold des quêtes Finance doublés pendant 2 semaines !`;
+      el.parentElement.insertBefore(banner, el);
+    }
     // Sync active pill state
     document.querySelectorAll('.finance-pill').forEach(p => {
       p.classList.toggle('active', p.dataset.subtab === subTab);
@@ -6129,6 +6228,12 @@ const app = {
     if (subTab === 'patrimoine') this.renderFinancePatrimoine();
     else if (subTab === 'actualites') this.renderFinanceActualites();
     else if (subTab === 'academie') this.renderFinanceAcademie();
+  },
+
+  _isFinanceSaisonActive() {
+    const now = new Date();
+    const month = now.getMonth() + 1; // 1-12
+    return [1, 4, 7, 10].includes(month) && now.getDate() <= 14;
   },
 
   switchFinanceTab(subTab) {
@@ -6586,11 +6691,51 @@ const app = {
     const weekKey = this.getWeekKey(new Date());
     if (!this.state.questCompleted[weekKey]) this.state.questCompleted[weekKey] = [];
     this.state.questCompleted[weekKey].push('finance-veille-marche');
-    this.addXP('sagesse', 200);
+    const saisonMult = this._isFinanceSaisonActive() ? 2 : 1;
+    this.addXP('sagesse', 200 * saisonMult);
     // Buff ATK +5% pendant 24h
     this.state.finance.news.analyseMarketBuffExpiry = Date.now() + 24 * 60 * 60 * 1000;
-    this.showToast('🎉 Quête : Veille de Marché ! +200 XP · Buff ⚔️ +5% ATK 24h actif !');
+    this.showToast(`🎉 Quête : Veille de Marché ! +${200 * saisonMult} XP · Buff ⚔️ +5% ATK 24h actif !${saisonMult > 1 ? ' 🌟 (Saison ×2)' : ''}`);
     this.saveData();
+  },
+
+  // ── ARTEFACTS FINANCIERS ────────────────────
+  checkFinanceArtefacts() {
+    const f = this.state.finance;
+    if (!f || !this.state.rpg) return;
+    if (!f.artefacts) f.artefacts = {};
+
+    for (const artefact of this.FINANCE_ARTEFACTS) {
+      if (f.artefacts[artefact.id]) continue; // déjà accordé
+      if (!artefact.condition(f)) continue;
+
+      f.artefacts[artefact.id] = new Date().toISOString().split('T')[0];
+      // Ajouter à l'inventaire comme item légendaire
+      this.addToInventory({
+        id: artefact.id,
+        slot: artefact.slot,
+        tier: 5,
+        rarity: 'legendary',
+        name: artefact.name,
+        emoji: artefact.emoji,
+        atk: artefact.atk,
+        def: artefact.def,
+        hp: artefact.hp,
+        special: artefact.special,
+        isFinanceArtefact: true,
+      });
+      this.showToast(artefact.toast);
+    }
+  },
+
+  // Retourne le total d'un bonus de type (xp_bonus, gold_bonus) depuis les artefacts en inventaire
+  getFinanceArtefactBonus(type) {
+    const inv = this.state.rpg?.inventory || [];
+    const equip = this.state.rpg?.equipment || {};
+    const items = [...inv, ...Object.values(equip).filter(Boolean)];
+    return items
+      .filter(i => i?.isFinanceArtefact && i.special?.type === type)
+      .reduce((sum, i) => sum + (i.special?.value || 0), 0);
   },
 
   _relativeDate(timestamp) {
@@ -6967,13 +7112,14 @@ const app = {
       }
     }
 
-    // XP + Gold
-    this.addXP('finance', 500);
-    if (this.state.rpg?.hero) this.state.rpg.hero.gold = (this.state.rpg.hero.gold || 0) + 200;
+    // XP + Gold (doublés pendant la Saison des Bilans)
+    const saisonMult = this._isFinanceSaisonActive() ? 2 : 1;
+    this.addXP('finance', 500 * saisonMult);
+    if (this.state.rpg?.hero) this.state.rpg.hero.gold = (this.state.rpg.hero.gold || 0) + (200 * saisonMult);
     this.checkAllBadges();
     this.saveData();
     this.renderFinanceTab();
-    this.showToast('💰 Bilan sauvegardé ! +500 XP +200 Gold');
+    this.showToast(`💰 Bilan sauvegardé ! +${500 * saisonMult} XP +${200 * saisonMult} Gold${saisonMult > 1 ? ' 🌟 (Saison ×2)' : ''}`);
   },
 
   _updateFinanceTreasurerStreak(weekKey) {
