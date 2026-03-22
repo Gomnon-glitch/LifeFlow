@@ -58,6 +58,10 @@
           <span class="tab-icon">⚔️</span>
           <span class="tab-label">Héros</span>
         </li>
+        <li class="nav-tab" data-tab="finance" id="tab-finance">
+          <span class="tab-icon">💰</span>
+          <span class="tab-label">Finance</span>
+        </li>
       </ul>
 
       <div class="nav-actions">
@@ -606,6 +610,16 @@
           </div>
 
         </div>
+      </section>
+
+      <!-- ========== FINANCE TAB ========== -->
+      <section class="tab-content" id="content-finance">
+        <div class="finance-subnav" id="financeSubnav">
+          <button class="finance-pill active" data-subtab="patrimoine" onclick="app.switchFinanceTab('patrimoine')">📈 Patrimoine</button>
+          <button class="finance-pill" data-subtab="actualites" onclick="app.switchFinanceTab('actualites')">📰 Actualités</button>
+          <button class="finance-pill" data-subtab="academie" onclick="app.switchFinanceTab('academie')">📚 Académie</button>
+        </div>
+        <div id="financeContent"><!-- Rendered by app.renderFinanceTab() --></div>
       </section>
 
       <!-- ========== HERO TAB ========== -->

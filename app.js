@@ -430,6 +430,16 @@ const app = {
     { id: 'rpg-forged-epic', emoji: '🔨',  name: 'Forgeron',         desc: 'Forger un item de rareté Epic ou +',      category: 'rpg', horizon: 'long'   },
     { id: 'rpg-kanji-1',     emoji: '漢',  name: 'Premier Sort',     desc: 'Débloquer un sort Kanji',                category: 'rpg', horizon: 'quick'  },
     { id: 'rpg-skill-node',  emoji: '🌳',  name: 'Nœud Débloqué',   desc: 'Débloquer un nœud de l\'Arbre BioFeedback', category: 'rpg', horizon: 'medium' },
+
+    // ───── 💰 FINANCE ─────
+    { id: 'finance-first-snapshot', emoji: '💰', name: 'Premier Bilan',        desc: 'Réaliser ton premier snapshot Net Worth',           category: 'finance', horizon: 'quick'  },
+    { id: 'finance-1k',             emoji: '💵', name: 'Le Premier 1 000€',    desc: 'Net Worth dépasse 1 000€',                          category: 'finance', horizon: 'quick'  },
+    { id: 'finance-10k',            emoji: '💎', name: '10K Club',             desc: 'Net Worth dépasse 10 000€',                         category: 'finance', horizon: 'medium' },
+    { id: 'finance-streak-4',       emoji: '📅', name: 'Trésorier Régulier',   desc: '4 semaines consécutives de bilans Net Worth',       category: 'finance', horizon: 'medium' },
+    { id: 'finance-streak-12',      emoji: '🏛️', name: 'Le Trésorier de Fer',  desc: '12 snapshots hebdomadaires consécutifs',            category: 'finance', horizon: 'long'   },
+    { id: 'finance-diversified',    emoji: '🌐', name: 'Le Loup de Wall Street', desc: 'PEA/PEG, CTO et Crypto tous actifs simultanément', category: 'finance', horizon: 'medium' },
+    { id: 'finance-investisseur',   emoji: '📈', name: 'Investisseur',          desc: 'Atteindre la classe Investisseur (Net Worth ≥ 5 000€)', category: 'finance', horizon: 'medium' },
+    { id: 'finance-rentier',        emoji: '🏰', name: 'Le Rentier',           desc: 'Atteindre la classe Rentier (Net Worth ≥ 25 000€)', category: 'finance', horizon: 'long'   },
   ],
 
   // ============================================
@@ -1822,6 +1832,34 @@ const app = {
       // Polar RPG buffs — Migration
       if (this.state.rpg.polarStepsBuff === undefined) this.state.rpg.polarStepsBuff = null;
       if (this.state.rpg.polarSleepDebuff === undefined) this.state.rpg.polarSleepDebuff = null;
+
+      // ── Finance — Migration Phase 1 ──
+      if (!this.state.finance) {
+        this.state.finance = {
+          snapshots: [],
+          targetAllocation: { liquidites: 20, bourse: 65, crypto: 10, custom: {} },
+          academy: { read: {}, readingStreak: 0, lastReadWeek: '', articlesCache: [], fetchedAt: null, totalAvailable: 0 },
+          news: { lastFetch: null, cache: [], activeGeo: 'france', activeDomain: 'all' },
+          dividends: [],
+          cryptoCache: {},
+          cashflow: [],
+          treasurerStreak: 0,
+          lastSnapshotWeek: '',
+          heroClass: 'apprenti',
+          sagesseTalents: 0,
+          activeSubTab: 'patrimoine'
+        };
+      }
+      // Champs ajoutés après la migration initiale
+      if (!this.state.finance.academy) this.state.finance.academy = { read: {}, readingStreak: 0, lastReadWeek: '', articlesCache: [], fetchedAt: null, totalAvailable: 0 };
+      if (this.state.finance.academy.articlesCache === undefined) this.state.finance.academy.articlesCache = [];
+      if (this.state.finance.academy.fetchedAt === undefined) this.state.finance.academy.fetchedAt = null;
+      if (!this.state.finance.news) this.state.finance.news = { lastFetch: null, cache: [], activeGeo: 'france', activeDomain: 'all' };
+      if (this.state.finance.heroClass === undefined) this.state.finance.heroClass = 'apprenti';
+      if (this.state.finance.sagesseTalents === undefined) this.state.finance.sagesseTalents = 0;
+      if (this.state.finance.activeSubTab === undefined) this.state.finance.activeSubTab = 'patrimoine';
+      if (this.state.finance.treasurerStreak === undefined) this.state.finance.treasurerStreak = 0;
+      if (this.state.finance.lastSnapshotWeek === undefined) this.state.finance.lastSnapshotWeek = '';
     } catch (e) {
       console.warn('Could not load saved data:', e);
     }
@@ -2088,6 +2126,8 @@ const app = {
     } else {
       this.stopCombatTick();
     }
+    // Finance tab
+    if (tabName === 'finance') this.renderFinanceTab();
   },
 
   // ============================================
@@ -4785,6 +4825,26 @@ const app = {
     grant('winter-fortress', this.state.planningStreak >= 3);
     grant('winter-iron',     habitPerfectStreak >= 10);
 
+    // ── Badges Finance ──
+    const finSnapshots = this.state.finance?.snapshots || [];
+    const finLastSnap = finSnapshots.slice(-1)[0];
+    const finTotal = finLastSnap?.total || 0;
+    const finStreak = this.getFinanceTreasurerStreak();
+    const finA = finLastSnap?.assets;
+    const finHasDiversified = finA &&
+      ((finA.bourse?.pea || 0) + (finA.bourse?.peg || 0) > 0) &&
+      (finA.bourse?.cto || 0) > 0 &&
+      (finA.crypto?.total || 0) > 0;
+    const finHeroClass = this.state.finance?.heroClass || 'apprenti';
+    grant('finance-first-snapshot', finSnapshots.length > 0);
+    grant('finance-1k',             finTotal >= 1000);
+    grant('finance-10k',            finTotal >= 10000);
+    grant('finance-streak-4',       finStreak >= 4);
+    grant('finance-streak-12',      finStreak >= 12);
+    grant('finance-diversified',    !!finHasDiversified);
+    grant('finance-investisseur',   finHeroClass === 'investisseur' || finHeroClass === 'rentier' || finHeroClass === 'magnat');
+    grant('finance-rentier',        finHeroClass === 'rentier' || finHeroClass === 'magnat');
+
     // ── Badges Planning ──
     grant('planner-1',       this.state.planningStreak >= 1);
     grant('planner-5',       this.state.planningStreak >= 5);
@@ -6022,6 +6082,503 @@ const app = {
     }
   },
 
+  // ============================================
+  // FINANCE — PHASE 1 : PATRIMOINE
+  // ============================================
+
+  renderFinanceTab() {
+    const el = document.getElementById('financeContent');
+    if (!el) return;
+    const subTab = this.state.finance?.activeSubTab || 'patrimoine';
+    // Sync active pill state
+    document.querySelectorAll('.finance-pill').forEach(p => {
+      p.classList.toggle('active', p.dataset.subtab === subTab);
+    });
+    if (subTab === 'patrimoine') this.renderFinancePatrimoine();
+    else if (subTab === 'actualites') this.renderFinanceActualites();
+    else if (subTab === 'academie') this.renderFinanceAcademie();
+  },
+
+  switchFinanceTab(subTab) {
+    if (!this.state.finance) return;
+    this.state.finance.activeSubTab = subTab;
+    this.renderFinanceTab();
+  },
+
+  // ── PATRIMOINE ──────────────────────────────
+  renderFinancePatrimoine() {
+    const el = document.getElementById('financeContent');
+    if (!el) return;
+    const f = this.state.finance;
+    const snapshots = f.snapshots || [];
+
+    if (snapshots.length === 0) {
+      el.innerHTML = `
+        <div class="finance-empty">
+          <div class="finance-empty-icon">💰</div>
+          <h3>Démarrez votre suivi patrimonial</h3>
+          <p>Enregistrez votre premier bilan Net Worth pour commencer à suivre l'évolution de votre patrimoine semaine après semaine.</p>
+          <button class="btn btn-primary" onclick="app.openNetWorthModal()">📊 Créer mon premier bilan</button>
+        </div>`;
+      return;
+    }
+
+    const lastSnap = snapshots[snapshots.length - 1];
+    const prevSnap = snapshots.length > 1 ? snapshots[snapshots.length - 2] : null;
+    const total = lastSnap.total || 0;
+    const prevTotal = prevSnap?.total || 0;
+    const delta = total - prevTotal;
+    const deltaPct = prevTotal > 0 ? ((delta / prevTotal) * 100).toFixed(1) : null;
+    const streak = this.getFinanceTreasurerStreak();
+    const score = this.computeFinanceScore();
+    const heroClass = f.heroClass || 'apprenti';
+    const classLabels = { apprenti: 'Apprenti Épargnant', investisseur: 'Investisseur', rentier: 'Rentier', magnat: 'Magnat' };
+    const classEmojis = { apprenti: '🌱', investisseur: '📈', rentier: '🏰', magnat: '👑' };
+
+    // Alerte bilan en retard (> 8 jours sans snapshot)
+    const lastSnapDate = new Date(lastSnap.date);
+    const daysSince = Math.floor((Date.now() - lastSnapDate) / 86400000);
+    const alertBanner = daysSince > 8
+      ? `<div class="finance-alert-banner">⚠️ Votre dernier bilan remonte à ${daysSince} jours — pensez à le mettre à jour !</div>`
+      : '';
+
+    // Graphique ligne SVG (8 derniers snapshots)
+    const chartData = snapshots.slice(-8);
+    const chartValues = chartData.map(s => s.total || 0);
+    const chartLabels = chartData.map(s => {
+      const d = new Date(s.date);
+      return `${d.getDate()}/${d.getMonth() + 1}`;
+    });
+    const lineChart = this.generateSVGLineChart(chartValues, 'var(--accent-blue)');
+
+    // Donut allocation
+    const a = lastSnap.assets;
+    const liqTotal = (a.liquidites?.compte_courant || 0) + (a.liquidites?.livret_a || 0) + (a.liquidites?.ldds || 0);
+    const bourseTotal = (a.bourse?.pea || 0) + (a.bourse?.peg || 0) + (a.bourse?.pero || 0) + (a.bourse?.cto || 0);
+    const cryptoTotal = a.crypto?.total || 0;
+    const customTotal = (a.custom || []).reduce((s, c) => s + (c.valeur || 0), 0);
+    const allocationTotal = total || 1;
+    const donut = this.generateSVGDonut([
+      { label: 'Liquidités', value: liqTotal, color: 'var(--accent-cyan)' },
+      { label: 'Bourse', value: bourseTotal, color: 'var(--accent-blue)' },
+      { label: 'Crypto', value: cryptoTotal, color: 'var(--accent-orange)' },
+      { label: 'Autres', value: customTotal, color: 'var(--accent-purple)' },
+    ].filter(s => s.value > 0));
+
+    // Alertes allocation cible
+    const target = f.targetAllocation || {};
+    const allocationAlerts = [];
+    if (target.liquidites && liqTotal > 0) {
+      const pct = Math.round((liqTotal / allocationTotal) * 100);
+      if (Math.abs(pct - target.liquidites) > 5) allocationAlerts.push(`💵 Liquidités à ${pct}% (cible ${target.liquidites}%)`);
+    }
+    if (target.bourse && bourseTotal > 0) {
+      const pct = Math.round((bourseTotal / allocationTotal) * 100);
+      if (Math.abs(pct - target.bourse) > 5) allocationAlerts.push(`📊 Bourse à ${pct}% (cible ${target.bourse}%)`);
+    }
+    if (target.crypto && cryptoTotal > 0) {
+      const pct = Math.round((cryptoTotal / allocationTotal) * 100);
+      if (Math.abs(pct - target.crypto) > 5) allocationAlerts.push(`₿ Crypto à ${pct}% (cible ${target.crypto}%)`);
+    }
+
+    // Historique (3 derniers snapshots)
+    const history = [...snapshots].reverse().slice(0, 3).map((s, i) => {
+      const prev = [...snapshots].reverse()[i + 1];
+      const d = new Date(s.date);
+      const dt = prev ? (s.total - prev.total) : 0;
+      const dtStr = dt !== 0 ? `<span class="${dt >= 0 ? 'finance-positive' : 'finance-negative'}">${dt >= 0 ? '+' : ''}${dt.toLocaleString('fr-FR')}€</span>` : '';
+      return `<div class="finance-history-row">
+        <span class="finance-history-date">${d.toLocaleDateString('fr-FR')}</span>
+        <span class="finance-history-total">${(s.total || 0).toLocaleString('fr-FR')} €</span>
+        ${dtStr}
+        ${s.note ? `<span class="finance-history-note" title="${s.note}">📝</span>` : ''}
+      </div>`;
+    }).join('');
+
+    el.innerHTML = `
+      ${alertBanner}
+
+      <div class="finance-score-card">
+        <div class="finance-score-left">
+          <div class="finance-score-value">${score}<span class="finance-score-max">/100</span></div>
+          <div class="finance-score-label">Score Financier</div>
+        </div>
+        <div class="finance-score-right">
+          <div class="finance-hero-class">${classEmojis[heroClass]} ${classLabels[heroClass]}</div>
+          <div class="finance-streak">📅 Streak : ${streak} semaine${streak > 1 ? 's' : ''}</div>
+        </div>
+      </div>
+
+      <div class="finance-summary-card card">
+        <div class="finance-networth-section">
+          <div class="finance-networth-main">
+            <div class="finance-networth-value">${total.toLocaleString('fr-FR')} €</div>
+            <div class="finance-networth-label">Net Worth total</div>
+            ${delta !== 0 || prevSnap ? `<div class="finance-delta ${delta >= 0 ? 'finance-positive' : 'finance-negative'}">
+              ${delta >= 0 ? '▲' : '▼'} ${Math.abs(delta).toLocaleString('fr-FR')} €${deltaPct ? ` (${delta >= 0 ? '+' : ''}${deltaPct}%)` : ''}
+              <span class="finance-delta-label">vs semaine précédente</span>
+            </div>` : ''}
+          </div>
+          <div class="finance-donut-section">
+            ${donut}
+            <div class="finance-allocation-legend">
+              ${liqTotal > 0 ? `<div class="finance-legend-item"><span style="background:var(--accent-cyan)"></span>Liquidités ${Math.round(liqTotal/allocationTotal*100)}%</div>` : ''}
+              ${bourseTotal > 0 ? `<div class="finance-legend-item"><span style="background:var(--accent-blue)"></span>Bourse ${Math.round(bourseTotal/allocationTotal*100)}%</div>` : ''}
+              ${cryptoTotal > 0 ? `<div class="finance-legend-item"><span style="background:var(--accent-orange)"></span>Crypto ${Math.round(cryptoTotal/allocationTotal*100)}%</div>` : ''}
+              ${customTotal > 0 ? `<div class="finance-legend-item"><span style="background:var(--accent-purple)"></span>Autres ${Math.round(customTotal/allocationTotal*100)}%</div>` : ''}
+            </div>
+          </div>
+        </div>
+
+        ${allocationAlerts.length > 0 ? `<div class="finance-alloc-alerts">${allocationAlerts.map(a => `<div class="finance-alloc-alert">⚠️ ${a}</div>`).join('')}</div>` : ''}
+
+        <div class="finance-chart-section">
+          <div class="finance-chart-label">Évolution Net Worth (${chartData.length} derniers bilans)</div>
+          ${lineChart}
+          <div class="finance-chart-xlabels">${chartLabels.map(l => `<span>${l}</span>`).join('')}</div>
+        </div>
+      </div>
+
+      <div class="finance-actions">
+        <button class="btn btn-primary" onclick="app.openNetWorthModal()">📊 Nouveau bilan</button>
+        <button class="btn" onclick="app.quickUpdateNetWorth()">⚡ Quick Update</button>
+        <button class="btn btn-sm" onclick="app.openTargetAllocationModal()">🎯 Cibles d'allocation</button>
+      </div>
+
+      <div class="card finance-history-card">
+        <div class="card-title">🗓️ Historique des bilans</div>
+        ${history}
+      </div>
+    `;
+  },
+
+  // ── ACTUALITÉS (placeholder Phase 2) ────────
+  renderFinanceActualites() {
+    const el = document.getElementById('financeContent');
+    if (!el) return;
+    el.innerHTML = `
+      <div class="finance-empty">
+        <div class="finance-empty-icon">📰</div>
+        <h3>Actualités Économiques</h3>
+        <p>Le flux d'actualités RSS (France · Europe · International, filtré par domaine) sera disponible en Phase 2.</p>
+        <div class="finance-coming-soon-badge">Disponible prochainement</div>
+      </div>`;
+  },
+
+  // ── ACADÉMIE (placeholder Phase 3) ──────────
+  renderFinanceAcademie() {
+    const el = document.getElementById('financeContent');
+    if (!el) return;
+    el.innerHTML = `
+      <div class="finance-empty">
+        <div class="finance-empty-icon">📚</div>
+        <h3>Académie Financière</h3>
+        <p>La bibliothèque de modules pédagogiques (intérêts composés, ETF, DCA, etc.) avec système de progression et récompenses XP sera disponible en Phase 3.</p>
+        <div class="finance-coming-soon-badge">Disponible prochainement</div>
+      </div>`;
+  },
+
+  // ── MODAL SAISIE NET WORTH ───────────────────
+  openNetWorthModal() {
+    const f = this.state.finance;
+    const lastSnap = (f.snapshots || []).slice(-1)[0];
+    const prev = lastSnap?.assets || {};
+    const liq = prev.liquidites || {};
+    const bourse = prev.bourse || {};
+    const crypto = prev.crypto || {};
+    const customArr = prev.custom || [];
+
+    const customFields = customArr.map((c, i) => `
+      <div class="nw-custom-row" id="nw-custom-row-${i}">
+        <input type="text" class="nw-custom-label" data-idx="${i}" value="${c.nom || ''}" placeholder="Nom (ex: SCPI)"/>
+        <input type="number" class="nw-custom-value" data-idx="${i}" value="${c.valeur || 0}" min="0"/>
+        <button class="btn-icon" onclick="app._removeCustomNWRow(${i})" title="Supprimer">✕</button>
+      </div>`).join('');
+
+    document.getElementById('modalTitle').textContent = '📊 Bilan Net Worth';
+    document.getElementById('modalBody').innerHTML = `
+      <div class="nw-form">
+        <div class="nw-section">
+          <div class="nw-section-title">💵 Liquidités</div>
+          <label class="nw-label">Compte courant<input type="number" id="nw-cc" value="${liq.compte_courant || 0}" min="0" step="1"/></label>
+          <label class="nw-label">Livret A<input type="number" id="nw-la" value="${liq.livret_a || 0}" min="0" step="1"/></label>
+          <label class="nw-label">LDDS<input type="number" id="nw-ldds" value="${liq.ldds || 0}" min="0" step="1"/></label>
+        </div>
+        <div class="nw-section">
+          <div class="nw-section-title">📊 Bourse</div>
+          <label class="nw-label">PEA<input type="number" id="nw-pea" value="${bourse.pea || 0}" min="0" step="1"/></label>
+          <label class="nw-label">PEG (PEA PME)<input type="number" id="nw-peg" value="${bourse.peg || 0}" min="0" step="1"/></label>
+          <label class="nw-label">PERO<input type="number" id="nw-pero" value="${bourse.pero || 0}" min="0" step="1"/></label>
+          <label class="nw-label">CTO<input type="number" id="nw-cto" value="${bourse.cto || 0}" min="0" step="1"/></label>
+        </div>
+        <div class="nw-section">
+          <div class="nw-section-title">₿ Crypto</div>
+          <label class="nw-label">Total Crypto<input type="number" id="nw-crypto" value="${crypto.total || 0}" min="0" step="1"/></label>
+        </div>
+        <div class="nw-section" id="nw-custom-section">
+          <div class="nw-section-title">➕ Autres actifs
+            <button class="btn btn-sm" onclick="app._addCustomNWRow()" style="margin-left:8px;">+ Ajouter</button>
+          </div>
+          <div id="nw-custom-rows">${customFields}</div>
+        </div>
+        <div class="nw-section">
+          <div class="nw-section-title">📝 Note (optionnel)</div>
+          <textarea id="nw-note" rows="2" style="width:100%;resize:none;" placeholder="Ex: 'Bonus reçu ce mois-ci'...">${lastSnap?.note || ''}</textarea>
+        </div>
+        <div class="nw-total-preview">
+          Total estimé : <strong id="nw-total-preview">—</strong>
+        </div>
+      </div>`;
+
+    document.getElementById('modalFooter').innerHTML = `
+      <button class="btn" onclick="app.closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="app.saveNetWorthSnapshot()">💾 Valider le bilan</button>`;
+
+    document.getElementById('modalOverlay').classList.add('active');
+
+    // Live total preview
+    const inputs = document.querySelectorAll('.nw-form input[type="number"]');
+    const updatePreview = () => {
+      let t = 0;
+      document.querySelectorAll('.nw-form input[type="number"]').forEach(inp => { t += parseFloat(inp.value) || 0; });
+      const el = document.getElementById('nw-total-preview');
+      if (el) el.textContent = t.toLocaleString('fr-FR') + ' €';
+    };
+    inputs.forEach(inp => inp.addEventListener('input', updatePreview));
+    updatePreview();
+  },
+
+  _addCustomNWRow() {
+    const container = document.getElementById('nw-custom-rows');
+    if (!container) return;
+    const idx = container.querySelectorAll('.nw-custom-row').length;
+    const row = document.createElement('div');
+    row.className = 'nw-custom-row';
+    row.id = `nw-custom-row-${idx}`;
+    row.innerHTML = `
+      <input type="text" class="nw-custom-label" data-idx="${idx}" value="" placeholder="Nom (ex: SCPI)"/>
+      <input type="number" class="nw-custom-value" data-idx="${idx}" value="0" min="0"/>
+      <button class="btn-icon" onclick="app._removeCustomNWRow(${idx})" title="Supprimer">✕</button>`;
+    container.appendChild(row);
+  },
+
+  _removeCustomNWRow(idx) {
+    const row = document.getElementById(`nw-custom-row-${idx}`);
+    if (row) row.remove();
+  },
+
+  quickUpdateNetWorth() {
+    const snapshots = this.state.finance?.snapshots || [];
+    if (!snapshots.length) { this.openNetWorthModal(); return; }
+    // Copie le dernier snapshot avec la date d'aujourd'hui
+    const lastSnap = snapshots[snapshots.length - 1];
+    const weekKey = this.getWeekKey(new Date());
+    const dateKey = this.getDateKey(new Date());
+    const newSnap = { ...lastSnap, date: dateKey, weekKey, note: '' };
+    this._commitSnapshot(newSnap);
+    this.showToast('⚡ Quick Update effectué ! Même valeurs que la semaine précédente.');
+  },
+
+  saveNetWorthSnapshot() {
+    const getVal = id => parseFloat(document.getElementById(id)?.value) || 0;
+    const customRows = document.querySelectorAll('#nw-custom-rows .nw-custom-row');
+    const customArr = [];
+    customRows.forEach(row => {
+      const nom = row.querySelector('.nw-custom-label')?.value?.trim();
+      const valeur = parseFloat(row.querySelector('.nw-custom-value')?.value) || 0;
+      if (nom) customArr.push({ nom, valeur });
+    });
+
+    const assets = {
+      liquidites: { compte_courant: getVal('nw-cc'), livret_a: getVal('nw-la'), ldds: getVal('nw-ldds') },
+      bourse: { pea: getVal('nw-pea'), peg: getVal('nw-peg'), pero: getVal('nw-pero'), cto: getVal('nw-cto') },
+      crypto: { total: getVal('nw-crypto'), detail: [] },
+      custom: customArr
+    };
+    const total = this.getNetWorthTotal({ assets });
+    const note = document.getElementById('nw-note')?.value?.trim() || '';
+    const snap = { date: this.getDateKey(new Date()), weekKey: this.getWeekKey(new Date()), assets, total, note };
+    this._commitSnapshot(snap);
+    this.closeModal();
+  },
+
+  _commitSnapshot(snap) {
+    const f = this.state.finance;
+    if (!f.snapshots) f.snapshots = [];
+    // Remplace si même semaine, sinon ajoute
+    const idx = f.snapshots.findIndex(s => s.weekKey === snap.weekKey);
+    if (idx >= 0) f.snapshots[idx] = snap;
+    else f.snapshots.push(snap);
+    // Limite à 52 entrées (1 an)
+    if (f.snapshots.length > 52) f.snapshots = f.snapshots.slice(-52);
+
+    this._updateFinanceTreasurerStreak(snap.weekKey);
+    this.checkFinanceMilestones();
+    // XP + Gold
+    this.addXP('finance', 500);
+    if (this.state.rpg?.hero) this.state.rpg.hero.gold = (this.state.rpg.hero.gold || 0) + 200;
+    this.checkAllBadges();
+    this.saveData();
+    this.renderFinanceTab();
+    this.showToast('💰 Bilan sauvegardé ! +500 XP +200 Gold');
+  },
+
+  _updateFinanceTreasurerStreak(weekKey) {
+    const f = this.state.finance;
+    if (!f.lastSnapshotWeek || f.lastSnapshotWeek === weekKey) {
+      f.lastSnapshotWeek = weekKey;
+      if (!f.treasurerStreak) f.treasurerStreak = 1;
+      return;
+    }
+    const streak = this.getFinanceTreasurerStreak();
+    f.treasurerStreak = streak + 1;
+    f.lastSnapshotWeek = weekKey;
+  },
+
+  // ── MODAL ALLOCATION CIBLE ───────────────────
+  openTargetAllocationModal() {
+    const t = this.state.finance?.targetAllocation || {};
+    document.getElementById('modalTitle').textContent = '🎯 Allocation cible (%)';
+    document.getElementById('modalBody').innerHTML = `
+      <div class="nw-form">
+        <p style="color:var(--text-muted);margin-bottom:12px;">Définissez la répartition idéale de votre patrimoine. Une alerte s'affichera si un actif dépasse la cible de plus de 5 points.</p>
+        <label class="nw-label">💵 Liquidités %<input type="number" id="ta-liq" value="${t.liquidites ?? 20}" min="0" max="100"/></label>
+        <label class="nw-label">📊 Bourse %<input type="number" id="ta-bourse" value="${t.bourse ?? 65}" min="0" max="100"/></label>
+        <label class="nw-label">₿ Crypto %<input type="number" id="ta-crypto" value="${t.crypto ?? 10}" min="0" max="100"/></label>
+      </div>`;
+    document.getElementById('modalFooter').innerHTML = `
+      <button class="btn" onclick="app.closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="app.saveTargetAllocation()">💾 Sauvegarder</button>`;
+    document.getElementById('modalOverlay').classList.add('active');
+  },
+
+  saveTargetAllocation() {
+    const getVal = id => parseFloat(document.getElementById(id)?.value) || 0;
+    this.state.finance.targetAllocation = { liquidites: getVal('ta-liq'), bourse: getVal('ta-bourse'), crypto: getVal('ta-crypto'), custom: {} };
+    this.saveData();
+    this.closeModal();
+    this.renderFinanceTab();
+    this.showToast('🎯 Allocation cible mise à jour !');
+  },
+
+  // ── HELPERS ──────────────────────────────────
+  getNetWorthTotal(snapshot) {
+    const a = snapshot.assets;
+    const liq = (a.liquidites?.compte_courant || 0) + (a.liquidites?.livret_a || 0) + (a.liquidites?.ldds || 0);
+    const bourse = (a.bourse?.pea || 0) + (a.bourse?.peg || 0) + (a.bourse?.pero || 0) + (a.bourse?.cto || 0);
+    const crypto = a.crypto?.total || 0;
+    const custom = (a.custom || []).reduce((s, c) => s + (c.valeur || 0), 0);
+    return liq + bourse + crypto + custom;
+  },
+
+  getFinanceTreasurerStreak() {
+    const snapshots = this.state.finance?.snapshots || [];
+    if (!snapshots.length) return 0;
+    const snapshotWeeks = new Set(snapshots.map(s => s.weekKey));
+    let streak = 0;
+    const now = new Date();
+    for (let w = 0; w < 52; w++) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - w * 7);
+      const wk = this.getWeekKey(d);
+      if (snapshotWeeks.has(wk)) {
+        streak++;
+      } else if (streak > 0) {
+        break;
+      }
+    }
+    return streak;
+  },
+
+  computeFinanceScore() {
+    const f = this.state.finance;
+    if (!f) return 0;
+    const weekKey = this.getWeekKey(new Date());
+    const snapshotWeeks = new Set((f.snapshots || []).map(s => s.weekKey));
+    // Régularité (35 pts)
+    const regularityScore = snapshotWeeks.has(weekKey) ? 35 : 0;
+    // Diversification (30 pts) : nb de classes non-zéro (max 3 pour 30pts)
+    const lastSnap = (f.snapshots || []).slice(-1)[0];
+    let diversityScore = 0;
+    if (lastSnap) {
+      const a = lastSnap.assets;
+      const liq = (a.liquidites?.compte_courant || 0) + (a.liquidites?.livret_a || 0) + (a.liquidites?.ldds || 0);
+      const bourse = (a.bourse?.pea || 0) + (a.bourse?.peg || 0) + (a.bourse?.pero || 0) + (a.bourse?.cto || 0);
+      const crypto = a.crypto?.total || 0;
+      const custom = (a.custom || []).reduce((s, c) => s + (c.valeur || 0), 0);
+      let nonZero = [liq, bourse, crypto, custom].filter(v => v > 0).length;
+      diversityScore = Math.min(30, Math.round((nonZero / 3) * 30));
+    }
+    // Taux d'épargne (35 pts) : Phase 2 (cashflow)
+    return Math.min(100, regularityScore + diversityScore);
+  },
+
+  checkFinanceMilestones() {
+    const f = this.state.finance;
+    if (!f?.snapshots?.length) return;
+    const lastSnap = f.snapshots[f.snapshots.length - 1];
+    const total = lastSnap?.total || 0;
+    let newClass = 'apprenti';
+    if (total >= 100000) newClass = 'magnat';
+    else if (total >= 25000) newClass = 'rentier';
+    else if (total >= 5000) newClass = 'investisseur';
+    const classLabels = { apprenti: 'Apprenti Épargnant', investisseur: 'Investisseur', rentier: 'Rentier', magnat: 'Magnat' };
+    if (newClass !== f.heroClass) {
+      f.heroClass = newClass;
+      if (newClass !== 'apprenti') this.showToast(`⭐ Nouvelle classe : ${classLabels[newClass]} !`);
+    }
+  },
+
+  generateSVGLineChart(values, color = 'var(--accent-blue)') {
+    if (!values.length) return '<p style="color:var(--text-muted);text-align:center;">Aucune donnée</p>';
+    if (values.length === 1) values = [0, values[0]];
+    const w = 300, h = 80, padX = 10, padY = 10;
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    const range = max - min || 1;
+    const n = values.length;
+    const pts = values.map((v, i) => {
+      const x = padX + (i / (n - 1)) * (w - 2 * padX);
+      const y = h - padY - ((v - min) / range) * (h - 2 * padY);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+    const dots = values.map((v, i) => {
+      const x = padX + (i / (n - 1)) * (w - 2 * padX);
+      const y = h - padY - ((v - min) / range) * (h - 2 * padY);
+      return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="${color}"/>`;
+    }).join('');
+    // Fill area under line
+    const firstX = padX.toFixed(1), lastX = (padX + (w - 2 * padX)).toFixed(1);
+    const fillPts = `${firstX},${h - padY} ${pts} ${lastX},${h - padY}`;
+    return `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:80px;" preserveAspectRatio="none">
+      <polygon points="${fillPts}" fill="${color}" fill-opacity="0.1"/>
+      <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      ${dots}
+    </svg>`;
+  },
+
+  generateSVGDonut(segments) {
+    if (!segments.length) return '';
+    const total = segments.reduce((s, seg) => s + (seg.value || 0), 0) || 1;
+    const r = 36, cx = 44, cy = 44;
+    const circumference = 2 * Math.PI * r;
+    let cumulativePct = 0;
+    const arcs = segments.map(seg => {
+      const pct = seg.value / total;
+      const dashLength = (pct * circumference).toFixed(1);
+      const gapLength = (circumference - pct * circumference).toFixed(1);
+      const rotation = (cumulativePct * 360 - 90).toFixed(1);
+      cumulativePct += pct;
+      return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${seg.color}" stroke-width="12"
+        stroke-dasharray="${dashLength} ${gapLength}"
+        transform="rotate(${rotation} ${cx} ${cy})"/>`;
+    }).join('');
+    return `<svg viewBox="0 0 88 88" style="width:88px;height:88px;flex-shrink:0;">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="12"/>
+      ${arcs}
+    </svg>`;
+  },
+
   // Check and send scheduled notifications
   checkScheduledNotifications() {
     if (Notification.permission !== 'granted') return;
@@ -6115,6 +6672,21 @@ const app = {
           `✅ ${unchecked.length} habitude(s) restante(s)`,
           `Il te reste : ${unchecked.slice(0, 3).map(h => h.name).join(', ')}`,
           'habits-reminder'
+        );
+        return;
+      }
+    }
+
+    // Finance weekly reminder — dimanche à 18h00
+    if (now.getDay() === 0 && hours === 18 && minutes === 0) {
+      const weekKey = this.getWeekKey(now);
+      const snapshotWeeks = new Set((this.state.finance?.snapshots || []).map(s => s.weekKey));
+      if (!snapshotWeeks.has(weekKey)) {
+        this.lastNotifKey = notifKey;
+        this.sendNotification(
+          '💰 Bilan financier hebdomadaire',
+          'C\'est l\'heure de mettre à jour votre Net Worth !',
+          'finance-weekly'
         );
         return;
       }
