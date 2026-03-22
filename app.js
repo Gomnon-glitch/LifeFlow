@@ -6391,12 +6391,11 @@ const app = {
     }
   },
 
-  // ── FETCH & PARSE RSS ───────────────────────
+  // ── FETCH RSS via rss2json.com ───────────────
   async fetchFinanceNews() {
     const news = this.state.finance.news;
     const THIRTY_MIN = 30 * 60 * 1000;
 
-    // Return cached if still fresh
     if (news.lastFetch && (Date.now() - news.lastFetch < THIRTY_MIN) && news.cache.length > 0) {
       return news.cache;
     }
@@ -6410,22 +6409,39 @@ const app = {
 
     if (!feeds.length) return news.cache;
 
-    const proxy = 'https://api.allorigins.win/get?url=';
-    const results = await Promise.allSettled(
-      feeds.slice(0, 3).map(url =>
-        fetch(proxy + encodeURIComponent(url), { signal: AbortSignal.timeout(9000) })
-          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-          .then(j => this._parseRSSItems(j.contents || '', url))
-      )
-    );
-
     const articles = [];
-    results.forEach(r => { if (r.status === 'fulfilled') articles.push(...r.value); });
+    // rss2json.com — retourne du JSON sans besoin de parser XML, supporte CORS
+    const api = 'https://api.rss2json.com/v1/api.json?count=12&rss_url=';
 
-    // Dedupe by URL, sort newest first, cap at 25
+    for (const feedUrl of feeds.slice(0, 3)) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 10000);
+        const res = await fetch(api + encodeURIComponent(feedUrl), { signal: controller.signal });
+        clearTimeout(timer);
+        if (!res.ok) continue;
+        const data = await res.json();
+        if (data.status !== 'ok' || !Array.isArray(data.items) || !data.items.length) continue;
+        const source = data.feed?.title?.trim() || new URL(feedUrl).hostname;
+        data.items.forEach(item => {
+          const desc = (item.description || item.content || '')
+            .replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim().slice(0, 160);
+          articles.push({
+            title: (item.title || '').trim(),
+            description: desc,
+            url: item.link || item.guid || '',
+            source,
+            pubDate: item.pubDate ? new Date(item.pubDate).getTime() : Date.now(),
+          });
+        });
+      } catch (e) {
+        console.warn('[LifeFlow] RSS feed error:', feedUrl, e.message);
+      }
+    }
+
     const seen = new Set();
     const deduped = articles
-      .filter(a => { if (seen.has(a.url)) return false; seen.add(a.url); return true; })
+      .filter(a => a.title && a.url && !seen.has(a.url) && seen.add(a.url))
       .sort((a, b) => b.pubDate - a.pubDate)
       .slice(0, 25);
 
@@ -6433,36 +6449,6 @@ const app = {
     news.lastFetch = Date.now();
     this.saveData();
     return deduped;
-  },
-
-  _parseRSSItems(xml, feedUrl) {
-    if (!xml) return [];
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(xml, 'text/xml');
-      if (doc.querySelector('parsererror')) return [];
-      const channelTitle = doc.querySelector('channel > title')?.textContent?.trim() || new URL(feedUrl).hostname;
-      const items = [...doc.querySelectorAll('item')];
-      return items.slice(0, 12).map(item => {
-        const get = tag => item.querySelector(tag)?.textContent?.trim() || '';
-        const rawTitle = get('title').replace(/\s*\|.*$/, '').trim(); // strip " | Source" suffixes
-        const rawDesc = get('description')
-          .replace(/<[^>]+>/g, '')
-          .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
-          .trim().slice(0, 160);
-        const link = get('link') || get('guid');
-        const dateStr = get('pubDate') || get('dc\\:date') || get('date');
-        return {
-          title: rawTitle || 'Sans titre',
-          description: rawDesc,
-          url: link,
-          source: channelTitle,
-          pubDate: dateStr ? new Date(dateStr).getTime() : Date.now(),
-        };
-      }).filter(a => a.title !== 'Sans titre' && a.url);
-    } catch (e) {
-      return [];
-    }
   },
 
   markNewsArticleRead(url) {
