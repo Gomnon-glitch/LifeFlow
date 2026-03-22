@@ -6090,19 +6090,19 @@ const app = {
   // ============================================
   RSS_FEEDS: {
     france: {
-      economie:    ['https://www.lesechos.fr/rss/rss_une.xml', 'https://www.lefigaro.fr/rss/figaro_economie.xml'],
-      tech:        ['https://www.usine-digitale.fr/rss.xml'],
-      geopolitique:['https://www.lemonde.fr/rss/une.xml'],
+      economie:    ['https://www.lefigaro.fr/rss/figaro_economie.xml', 'https://bfmbusiness.bfmtv.com/rss/info/flux-rss/flux-toutes-les-actualites/'],
+      tech:        ['https://www.usine-digitale.fr/rss.xml', 'https://www.journaldunet.com/rss/'],
+      geopolitique:['https://www.lemonde.fr/rss/une.xml', 'https://www.france24.com/fr/rss'],
     },
     europe: {
-      economie:    ['https://feeds.reuters.com/reuters/businessNews'],
+      economie:    ['https://feeds.bbci.co.uk/news/business/rss.xml'],
       geopolitique:['https://feeds.bbci.co.uk/news/world/europe/rss.xml'],
       tech:        ['https://feeds.bbci.co.uk/news/technology/rss.xml'],
     },
     international: {
-      economie:    ['https://feeds.reuters.com/reuters/businessNews'],
-      tech:        ['https://feeds.wired.com/wired/index'],
-      geopolitique:['https://feeds.reuters.com/reuters/worldNews'],
+      economie:    ['https://feeds.bbci.co.uk/news/business/rss.xml'],
+      tech:        ['https://www.wired.com/feed/rss', 'https://techcrunch.com/feed/'],
+      geopolitique:['https://feeds.bbci.co.uk/news/world/rss.xml'],
     },
   },
 
