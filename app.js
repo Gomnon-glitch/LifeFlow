@@ -440,6 +440,8 @@ const app = {
     { id: 'finance-diversified',    emoji: '🌐', name: 'Le Loup de Wall Street', desc: 'PEA/PEG, CTO et Crypto tous actifs simultanément', category: 'finance', horizon: 'medium' },
     { id: 'finance-investisseur',   emoji: '📈', name: 'Investisseur',          desc: 'Atteindre la classe Investisseur (Net Worth ≥ 5 000€)', category: 'finance', horizon: 'medium' },
     { id: 'finance-rentier',        emoji: '🏰', name: 'Le Rentier',           desc: 'Atteindre la classe Rentier (Net Worth ≥ 25 000€)', category: 'finance', horizon: 'long'   },
+    { id: 'finance-academicien',    emoji: '🎓', name: 'L\'Académicien',        desc: 'Lire tous les modules de l\'Académie Financière',   category: 'finance', horizon: 'long'   },
+    { id: 'finance-sage',           emoji: '🧙', name: 'Le Sage',               desc: 'Atteindre le niveau max du Talent Tree Sagesse',    category: 'finance', horizon: 'long'   },
   ],
 
   // ============================================
@@ -1863,6 +1865,8 @@ const app = {
       // ── Finance — Migration Phase 2 ──
       if (this.state.finance.news.readByWeek === undefined) this.state.finance.news.readByWeek = {};
       if (this.state.finance.news.analyseMarketBuffExpiry === undefined) this.state.finance.news.analyseMarketBuffExpiry = null;
+      // ── Finance — Migration Phase 3 ──
+      if (this.state.finance.krachBoss === undefined) this.state.finance.krachBoss = null;
     } catch (e) {
       console.warn('Could not load saved data:', e);
     }
@@ -4847,6 +4851,10 @@ const app = {
     grant('finance-diversified',    !!finHasDiversified);
     grant('finance-investisseur',   finHeroClass === 'investisseur' || finHeroClass === 'rentier' || finHeroClass === 'magnat');
     grant('finance-rentier',        finHeroClass === 'rentier' || finHeroClass === 'magnat');
+    const finAcadRead = Object.keys(this.state.finance?.academy?.read || {});
+    const finAcadTotal = (this.state.finance?.academy?.totalAvailable || 0);
+    grant('finance-academicien',    finAcadTotal > 0 && finAcadRead.length >= finAcadTotal);
+    grant('finance-sage',           (this.state.finance?.sagesseTalents || 0) >= 5);
 
     // ── Badges Planning ──
     grant('planner-1',       this.state.planningStreak >= 1);
@@ -6273,7 +6281,77 @@ const app = {
         <div class="card-title">🗓️ Historique des bilans</div>
         ${history}
       </div>
+
+      ${this._renderBanquierNPC(delta, deltaPct, streak, total)}
+      ${this._renderKrachBanner()}
     `;
+  },
+
+  _renderBanquierNPC(delta, deltaPct, streak, total) {
+    if (!this.state.finance?.snapshots?.length) return '';
+    let msg = '';
+    if (delta > 0 && deltaPct) {
+      msg = `Votre patrimoine a progressé de <strong>+${deltaPct}%</strong> cette semaine, Héros. Vos coffres se remplissent. Continuez sur cette lancée.`;
+    } else if (delta < 0 && deltaPct) {
+      msg = `Les marchés ont été rudes cette semaine (${deltaPct}%). Tenez bon — les cycles sont longs et la constance prime sur tout.`;
+    } else if (streak >= 12) {
+      msg = `<strong>${streak} semaines de constance.</strong> Les vrais investisseurs jouent sur le long terme. Vous en faites partie.`;
+    } else if (streak >= 4) {
+      msg = `${streak} bilans consécutifs. La régularité est la première vertu de l'investisseur. Votre futur vous en sera reconnaissant.`;
+    } else if (total === 0) {
+      msg = `Le voyage de mille lieues commence par un premier bilan. Remplissez vos actifs et observez votre patrimoine prendre forme.`;
+    } else {
+      msg = `Patrimoine actuel : <strong>${total.toLocaleString('fr-FR')} €</strong>. Chaque semaine compte. Restez discipliné.`;
+    }
+    return `
+      <div class="banker-npc-card">
+        <div class="banker-npc-avatar">🏦</div>
+        <div class="banker-npc-body">
+          <div class="banker-npc-name">Le Banquier</div>
+          <div class="banker-npc-msg">${msg}</div>
+        </div>
+      </div>`;
+  },
+
+  _renderKrachBanner() {
+    const krach = this.state.finance?.krachBoss;
+    if (!krach?.active) return '';
+    if (Date.now() > krach.expiry) {
+      this.state.finance.krachBoss.active = false;
+      return '';
+    }
+    const hpPct = Math.round((krach.hp / krach.hpMax) * 100);
+    const hoursLeft = Math.round((krach.expiry - Date.now()) / 3600000);
+    return `
+      <div class="krach-boss-banner">
+        <div class="krach-boss-header">
+          <span class="krach-boss-icon">💥</span>
+          <span>Boss <strong>Le Krach</strong> — ${hoursLeft}h restantes</span>
+          <button class="krach-fight-btn" onclick="app.fightKrachBoss()">⚔️ Combattre</button>
+        </div>
+        <div class="krach-hp-bar"><div class="krach-hp-fill" style="width:${hpPct}%"></div></div>
+        <div class="krach-hp-label">${krach.hp}/${krach.hpMax} HP</div>
+      </div>`;
+  },
+
+  fightKrachBoss() {
+    const krach = this.state.finance?.krachBoss;
+    if (!krach?.active || Date.now() > krach.expiry) return;
+    const hero = this.state.rpg?.hero;
+    const atk = (hero?.atk || 10);
+    const dmg = atk + Math.floor(Math.random() * 20);
+    krach.hp = Math.max(0, krach.hp - dmg);
+    if (krach.hp <= 0) {
+      krach.active = false;
+      if (!this.state.rpg.hero.def) this.state.rpg.hero.def = 10;
+      this.state.rpg.hero.def += 5;
+      this.checkAllBadges();
+      this.showToast('🏆 Boss vaincu ! +5 DEF permanent · Médaille de la Résilience !');
+    } else {
+      this.showToast(`⚔️ ${dmg} dégâts infligés au Krach ! HP : ${krach.hp}/${krach.hpMax}`);
+    }
+    this.saveData();
+    this.renderFinancePatrimoine();
   },
 
   // ── ACTUALITÉS — Phase 2 ────────────────────
@@ -6527,17 +6605,214 @@ const app = {
     return `il y a ${days}j`;
   },
 
-  // ── ACADÉMIE (placeholder Phase 3) ──────────
+  // ── ACADÉMIE — Phase 3 ──────────────────────
   renderFinanceAcademie() {
     const el = document.getElementById('financeContent');
     if (!el) return;
-    el.innerHTML = `
-      <div class="finance-empty">
-        <div class="finance-empty-icon">📚</div>
-        <h3>Académie Financière</h3>
-        <p>La bibliothèque de modules pédagogiques (intérêts composés, ETF, DCA, etc.) avec système de progression et récompenses XP sera disponible en Phase 3.</p>
-        <div class="finance-coming-soon-badge">Disponible prochainement</div>
+    el.innerHTML = `<div id="academy-shell"><div class="finance-loading">⏳ Chargement de l'Académie…</div></div>`;
+    this._loadAndRenderAcademie();
+  },
+
+  async _loadAndRenderAcademie() {
+    const shell = document.getElementById('academy-shell');
+    if (!shell) return;
+
+    const articles = await this.fetchAcademyArticles();
+    if (!document.getElementById('academy-shell')) return;
+
+    const acad = this.state.finance.academy;
+    const readIds = new Set(Object.keys(acad.read || {}));
+    const readCount = readIds.size;
+    const total = articles.length;
+    const pct = total > 0 ? Math.round((readCount / total) * 100) : 0;
+    const talentLevel = this.computeSagesseTalentLevel();
+    const TALENT_LABELS = ['—', 'Intérêts Composés Lv1', 'Diversification Lv1', 'Gestion du Risque', 'Théorie du Portfolio', 'Sagesse Suprême'];
+    const TALENT_FX = ['', '+2% gold passif', '+3% XP global', '-10% dégâts boss', '+5% gold passif', '+10% tous gains'];
+
+    // Filtre actif (stocké temporairement dans acad)
+    const activeCategory = acad._filterCategory || 'all';
+    const activeDifficulty = acad._filterDifficulty || 'all';
+
+    const categories = ['all', 'concepts', 'bourse', 'epargne', 'crypto', 'immo'];
+    const catLabels = { all: 'Tout', concepts: 'Concepts', bourse: 'Bourse', epargne: 'Épargne', crypto: 'Crypto', immo: 'Immo' };
+    const difficulties = ['all', 'debutant', 'intermediaire', 'avance'];
+    const diffLabels = { all: 'Tous niveaux', debutant: '🟢 Débutant', intermediaire: '🟡 Intermédiaire', avance: '🔴 Avancé' };
+    const diffXP = { debutant: 100, intermediaire: 200, avance: 350 };
+
+    const now = Date.now();
+    const filtered = articles.filter(a => {
+      if (activeCategory !== 'all' && a.category !== activeCategory) return false;
+      if (activeDifficulty !== 'all' && a.difficulty !== activeDifficulty) return false;
+      return true;
+    });
+
+    const newCount = articles.filter(a => {
+      const pub = new Date(a.publishedAt).getTime();
+      return !readIds.has(a.id) && (now - pub) < 30 * 24 * 3600 * 1000;
+    }).length;
+
+    shell.innerHTML = `
+      <div class="academy-progress-bar-wrap">
+        <div class="academy-progress-label">
+          <span>📚 ${readCount}/${total} modules complétés${newCount > 0 ? ` · <span class="academy-new-count">${newCount} nouveau${newCount > 1 ? 'x' : ''}</span>` : ''}</span>
+          <span>${pct}%</span>
+        </div>
+        <div class="academy-progress-track"><div class="academy-progress-fill" style="width:${pct}%"></div></div>
+      </div>
+
+      <div class="academy-filters">
+        <div class="academy-filter-row">
+          ${categories.map(c => `<button class="academy-pill${activeCategory === c ? ' active' : ''}" onclick="app._setAcademyFilter('category','${c}')">${catLabels[c]}</button>`).join('')}
+        </div>
+        <div class="academy-filter-row">
+          ${difficulties.map(d => `<button class="academy-pill${activeDifficulty === d ? ' active' : ''}" onclick="app._setAcademyFilter('difficulty','${d}')">${diffLabels[d]}</button>`).join('')}
+        </div>
+      </div>
+
+      <div class="academy-grid">
+        ${filtered.length === 0
+          ? `<div class="finance-empty"><p>Aucun module pour ce filtre.</p></div>`
+          : filtered.map(a => {
+            const isRead = readIds.has(a.id);
+            const isNew = !isRead && (now - new Date(a.publishedAt).getTime()) < 30 * 24 * 3600 * 1000;
+            return `
+              <div class="academy-card${isRead ? ' read' : ''}" onclick="app.openAcademyArticle('${a.id}')">
+                ${isNew ? '<span class="academy-badge-new">NOUVEAU</span>' : ''}
+                ${isRead ? '<span class="academy-badge-done">✓</span>' : ''}
+                <div class="academy-card-cats">
+                  <span class="academy-cat-badge cat-${a.category}">${catLabels[a.category] || a.category}</span>
+                  <span class="academy-diff-badge diff-${a.difficulty}">${diffLabels[a.difficulty]}</span>
+                </div>
+                <div class="academy-card-title">${a.title}</div>
+                <div class="academy-card-summary">${a.summary}</div>
+                <div class="academy-card-meta">
+                  <span>⏱ ${a.readTime} min</span>
+                  <span class="academy-xp-tag">+${diffXP[a.difficulty] || a.xpReward} XP</span>
+                </div>
+              </div>`;
+          }).join('')
+        }
+      </div>
+
+      <div class="academy-talent-tree">
+        <div class="academy-talent-title">🌳 Talent Tree — Sagesse Financière</div>
+        <div class="academy-talent-nodes">
+          ${[1,2,3,4,5].map(lvl => `
+            <div class="academy-talent-node${talentLevel >= lvl ? ' unlocked' : ''}">
+              <div class="talent-lvl">Niv. ${lvl}</div>
+              <div class="talent-name">${TALENT_LABELS[lvl]}</div>
+              <div class="talent-fx">${TALENT_FX[lvl]}</div>
+              <div class="talent-req">${lvl * 2 - 1} article${lvl > 1 ? 's' : ''} lu${lvl > 1 ? 's' : ''}</div>
+            </div>`).join('<div class="talent-arrow">→</div>')}
+        </div>
+        <div class="academy-talent-progress">Niveau actuel : <strong>${talentLevel}/5</strong>${talentLevel < 5 ? ` · ${[1,3,5,7,9][talentLevel] - readCount > 0 ? `encore ${[1,3,5,7,9][talentLevel] - readCount} article(s)` : 'niveau suivant accessible'} pour le niveau ${talentLevel + 1}` : ' · Sagesse maximale atteinte !'}</div>
       </div>`;
+  },
+
+  async fetchAcademyArticles() {
+    const acad = this.state.finance.academy;
+    const ONE_DAY = 24 * 60 * 60 * 1000;
+
+    if (acad.fetchedAt && (Date.now() - acad.fetchedAt < ONE_DAY) && acad.articlesCache?.length > 0) {
+      return acad.articlesCache;
+    }
+    try {
+      const res = await fetch('./academy-articles.json?v=' + Date.now());
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const articles = data.articles || [];
+      acad.articlesCache = articles;
+      acad.fetchedAt = Date.now();
+      acad.totalAvailable = articles.length;
+      this.saveData();
+      return articles;
+    } catch (e) {
+      console.warn('[LifeFlow] Academy fetch error:', e.message);
+      return acad.articlesCache || [];
+    }
+  },
+
+  _setAcademyFilter(type, value) {
+    const acad = this.state.finance.academy;
+    if (type === 'category') acad._filterCategory = value;
+    else acad._filterDifficulty = value;
+    this._loadAndRenderAcademie();
+  },
+
+  openAcademyArticle(articleId) {
+    const acad = this.state.finance.academy;
+    const article = (acad.articlesCache || []).find(a => a.id === articleId);
+    if (!article) return;
+    const isRead = !!(acad.read?.[articleId]);
+    const diffLabels = { debutant: '🟢 Débutant', intermediaire: '🟡 Intermédiaire', avance: '🔴 Avancé' };
+    const linksHtml = (article.links || []).map(l => `<a href="${l.url}" target="_blank" rel="noopener" class="academy-link-btn">${l.label} ↗</a>`).join('');
+    document.getElementById('modalTitle').textContent = article.title;
+    document.getElementById('modalBody').innerHTML = `
+      <div class="academy-modal-meta">
+        <span class="academy-diff-badge diff-${article.difficulty}">${diffLabels[article.difficulty]}</span>
+        <span>⏱ ${article.readTime} min</span>
+        <span class="academy-xp-tag">+${article.xpReward} XP</span>
+        ${isRead ? '<span class="academy-badge-done-inline">✓ Déjà lu</span>' : ''}
+      </div>
+      <div class="academy-article-content">${article.content}</div>
+      ${linksHtml ? `<div class="academy-links">${linksHtml}</div>` : ''}
+      ${!isRead ? `<button class="btn-primary academy-read-btn" onclick="app.markAcademyArticleRead('${articleId}')">✅ Marquer comme lu (+${article.xpReward} XP)</button>` : '<p class="academy-already-read">✓ Module complété !</p>'}
+    `;
+    document.getElementById('modal').classList.remove('hidden');
+  },
+
+  markAcademyArticleRead(articleId) {
+    const acad = this.state.finance.academy;
+    if (acad.read?.[articleId]) return;
+    const article = (acad.articlesCache || []).find(a => a.id === articleId);
+    if (!article) return;
+
+    if (!acad.read) acad.read = {};
+    acad.read[articleId] = new Date().toISOString().split('T')[0];
+    acad.totalAvailable = acad.articlesCache?.length || acad.totalAvailable;
+
+    // Talent update
+    const oldLevel = this.state.finance.sagesseTalents || 0;
+    const newLevel = this.computeSagesseTalentLevel();
+    this.state.finance.sagesseTalents = newLevel;
+    if (newLevel > oldLevel) {
+      const TALENT_LABELS = ['', 'Intérêts Composés Lv1', 'Diversification Lv1', 'Gestion du Risque', 'Théorie du Portfolio', 'Sagesse Suprême'];
+      this.showToast(`🌳 Talent débloqué : ${TALENT_LABELS[newLevel]} !`);
+    }
+
+    // Academy reading streak
+    const weekKey = this.getWeekKey(new Date());
+    if (acad.lastReadWeek !== weekKey) {
+      const prevWeek = acad.lastReadWeek;
+      const isConsecutive = prevWeek && this._areWeeksConsecutive(prevWeek, weekKey);
+      acad.readingStreak = isConsecutive ? (acad.readingStreak || 0) + 1 : 1;
+      acad.lastReadWeek = weekKey;
+    }
+
+    this.addXP('sagesse', article.xpReward);
+    this.checkAllBadges();
+    this.saveData();
+
+    // Close modal and re-render
+    document.getElementById('modal').classList.add('hidden');
+    this.showToast(`📚 Module lu ! +${article.xpReward} XP`);
+    this.renderFinanceAcademie();
+  },
+
+  computeSagesseTalentLevel() {
+    const readCount = Object.keys(this.state.finance?.academy?.read || {}).length;
+    if (readCount >= 9) return 5;
+    if (readCount >= 7) return 4;
+    if (readCount >= 5) return 3;
+    if (readCount >= 3) return 2;
+    if (readCount >= 1) return 1;
+    return 0;
+  },
+
+  _areWeeksConsecutive(weekA, weekB) {
+    // weekKey format: "2026-W12"
+    const parse = w => { const [y, wn] = w.split('-W'); return parseInt(y) * 53 + parseInt(wn); };
+    return parse(weekB) - parse(weekA) === 1;
   },
 
   // ── MODAL SAISIE NET WORTH ───────────────────
@@ -6676,6 +6951,22 @@ const app = {
 
     this._updateFinanceTreasurerStreak(snap.weekKey);
     this.checkFinanceMilestones();
+
+    // Boss Le Krach — déclenché si perte > 10%
+    const prevSnaps = this.state.finance.snapshots;
+    const prevSnap = prevSnaps.length > 1 ? prevSnaps[prevSnaps.length - 2] : null;
+    if (prevSnap && prevSnap.total > 0) {
+      const lossPct = ((snap.total - prevSnap.total) / prevSnap.total) * 100;
+      if (lossPct <= -10) {
+        this.state.finance.krachBoss = {
+          active: true,
+          hp: 500, hpMax: 500,
+          expiry: Date.now() + 72 * 3600 * 1000,
+        };
+        this.showToast('💥 Le Krach arrive ! Défendez votre patrimoine ! (72h)');
+      }
+    }
+
     // XP + Gold
     this.addXP('finance', 500);
     if (this.state.rpg?.hero) this.state.rpg.hero.gold = (this.state.rpg.hero.gold || 0) + 200;

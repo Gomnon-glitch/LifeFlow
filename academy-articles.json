@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "articles": [
+    {
+      "id": "compound-interest",
+      "title": "La magie des intérêts composés",
+      "summary": "Pourquoi Einstein aurait appelé ça la 8ème merveille du monde — et comment en profiter.",
+      "category": "concepts",
+      "difficulty": "debutant",
+      "readTime": 4,
+      "xpReward": 100,
+      "publishedAt": "2026-03-22",
+      "content": "<p>Les intérêts composés, c'est le principe de <strong>gagner des intérêts sur ses intérêts</strong>. Contrairement aux intérêts simples (calculés toujours sur le capital de départ), les intérêts composés s'accumulent sur le capital total — capital initial + intérêts déjà générés.</p><p>Exemple concret : 10 000 € investis à 7 % par an pendant 30 ans donnent <strong>76 000 €</strong> avec les intérêts composés. Avec des intérêts simples, vous n'auriez que 31 000 €. La différence de 45 000 € vient uniquement de la capitalisation.</p><p>La formule : <code>Capital final = C × (1 + r)^n</code> où r est le taux annuel et n le nombre d'années. Ce qui compte vraiment : le <strong>temps</strong>. Investir tôt, même peu, bat presque toujours investir tard beaucoup. 100 € par mois à 25 ans vaut bien plus que 300 € par mois à 45 ans.</p><p>Règle du 72 : pour estimer le temps de doublement d'un capital, divisez 72 par le taux annuel. À 6 % par an, votre capital double en 72/6 = 12 ans.</p>",
+      "links": [
+        { "label": "Wiki r/vosfinances — Intérêts composés", "url": "https://www.reddit.com/r/vosfinances/wiki/index" },
+        { "label": "Simulateur Moneyland", "url": "https://www.moneyland.ch/fr/calculateur-interets-composes" }
+      ]
+    },
+    {
+      "id": "etf-explained",
+      "title": "Comment fonctionne un ETF",
+      "summary": "Un seul achat, des centaines d'entreprises — le secret des investisseurs passifs.",
+      "category": "bourse",
+      "difficulty": "debutant",
+      "readTime": 5,
+      "xpReward": 100,
+      "publishedAt": "2026-03-22",
+      "content": "<p>Un ETF (Exchange Traded Fund, ou tracker) est un <strong>fonds indiciel coté en bourse</strong>. Il réplique la performance d'un indice comme le CAC 40, le S&P 500 ou le MSCI World. En achetant une seule part d'ETF MSCI World, vous investissez indirectement dans plus de 1 500 entreprises de 23 pays.</p><p>Deux types de réplication : <strong>physique</strong> (le fonds achète vraiment les actions de l'indice) et <strong>synthétique</strong> (le fonds utilise des swaps pour reproduire la performance — souvent utilisé pour les ETF éligibles PEA sur indices étrangers). Les deux sont légaux et réglementés.</p><p>Avantages clés : frais très bas (0,05 % à 0,40 % par an vs 1,5 % à 2,5 % pour un fonds actif), diversification immédiate, liquidité (vendu en bourse comme une action), pas besoin d'analyse individuelle.</p><p>ETF à connaître : iShares Core MSCI World (IWDA), Amundi S&P 500 (PE500 sur PEA), Amundi MSCI Emerging Markets. Pour commencer, un ETF MSCI World couvre déjà 85 % de la capitalisation boursière mondiale.</p>",
+      "links": [
+        { "label": "Comparateur ETF — justETF", "url": "https://www.justetf.com/fr/" },
+        { "label": "Guide ETF r/vosfinances", "url": "https://www.reddit.com/r/vosfinances/wiki/etf" }
+      ]
+    },
+    {
+      "id": "pea-vs-cto",
+      "title": "PEA vs CTO : lequel choisir ?",
+      "summary": "Deux enveloppes fiscales aux règles différentes — choisir la bonne change tout à long terme.",
+      "category": "bourse",
+      "difficulty": "intermediaire",
+      "readTime": 6,
+      "xpReward": 200,
+      "publishedAt": "2026-03-22",
+      "content": "<p>Le <strong>PEA (Plan Épargne en Actions)</strong> est une enveloppe fiscale française avec un avantage majeur : après 5 ans de détention, les gains sont exonérés d'impôt sur le revenu (seuls les prélèvements sociaux de 17,2 % restent dus). Plafond de versement : 150 000 € (300 000 € avec le PEA PME). Contrainte : uniquement des actions européennes ou des ETF synthétiques répliquant des indices mondiaux.</p><p>Le <strong>CTO (Compte Titres Ordinaire)</strong> n'a pas de contrainte géographique. Vous pouvez y loger n'importe quelle action mondiale, ETF, obligation, REIT américain. La fiscalité est la flat tax de 30 % (PFU) sur les gains, applicable chaque année.</p><p>Stratégie optimale : <strong>maximiser le PEA en priorité</strong> (ETF MSCI World synthétique, S&P 500 synthétique), puis utiliser le CTO pour ce qui n'est pas accessible en PEA (REITs, actions hors Europe, obligations).</p><p>Attention aux retraits PEA : tout retrait avant 5 ans entraîne la fermeture du plan ET une taxation des gains. Après 5 ans, vous pouvez retirer librement sans fermer le plan.</p>",
+      "links": [
+        { "label": "Comparatif PEA — Service-public.fr", "url": "https://www.service-public.fr/particuliers/vosdroits/F2385" },
+        { "label": "Fiscalité bourse — impots.gouv.fr", "url": "https://www.impots.gouv.fr/particulier/les-valeurs-mobilieres" }
+      ]
+    },
+    {
+      "id": "inflation-explained",
+      "title": "Comprendre l'inflation et son impact",
+      "summary": "Pourquoi l'argent dormant sur un compte courant perd de la valeur chaque année.",
+      "category": "concepts",
+      "difficulty": "debutant",
+      "readTime": 4,
+      "xpReward": 100,
+      "publishedAt": "2026-03-22",
+      "content": "<p>L'inflation, c'est la hausse générale des prix sur une période donnée. Mesurée par l'IPC (Indice des Prix à la Consommation), elle érode le <strong>pouvoir d'achat réel</strong> de votre argent. Avec 3 % d'inflation par an, 1 000 € aujourd'hui ne valent plus que 744 € dans 10 ans en termes de pouvoir d'achat.</p><p>Impact concret sur l'épargne : le Livret A rapporte 3 % en 2026. Si l'inflation est à 2,5 %, votre rendement réel est de seulement 0,5 %. Un compte courant rémunéré à 0 % avec 3 % d'inflation vous fait perdre 3 % de pouvoir d'achat par an.</p><p>Les actifs qui protègent historiquement de l'inflation : <strong>actions</strong> (les entreprises répercutent la hausse des prix), <strong>immobilier</strong> (les loyers et la valeur suivent l'inflation), <strong>or</strong> (valeur refuge traditionnel), <strong>TIPS</strong> (obligations indexées sur l'inflation, marché US).</p><p>Leçon centrale : <strong>ne pas investir, c'est déjà perdre</strong>. Laisser 10 000 € sur un compte courant pendant 20 ans à 2 % d'inflation revient à perdre ~3 300 € de pouvoir d'achat réel.</p>",
+      "links": [
+        { "label": "Inflation en France — INSEE", "url": "https://www.insee.fr/fr/statistiques/serie/001759966" }
+      ]
+    },
+    {
+      "id": "rule-of-4-percent",
+      "title": "La règle des 4% et l'indépendance financière",
+      "summary": "Un principe simple pour calculer combien épargner avant de pouvoir vivre de ses investissements.",
+      "category": "concepts",
+      "difficulty": "intermediaire",
+      "readTime": 5,
+      "xpReward": 200,
+      "publishedAt": "2026-03-22",
+      "content": "<p>La règle des 4 % vient de l'étude Trinity (1998). Elle stipule que vous pouvez retirer <strong>4 % de votre portefeuille par an</strong> sans jamais l'épuiser — basé sur des données boursières historiques sur 30 ans. Autrement dit : pour vivre de vos investissements, vous avez besoin de <strong>25 fois vos dépenses annuelles</strong>.</p><p>Exemple : dépenses de 2 500 €/mois = 30 000 €/an → capital cible = 30 000 × 25 = <strong>750 000 €</strong>. Si vous atteignez ce montant en ETF actions, vous pouvez théoriquement ne plus travailler.</p><p>Nuances importantes : la règle est basée sur des marchés américains. Sur un portefeuille 100 % actions mondiales, un taux de 3,5 % est souvent recommandé pour plus de sécurité. Les retraites anticipées très longues (40+ ans) nécessitent aussi de l'ajustement.</p><p>Ce concept est au cœur du mouvement FIRE (Financial Independence, Retire Early). Il ne s'agit pas forcément de ne plus travailler, mais d'atteindre un capital suffisant pour que le travail devienne un choix plutôt qu'une obligation.</p>",
+      "links": [
+        { "label": "Étude Trinity originale (EN)", "url": "https://www.aaii.com/journal/article/retirement-savings-choosing-a-withdrawal-rate-that-is-sustainable" },
+        { "label": "Calculateur FIRE", "url": "https://networthify.com/calculator/earlyretirement" }
+      ]
+    },
+    {
+      "id": "scpi-explained",
+      "title": "SCPI : investir dans l'immobilier papier",
+      "summary": "Devenir propriétaire d'une fraction d'immeubles de bureaux ou de commerces sans les contraintes de gestion.",
+      "category": "immo",
+      "difficulty": "intermediaire",
+      "readTime": 5,
+      "xpReward": 200,
+      "publishedAt": "2026-03-22",
+      "content": "<p>Une SCPI (Société Civile de Placement Immobilier) collecte l'épargne de nombreux investisseurs pour acheter et gérer un parc immobilier professionnel : bureaux, commerces, entrepôts, maisons de retraite. En achetant des parts, vous devenez indirectement propriétaire d'une fraction de ce parc et percevez des <strong>loyers distribués trimestriellement</strong>.</p><p>Rendement moyen : entre 4 % et 6 % brut par an (variable selon la SCPI). Ticket d'entrée : de 150 € à 1 000 € par part selon les sociétés. Idéal pour diversifier sans gérer de locataires, travaux ou vacances locatives.</p><p>Fiscalité : les revenus SCPI sont imposés comme des revenus fonciers (tranche marginale + 17,2 % prélèvements sociaux). <strong>Avantage SCPI en assurance-vie</strong> : loger des SCPI dans une AV permet une fiscalité allégée après 8 ans.</p><p>Risques à connaître : <strong>illiquidité</strong> (revente pas immédiate, délai possible de plusieurs mois), risque de baisse de valorisation des parts (comme en 2023-2024 sur les SCPI bureaux), frais d'entrée élevés (8 à 12 %). Horizon recommandé : 8-10 ans minimum.</p>",
+      "links": [
+        { "label": "Comparateur SCPI — Louve Invest", "url": "https://louveinvest.com/scpi" },
+        { "label": "Guide SCPI — MeilleurPlacement", "url": "https://www.meilleurtaux.com/credit-immobilier/actualite/scpi.html" }
+      ]
+    },
+    {
+      "id": "bitcoin-store-of-value",
+      "title": "Bitcoin et la thèse du Store of Value",
+      "summary": "Pourquoi certains voient Bitcoin comme l'or numérique du 21e siècle.",
+      "category": "crypto",
+      "difficulty": "intermediaire",
+      "readTime": 5,
+      "xpReward": 200,
+      "publishedAt": "2026-03-22",
+      "content": "<p>La thèse du Store of Value (réserve de valeur) positionne Bitcoin comme un <strong>actif rare et non-inflationnable</strong>, à l'image de l'or. L'offre maximale est plafonnée à 21 millions de BTC, gravée dans le protocole. Les halvings (division par 2 du rythme d'émission tous les ~4 ans) renforcent cette rareté programmée.</p><p>Arguments pour : décentralisation (pas de banque centrale pouvant imprimer du BTC), transparence totale (blockchain vérifiable), adoption croissante (ETF Bitcoin validés aux USA, intégration dans des bilans d'entreprises). Corrélation historiquement faible avec les actions sur le long terme.</p><p>Arguments contre : volatilité extrême (drawdowns réguliers de -70 à -85 %), pas de flux de cash flow intrinsèque (contrairement aux actions ou à l'immobilier), réglementation incertaine selon les pays, risque technologique.</p><p>Approche raisonnée : Bitcoin peut représenter <strong>1 à 10 % d'un portefeuille</strong> selon le profil de risque. Au-delà, la volatilité dépasse le confort de la plupart des investisseurs. La stratégie DCA (investissement régulier) lisse le point d'entrée sur ce type d'actif.</p>",
+      "links": [
+        { "label": "Plan 21 millions — bitcoin.org", "url": "https://bitcoin.org/fr/" }
+      ]
+    },
+    {
+      "id": "portfolio-diversification",
+      "title": "La diversification de portefeuille",
+      "summary": "Ne pas mettre tous ses œufs dans le même panier — les principes de Markowitz appliqués à votre épargne.",
+      "category": "bourse",
+      "difficulty": "intermediaire",
+      "readTime": 5,
+      "xpReward": 200,
+      "publishedAt": "2026-03-22",
+      "content": "<p>La théorie moderne du portefeuille (Markowitz, 1952) démontre qu'on peut <strong>réduire le risque sans sacrifier le rendement</strong> en combinant des actifs peu corrélés entre eux. Quand les actions baissent, les obligations montent parfois. Quand le marché US stagne, les émergents peuvent performer.</p><p>Types de diversification : <strong>géographique</strong> (France, Europe, USA, Asie, Émergents), <strong>sectorielle</strong> (tech, santé, énergie, finance), <strong>par classe d'actifs</strong> (actions, obligations, immobilier, crypto, liquidités), <strong>temporelle</strong> (investissements réguliers pour lisser les points d'entrée).</p><p>Portefeuille simple et efficace pour un débutant : 70 % ETF MSCI World + 20 % ETF Obligations + 10 % liquidités. Plus simple encore : 100 % ETF MSCI World (déjà diversifié sur 1 500 entreprises mondiales) pour un profil long terme agressif.</p><p>Erreur classique : <strong>sur-diversifier</strong>. Posséder 20 ETF différents qui couvrent les mêmes marchés n'apporte aucune diversification supplémentaire et complique le suivi. 3-5 positions bien choisies suffisent pour 95 % des investisseurs.</p>",
+      "links": [
+        { "label": "Outil d'allocation — Portfolio Visualizer", "url": "https://www.portfoliovisualizer.com/" }
+      ]
+    },
+    {
+      "id": "per-pero-explained",
+      "title": "Le Plan d'Épargne Retraite (PER/PERO)",
+      "summary": "L'enveloppe retraite qui défiscalise vos versements — et pourquoi elle vaut le détour.",
+      "category": "epargne",
+      "difficulty": "debutant",
+      "readTime": 4,
+      "xpReward": 100,
+      "publishedAt": "2026-03-22",
+      "content": "<p>Le PER (Plan d'Épargne Retraite) est une enveloppe d'épargne retraite créée en 2019 qui remplace le PERP et le Madelin. Son avantage principal : les versements sont <strong>déductibles du revenu imposable</strong> dans la limite de 10 % de vos revenus professionnels (plafond 2026 : environ 35 000 €).</p><p>Le <strong>PERO (PER Entreprise Obligatoire)</strong> est souscrit par votre employeur. Il peut bénéficier de l'abondement employeur (complément que verse l'entreprise) — à maximiser en priorité car c'est du salaire gratuit.</p><p>Blocage jusqu'à la retraite sauf cas de déblocage anticipé : achat de résidence principale, invalidité, décès du conjoint, surendettement, fin de droits chômage. À la sortie : rente viagère ou capital (ou mixte).</p><p>À qui ça profite vraiment : aux tranches marginales d'imposition élevées (30 % et plus). Si vous êtes à 30 % TMI, chaque 1 000 € versés dans un PER vous économise 300 € d'impôts immédiatement. La taxation à la sortie (retraite, donc souvent TMI plus faible) est avantageuse.</p>",
+      "links": [
+        { "label": "PER — Service-public.fr", "url": "https://www.service-public.fr/particuliers/vosdroits/F34982" }
+      ]
+    },
+    {
+      "id": "dca-strategy",
+      "title": "DCA : investir régulièrement sans timer le marché",
+      "summary": "La stratégie qui bat la plupart des investisseurs professionnels — par sa simplicité.",
+      "category": "bourse",
+      "difficulty": "debutant",
+      "readTime": 4,
+      "xpReward": 100,
+      "publishedAt": "2026-03-22",
+      "content": "<p>Le DCA (Dollar Cost Averaging, ou investissement programmé) consiste à <strong>investir une somme fixe à intervalles réguliers</strong>, quelle que soit la situation du marché. Plutôt que de chercher le meilleur moment pour investir (timing de marché), vous investissez 200 € chaque mois, automatiquement.</p><p>Mécanisme : quand les marchés baissent, vous achetez plus de parts pour la même somme. Quand ils montent, vous en achetez moins. Sur le long terme, votre <strong>prix moyen d'achat se lisse</strong> et vous évitez l'erreur d'investir massivement au mauvais moment.</p><p>Étude Vanguard (2012) : sur des périodes de 10 ans, le lump sum (investissement en une fois) bat le DCA dans ~68 % des cas car les marchés montent plus souvent qu'ils ne baissent. Mais pour la majorité des gens qui épargnent mensuellement, le DCA est la <strong>seule stratégie praticable</strong> et émotionnellement soutenable.</p><p>En pratique : configurez un virement automatique mensuel vers votre PEA ou CTO, lié à un ordre programmé sur votre ETF. Vous n'avez plus rien à faire. C'est la stratégie des investisseurs passifs long terme, et elle fonctionne.</p>",
+      "links": [
+        { "label": "Étude DCA vs Lump Sum — Vanguard (EN)", "url": "https://advisors.vanguard.com/insights/article/dollar-cost-averaging-just-means-taking-risk-later" }
+      ]
+    }
+  ]
+}
