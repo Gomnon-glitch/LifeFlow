@@ -6090,19 +6090,19 @@ const app = {
   // ============================================
   RSS_FEEDS: {
     france: {
-      economie:    ['https://www.lefigaro.fr/rss/figaro_economie.xml', 'https://bfmbusiness.bfmtv.com/rss/info/flux-rss/flux-toutes-les-actualites/'],
+      economie:    ['https://www.challenges.fr/rss.xml', 'https://www.lefigaro.fr/rss/figaro_economie.xml'],
       tech:        ['https://www.usine-digitale.fr/rss.xml', 'https://www.journaldunet.com/rss/'],
-      geopolitique:['https://www.lemonde.fr/rss/une.xml', 'https://www.france24.com/fr/rss'],
+      geopolitique:['https://www.lemonde.fr/rss/une.xml', 'https://www.francetvinfo.fr/titres.rss'],
     },
     europe: {
-      economie:    ['https://feeds.bbci.co.uk/news/business/rss.xml'],
-      geopolitique:['https://feeds.bbci.co.uk/news/world/europe/rss.xml'],
-      tech:        ['https://feeds.bbci.co.uk/news/technology/rss.xml'],
+      economie:    ['https://www.theguardian.com/business/rss'],
+      geopolitique:['https://www.theguardian.com/world/europe-news/rss'],
+      tech:        ['https://www.theguardian.com/technology/rss'],
     },
     international: {
-      economie:    ['https://feeds.bbci.co.uk/news/business/rss.xml'],
-      tech:        ['https://www.wired.com/feed/rss', 'https://techcrunch.com/feed/'],
-      geopolitique:['https://feeds.bbci.co.uk/news/world/rss.xml'],
+      economie:    ['https://www.theguardian.com/business/rss'],
+      tech:        ['https://techcrunch.com/feed/', 'https://www.theguardian.com/technology/rss'],
+      geopolitique:['https://www.theguardian.com/world/rss'],
     },
   },
 
@@ -6391,7 +6391,7 @@ const app = {
     }
   },
 
-  // ── FETCH RSS via rss2json.com ───────────────
+  // ── FETCH RSS — multi-proxy + XML natif ─────
   async fetchFinanceNews() {
     const news = this.state.finance.news;
     const THIRTY_MIN = 30 * 60 * 1000;
@@ -6410,33 +6410,9 @@ const app = {
     if (!feeds.length) return news.cache;
 
     const articles = [];
-    // rss2json.com — retourne du JSON sans besoin de parser XML, supporte CORS
-    const api = 'https://api.rss2json.com/v1/api.json?count=12&rss_url=';
-
     for (const feedUrl of feeds.slice(0, 3)) {
-      try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 10000);
-        const res = await fetch(api + encodeURIComponent(feedUrl), { signal: controller.signal });
-        clearTimeout(timer);
-        if (!res.ok) continue;
-        const data = await res.json();
-        if (data.status !== 'ok' || !Array.isArray(data.items) || !data.items.length) continue;
-        const source = data.feed?.title?.trim() || new URL(feedUrl).hostname;
-        data.items.forEach(item => {
-          const desc = (item.description || item.content || '')
-            .replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim().slice(0, 160);
-          articles.push({
-            title: (item.title || '').trim(),
-            description: desc,
-            url: item.link || item.guid || '',
-            source,
-            pubDate: item.pubDate ? new Date(item.pubDate).getTime() : Date.now(),
-          });
-        });
-      } catch (e) {
-        console.warn('[LifeFlow] RSS feed error:', feedUrl, e.message);
-      }
+      const items = await this._fetchOneFeed(feedUrl);
+      articles.push(...items);
     }
 
     const seen = new Set();
@@ -6449,6 +6425,58 @@ const app = {
     news.lastFetch = Date.now();
     this.saveData();
     return deduped;
+  },
+
+  async _fetchOneFeed(feedUrl) {
+    const proxies = [
+      u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+      u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+    ];
+    for (const makeUrl of proxies) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 10000);
+        const res = await fetch(makeUrl(feedUrl), { signal: controller.signal });
+        clearTimeout(timer);
+        if (!res.ok) continue;
+        const text = await res.text();
+        const items = this._parseRSSItems(text, feedUrl);
+        if (items.length > 0) return items;
+      } catch (e) {
+        console.warn('[LifeFlow] proxy failed for', feedUrl, e.message);
+      }
+    }
+    return [];
+  },
+
+  _parseRSSItems(xml, feedUrl) {
+    if (!xml || xml.trim().startsWith('{')) return []; // skip JSON error responses
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(xml, 'text/xml');
+      if (doc.querySelector('parsererror')) return [];
+      const channelTitle = doc.querySelector('channel > title')?.textContent?.trim() || new URL(feedUrl).hostname;
+      const items = [...doc.querySelectorAll('item')];
+      return items.slice(0, 12).map(item => {
+        const get = tag => item.querySelector(tag)?.textContent?.trim() || '';
+        const rawTitle = get('title').replace(/\s*\|.*$/, '').trim();
+        const rawDesc = get('description')
+          .replace(/<[^>]+>/g, '')
+          .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&nbsp;/g, ' ')
+          .trim().slice(0, 160);
+        const link = get('link') || get('guid');
+        const dateStr = get('pubDate') || get('date');
+        return {
+          title: rawTitle || 'Sans titre',
+          description: rawDesc,
+          url: link,
+          source: channelTitle,
+          pubDate: dateStr ? new Date(dateStr).getTime() : Date.now(),
+        };
+      }).filter(a => a.title !== 'Sans titre' && a.url);
+    } catch (e) {
+      return [];
+    }
   },
 
   markNewsArticleRead(url) {
