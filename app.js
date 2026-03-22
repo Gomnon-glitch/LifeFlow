@@ -6376,7 +6376,7 @@ const app = {
         const isRead = readThisWeek.has(a.url);
         const dateStr = this._relativeDate(a.pubDate);
         return `
-          <div class="finance-news-card${isRead ? ' read' : ''}" onclick="app.markNewsArticleRead('${a.url.replace(/'/g, "\\'")}')">
+          <a class="finance-news-card${isRead ? ' read' : ''}" href="${a.url}" target="_blank" rel="noopener noreferrer" onclick="app.markNewsArticleRead('${a.url.replace(/'/g, "\\'")}')">
             <div class="news-card-header">
               <span class="news-card-source">${a.source}</span>
               <span class="news-card-date">${dateStr}</span>
@@ -6384,7 +6384,7 @@ const app = {
             </div>
             <div class="news-card-title">${a.title}</div>
             ${a.description ? `<div class="news-card-desc">${a.description}</div>` : ''}
-          </div>`;
+          </a>`;
       }).join('');
     } catch (e) {
       if (listEl) listEl.innerHTML = `<div class="finance-empty"><div class="finance-empty-icon">⚠️</div><p>Erreur de chargement des flux RSS.<br><small>${e.message}</small></p></div>`;
@@ -6485,13 +6485,10 @@ const app = {
     if (!readByWeek[weekKey]) readByWeek[weekKey] = [];
     if (!readByWeek[weekKey].includes(url)) {
       readByWeek[weekKey].push(url);
+      this.checkFinanceNewsQuest();
+      this.saveData();
+      this._loadAndRenderNews();
     }
-    // Open article in new tab
-    window.open(url, '_blank', 'noopener');
-    this.checkFinanceNewsQuest();
-    this.saveData();
-    // Re-render just the list to update read state
-    this._loadAndRenderNews();
   },
 
   getNewsReadCountThisWeek() {
