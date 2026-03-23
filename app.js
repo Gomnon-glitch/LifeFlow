@@ -1864,6 +1864,7 @@ const app = {
       if (this.state.finance.lastSnapshotWeek === undefined) this.state.finance.lastSnapshotWeek = '';
       // ── Finance — Migration Phase 2 ──
       if (this.state.finance.news.readByWeek === undefined) this.state.finance.news.readByWeek = {};
+      if (this.state.finance.news.readByDay === undefined) this.state.finance.news.readByDay = {};
       if (this.state.finance.news.analyseMarketBuffExpiry === undefined) this.state.finance.news.analyseMarketBuffExpiry = null;
       // ── Finance — Migration Phase 3 ──
       if (this.state.finance.krachBoss === undefined) this.state.finance.krachBoss = null;
@@ -6480,7 +6481,7 @@ const app = {
       { key: 'geopolitique',label: '🌐 Géopolitique' },
     ];
 
-    const readCount = this.getNewsReadCountThisWeek();
+    const readCount = this.getNewsReadCountToday();
     const questDone = this._isFinanceNewsQuestDone();
     const buffActive = news.analyseMarketBuffExpiry && Date.now() < news.analyseMarketBuffExpiry;
 
@@ -6509,8 +6510,8 @@ const app = {
 
       <div class="finance-veille-progress${questDone ? ' done' : ''}">
         ${questDone
-          ? `✅ Quête <strong>Veille de Marché</strong> accomplie cette semaine !${buffActive ? ' · <span class="buff-active">⚔️ +5% ATK actif</span>' : ''}`
-          : `📰 Quête <strong>Veille de Marché</strong> : ${readCount}/3 articles lus cette semaine${buffActive ? ' · <span class="buff-active">⚔️ +5% ATK actif</span>' : ''}`
+          ? `✅ Quête <strong>Veille de Marché</strong> accomplie aujourd'hui !${buffActive ? ' · <span class="buff-active">⚔️ +5% ATK actif</span>' : ''}`
+          : `📰 Quête <strong>Veille de Marché</strong> : ${readCount}/3 articles lus aujourd'hui${buffActive ? ' · <span class="buff-active">⚔️ +5% ATK actif</span>' : ''}`
         }
       </div>
 
@@ -6551,9 +6552,9 @@ const app = {
         listEl.innerHTML = `<div class="finance-empty"><div class="finance-empty-icon">📰</div><p>Aucun article disponible pour cette sélection.<br>Vérifiez votre connexion ou changez de filtre.</p></div>`;
         return;
       }
-      const readByWeek = this.state.finance.news.readByWeek || {};
-      const weekKey = this.getWeekKey(new Date());
-      const readThisWeek = new Set(readByWeek[weekKey] || []);
+      const readByDay = this.state.finance.news.readByDay || {};
+      const dayKey = this.getDateKey(new Date());
+      const readThisWeek = new Set(readByDay[dayKey] || []);
 
       listEl.innerHTML = articles.map(a => {
         const isRead = readThisWeek.has(a.url);
@@ -6663,34 +6664,35 @@ const app = {
   },
 
   markNewsArticleRead(url) {
-    const weekKey = this.getWeekKey(new Date());
-    const readByWeek = this.state.finance.news.readByWeek;
-    if (!readByWeek[weekKey]) readByWeek[weekKey] = [];
-    if (!readByWeek[weekKey].includes(url)) {
-      readByWeek[weekKey].push(url);
+    const dayKey = this.getDateKey(new Date());
+    const readByDay = this.state.finance.news.readByDay;
+    if (!readByDay[dayKey]) readByDay[dayKey] = [];
+    if (!readByDay[dayKey].includes(url)) {
+      readByDay[dayKey].push(url);
       this.checkFinanceNewsQuest();
       this.saveData();
-      this._loadAndRenderNews();
     }
+    // Re-rendre toute la section pour mettre à jour le compteur ET la liste
+    this.renderFinanceActualites();
   },
 
-  getNewsReadCountThisWeek() {
-    const weekKey = this.getWeekKey(new Date());
-    return (this.state.finance.news.readByWeek?.[weekKey] || []).length;
+  getNewsReadCountToday() {
+    const dayKey = this.getDateKey(new Date());
+    return (this.state.finance.news.readByDay?.[dayKey] || []).length;
   },
 
   _isFinanceNewsQuestDone() {
-    const weekKey = this.getWeekKey(new Date());
-    return (this.state.questCompleted?.[weekKey] || []).includes('finance-veille-marche');
+    const dayKey = this.getDateKey(new Date());
+    return (this.state.questCompleted?.[dayKey] || []).includes('finance-veille-marche');
   },
 
   checkFinanceNewsQuest() {
-    const count = this.getNewsReadCountThisWeek();
+    const count = this.getNewsReadCountToday();
     if (count < 3) return;
     if (this._isFinanceNewsQuestDone()) return;
-    const weekKey = this.getWeekKey(new Date());
-    if (!this.state.questCompleted[weekKey]) this.state.questCompleted[weekKey] = [];
-    this.state.questCompleted[weekKey].push('finance-veille-marche');
+    const dayKey = this.getDateKey(new Date());
+    if (!this.state.questCompleted[dayKey]) this.state.questCompleted[dayKey] = [];
+    this.state.questCompleted[dayKey].push('finance-veille-marche');
     const saisonMult = this._isFinanceSaisonActive() ? 2 : 1;
     this.addXP('sagesse', 200 * saisonMult);
     // Buff ATK +5% pendant 24h
