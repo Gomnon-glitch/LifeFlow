@@ -6556,11 +6556,11 @@ const app = {
       const dayKey = this.getDateKey(new Date());
       const readThisWeek = new Set(readByDay[dayKey] || []);
 
-      listEl.innerHTML = articles.map(a => {
+      listEl.innerHTML = articles.map((a, idx) => {
         const isRead = readThisWeek.has(a.url);
         const dateStr = this._relativeDate(a.pubDate);
         return `
-          <a class="finance-news-card${isRead ? ' read' : ''}" href="${a.url}" target="_blank" rel="noopener noreferrer" onclick="app.markNewsArticleRead('${a.url.replace(/'/g, "\\'")}')">
+          <a class="finance-news-card${isRead ? ' read' : ''}" href="${a.url}" target="_blank" rel="noopener noreferrer" onclick="app.markNewsArticleRead(${idx})">
             <div class="news-card-header">
               <span class="news-card-source">${a.source}</span>
               <span class="news-card-date">${dateStr}</span>
@@ -6663,7 +6663,13 @@ const app = {
     }
   },
 
-  markNewsArticleRead(url) {
+  markNewsArticleRead(idx) {
+    const cache = this.state.finance.news.cache || [];
+    const article = cache[idx];
+    if (!article?.url) return;
+    const url = article.url;
+
+    if (!this.state.finance.news.readByDay) this.state.finance.news.readByDay = {};
     const dayKey = this.getDateKey(new Date());
     const readByDay = this.state.finance.news.readByDay;
     if (!readByDay[dayKey]) readByDay[dayKey] = [];
@@ -6672,8 +6678,26 @@ const app = {
       this.checkFinanceNewsQuest();
       this.saveData();
     }
-    // Re-rendre toute la section pour mettre à jour le compteur ET la liste
-    this.renderFinanceActualites();
+    // Mettre à jour uniquement le compteur quête (sans re-fetcher les articles)
+    const progressEl = document.querySelector('.finance-veille-progress');
+    if (progressEl) {
+      const readCount = this.getNewsReadCountToday();
+      const questDone = this._isFinanceNewsQuestDone();
+      const buffActive = this.state.finance.news.analyseMarketBuffExpiry && Date.now() < this.state.finance.news.analyseMarketBuffExpiry;
+      progressEl.className = `finance-veille-progress${questDone ? ' done' : ''}`;
+      progressEl.innerHTML = questDone
+        ? `✅ Quête <strong>Veille de Marché</strong> accomplie aujourd'hui !${buffActive ? ' · <span class="buff-active">⚔️ +5% ATK actif</span>' : ''}`
+        : `📰 Quête <strong>Veille de Marché</strong> : ${readCount}/3 articles lus aujourd'hui${buffActive ? ' · <span class="buff-active">⚔️ +5% ATK actif</span>' : ''}`;
+    }
+    // Mettre à jour la carte cliquée (badge "Lu")
+    const card = document.querySelectorAll('.finance-news-card')[idx];
+    if (card) {
+      card.classList.add('read');
+      if (!card.querySelector('.news-card-read-badge')) {
+        const header = card.querySelector('.news-card-header');
+        if (header) header.insertAdjacentHTML('beforeend', '<span class="news-card-read-badge">✓ Lu</span>');
+      }
+    }
   },
 
   getNewsReadCountToday() {
