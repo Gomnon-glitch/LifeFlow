@@ -1994,6 +1994,13 @@ const app = {
       // Préserver les badges gagnés localement (le cloud peut être plus ancien)
       const localBadges = { ...this.state.unlockedBadges };
 
+      // Ne pas écraser rpg local si plus récent que le cloud (gains hors-ligne déjà appliqués)
+      const localRPGTime = this.state.rpg?.lastUpdate || 0;
+      const cloudRPGTime = cleanCloudState.rpg?.lastUpdate || 0;
+      if (localRPGTime > cloudRPGTime) {
+        delete cleanCloudState.rpg;
+      }
+
       this.state = { ...this.state, ...cleanCloudState };
       this.state.config = { ...this.state.config, ...cleanCloudState.config };
 
@@ -3145,6 +3152,7 @@ const app = {
     this.checkRPGBadges();
     rpg.offlineProcessed = rpg.lastUpdate;
     rpg.lastUpdate = Date.now();
+    this.saveData(); // Persister les gains hors-ligne immédiatement
     const lvlAfter = rpg.hero.lvl || 1;
     // Afficher le rituel de retour si absence significative (≥5 min), sinon toast simple
     const hasGains = xpGained > 0 || goldGained > 0 || wavesGained > 0;
