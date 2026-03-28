@@ -7352,7 +7352,8 @@ const app = {
   markAcademyArticleRead(articleId) {
     const acad = this.state.finance.academy;
     if (acad.read?.[articleId]) return;
-    const article = (acad.articlesCache || []).find(a => a.id === articleId);
+    const pool = this._academyArticlesCache?.length ? this._academyArticlesCache : (acad.articlesCache || []);
+    const article = pool.find(a => a.id === articleId);
     if (!article) return;
 
     if (!acad.read) acad.read = {};
