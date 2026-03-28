@@ -7318,7 +7318,6 @@ const app = {
   },
 
   openAcademyArticle(articleId) {
-    this.showToast('📖 Ouverture : ' + articleId);
     const pool = this._academyArticlesCache?.length
       ? this._academyArticlesCache
       : (this.state.finance?.academy?.articlesCache || []);
