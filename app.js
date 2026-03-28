@@ -4569,6 +4569,17 @@ const app = {
 
   closeModal() {
     document.getElementById('modalOverlay').classList.remove('active');
+    // If workout player was open, clean up its state and restore modal structure
+    if (this._wpState || document.getElementById('modal')?.classList.contains('workout-player-modal')) {
+      if (this._wpTimer) { clearInterval(this._wpTimer); this._wpTimer = null; }
+      this._wpState = null;
+      const box = document.getElementById('modal');
+      if (box) box.classList.remove('workout-player-modal');
+      const hdr = document.getElementById('modalCloseBtn');
+      if (hdr) hdr.closest('.modal-header').style.display = '';
+      const footer = document.getElementById('modalFooter');
+      if (footer) footer.style.display = '';
+    }
   },
 
   // ============================================
@@ -7790,11 +7801,15 @@ const app = {
     if (this._wpTimer) { clearInterval(this._wpTimer); this._wpTimer = null; }
     const steps = this._buildWorkoutSteps(workout, mode);
     this._wpState = { workoutId, mode, workout, steps, stepIdx: 0, paused: false, timeLeft: 0, repsDone: 0, startTime: Date.now() };
-    const modal = document.getElementById('modalOverlay');
-    const box = document.getElementById('modalBox');
-    if (!modal || !box) return;
-    box.className = 'modal-box workout-player-modal';
-    modal.classList.add('active');
+    const overlay = document.getElementById('modalOverlay');
+    const box = document.getElementById('modal');
+    if (!overlay || !box) return;
+    box.classList.add('workout-player-modal');
+    // Hide standard modal header/footer — player owns the full box
+    const hdr = document.getElementById('modalCloseBtn');
+    if (hdr) hdr.closest('.modal-header').style.display = 'none';
+    document.getElementById('modalFooter').style.display = 'none';
+    overlay.classList.add('active');
     this._wpAdvanceToStep(0);
   },
 
@@ -7895,9 +7910,9 @@ const app = {
   },
 
   _wpRender() {
-    const box = document.getElementById('modalBox');
+    const box = document.getElementById('modal');
     if (!box) return;
-    box.innerHTML = this._buildWPHtml();
+    document.getElementById('modalBody').innerHTML = this._buildWPHtml();
   },
 
   _buildWPHtml() {
@@ -8028,13 +8043,22 @@ const app = {
     this._wpRender();
   },
 
+  _wpClose() {
+    const overlay = document.getElementById('modalOverlay');
+    const box = document.getElementById('modal');
+    if (overlay) overlay.classList.remove('active');
+    if (box) box.classList.remove('workout-player-modal');
+    const hdr = document.getElementById('modalCloseBtn');
+    if (hdr) hdr.closest('.modal-header').style.display = '';
+    const footer = document.getElementById('modalFooter');
+    if (footer) footer.style.display = '';
+    document.getElementById('modalBody').innerHTML = '';
+  },
+
   _wpQuit() {
     if (this._wpTimer) { clearInterval(this._wpTimer); this._wpTimer = null; }
     this._wpState = null;
-    const modal = document.getElementById('modalOverlay');
-    const box = document.getElementById('modalBox');
-    if (modal) modal.classList.remove('active');
-    if (box) box.className = 'modal-box';
+    this._wpClose();
   },
 
   _wpSaveFinal(feeling) {
@@ -8043,10 +8067,7 @@ const app = {
     const durationSec = Math.round((Date.now() - state.startTime) / 1000);
     this.completeWorkout(state.workoutId, durationSec, state.mode, feeling);
     this._wpState = null;
-    const modal = document.getElementById('modalOverlay');
-    const box = document.getElementById('modalBox');
-    if (modal) modal.classList.remove('active');
-    if (box) box.className = 'modal-box';
+    this._wpClose();
   },
 
   // ============================================
