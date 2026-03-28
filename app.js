@@ -2011,14 +2011,26 @@ const app = {
       // Préserver les badges gagnés localement (le cloud peut être plus ancien)
       const localBadges = { ...this.state.unlockedBadges };
 
-      // Ne pas écraser rpg local si plus récent que le cloud (gains hors-ligne déjà appliqués)
+      // Préserver le cache d'articles (données éphémères, pas besoin de sync cloud)
+      const localArticlesCache = this.state.finance?.academy?.articlesCache || [];
+      const localArticlesFetchedAt = this.state.finance?.academy?.fetchedAt || null;
+
+      // Ne pas écraser rpg local si des gains hors-ligne viennent d'être appliqués,
+      // ou si le timestamp local est plus récent que le cloud.
       const localRPGTime = this.state.rpg?.lastUpdate || 0;
       const cloudRPGTime = cleanCloudState.rpg?.lastUpdate || 0;
-      if (localRPGTime > cloudRPGTime) {
+      if (this._offlineGainsApplied || localRPGTime > cloudRPGTime) {
         delete cleanCloudState.rpg;
       }
+      this._offlineGainsApplied = false;
 
       this.state = { ...this.state, ...cleanCloudState };
+
+      // Restaurer le cache d'articles si le cloud n'en a pas (ou en a moins)
+      if (this.state.finance?.academy && localArticlesCache.length > (this.state.finance.academy.articlesCache?.length || 0)) {
+        this.state.finance.academy.articlesCache = localArticlesCache;
+        if (localArticlesFetchedAt) this.state.finance.academy.fetchedAt = localArticlesFetchedAt;
+      }
       this.state.config = { ...this.state.config, ...cleanCloudState.config };
 
       // Merge: on garde l'union des badges locaux et cloud (jamais de régression)
@@ -3176,6 +3188,8 @@ const app = {
     // Afficher le rituel de retour si absence significative (≥5 min), sinon toast simple
     const hasGains = xpGained > 0 || goldGained > 0 || wavesGained > 0;
     if (!hasGains) return;
+    // Flag en mémoire : garantit que syncFromCloud() ne va pas écraser ces gains
+    this._offlineGainsApplied = true;
     if (minutes >= 5) {
       // Délai pour laisser le DOM s'initialiser complètement
       setTimeout(() => this.showOfflineReturnModal({
@@ -7144,16 +7158,36 @@ const app = {
   renderFinanceAcademie() {
     const el = document.getElementById('financeContent');
     if (!el) return;
-    el.innerHTML = `<div id="academy-shell"><div class="finance-loading">⏳ Chargement de l'Académie…</div></div>`;
-    this._loadAndRenderAcademie();
+
+    // Si des articles sont déjà en cache, on rend immédiatement (synchrone)
+    const cached = this._academyArticlesCache?.length
+      ? this._academyArticlesCache
+      : (this.state.finance?.academy?.articlesCache || []);
+
+    if (cached.length > 0) {
+      this._renderAcademyGrid(el, cached);
+    } else {
+      // Premier chargement : afficher le spinner puis fetch
+      el.innerHTML = `<div id="academy-shell"><div class="finance-loading">⏳ Chargement de l'Académie…</div></div>`;
+      this.fetchAcademyArticles().then(articles => {
+        this._academyArticlesCache = articles;
+        const elNow = document.getElementById('financeContent');
+        if (elNow) this._renderAcademyGrid(elNow, articles);
+      });
+    }
   },
 
   async _loadAndRenderAcademie() {
-    const shell = document.getElementById('academy-shell');
-    if (!shell) return;
-
+    // Alias conservé pour _setAcademyFilter
     const articles = await this.fetchAcademyArticles();
-    if (!document.getElementById('academy-shell')) return;
+    this._academyArticlesCache = articles;
+    const el = document.getElementById('financeContent');
+    if (el) this._renderAcademyGrid(el, articles);
+  },
+
+  _renderAcademyGrid(el, articles) {
+    // Stocker en cache d'instance — indépendant des mutations de state
+    this._academyArticlesCache = articles;
 
     const acad = this.state.finance.academy;
     const readIds = new Set(Object.keys(acad.read || {}));
@@ -7186,10 +7220,10 @@ const app = {
       return !readIds.has(a.id) && (now - pub) < 30 * 24 * 3600 * 1000;
     }).length;
 
-    shell.innerHTML = `
+    el.innerHTML = `
       <div class="academy-progress-bar-wrap">
         <div class="academy-progress-label">
-          <span>📚 ${readCount}/${total} modules complétés${newCount > 0 ? ` · <span class="academy-new-count">${newCount} nouveau${newCount > 1 ? 'x' : ''}</span>` : ''}</span>
+          <span>📚 ${readCount}/${total} modules complétés${newCount > 0 ? ' · <span class="academy-new-count">' + newCount + ' nouveau' + (newCount > 1 ? 'x' : '') + '</span>' : ''}</span>
           <span>${pct}%</span>
         </div>
         <div class="academy-progress-track"><div class="academy-progress-fill" style="width:${pct}%"></div></div>
@@ -7211,7 +7245,7 @@ const app = {
             const isRead = readIds.has(a.id);
             const isNew = !isRead && (now - new Date(a.publishedAt).getTime()) < 30 * 24 * 3600 * 1000;
             return `
-              <div class="academy-card${isRead ? ' read' : ''}" onclick="app.openAcademyArticle('${a.id}')">
+              <button type="button" class="academy-card${isRead ? ' read' : ''}" onclick="app.openAcademyArticle('${a.id}')">
                 ${isNew ? '<span class="academy-badge-new">NOUVEAU</span>' : ''}
                 ${isRead ? '<span class="academy-badge-done">✓</span>' : ''}
                 <div class="academy-card-cats">
@@ -7224,7 +7258,7 @@ const app = {
                   <span>⏱ ${a.readTime} min</span>
                   <span class="academy-xp-tag">+${diffXP[a.difficulty] || a.xpReward} XP</span>
                 </div>
-              </div>`;
+              </button>`;
           }).join('')
         }
       </div>
@@ -7240,8 +7274,17 @@ const app = {
               <div class="talent-req">${lvl * 2 - 1} article${lvl > 1 ? 's' : ''} lu${lvl > 1 ? 's' : ''}</div>
             </div>`).join('<div class="talent-arrow">→</div>')}
         </div>
-        <div class="academy-talent-progress">Niveau actuel : <strong>${talentLevel}/5</strong>${talentLevel < 5 ? ` · ${[1,3,5,7,9][talentLevel] - readCount > 0 ? `encore ${[1,3,5,7,9][talentLevel] - readCount} article(s)` : 'niveau suivant accessible'} pour le niveau ${talentLevel + 1}` : ' · Sagesse maximale atteinte !'}</div>
+        <div class="academy-talent-progress">${this._academyTalentProgressText(talentLevel, readCount)}</div>
       </div>`;
+  },
+
+  _academyTalentProgressText(talentLevel, readCount) {
+    if (talentLevel >= 5) return 'Niveau actuel : <strong>5/5</strong> · Sagesse maximale atteinte !';
+    const needed = [1,3,5,7,9][talentLevel] - readCount;
+    const nextInfo = needed > 0
+      ? ('encore ' + needed + ' article' + (needed > 1 ? 's' : ''))
+      : 'niveau suivant accessible';
+    return 'Niveau actuel : <strong>' + talentLevel + '/5</strong> · ' + nextInfo + ' pour le niveau ' + (talentLevel + 1);
   },
 
   async fetchAcademyArticles() {
@@ -7275,12 +7318,23 @@ const app = {
   },
 
   openAcademyArticle(articleId) {
+    this.showToast('📖 Ouverture : ' + articleId);
+    const pool = this._academyArticlesCache?.length
+      ? this._academyArticlesCache
+      : (this.state.finance?.academy?.articlesCache || []);
+    const article = pool.find(a => a.id === articleId);
+    if (!article) {
+      this.fetchAcademyArticles().then(arts => {
+        this._academyArticlesCache = arts;
+        this.openAcademyArticle(articleId);
+      });
+      return;
+    }
     const acad = this.state.finance.academy;
-    const article = (acad.articlesCache || []).find(a => a.id === articleId);
-    if (!article) return;
     const isRead = !!(acad.read?.[articleId]);
     const diffLabels = { debutant: '🟢 Débutant', intermediaire: '🟡 Intermédiaire', avance: '🔴 Avancé' };
     const linksHtml = (article.links || []).map(l => `<a href="${l.url}" target="_blank" rel="noopener" class="academy-link-btn">${l.label} ↗</a>`).join('');
+    document.getElementById('modalFooter').innerHTML = '';
     document.getElementById('modalTitle').textContent = article.title;
     document.getElementById('modalBody').innerHTML = `
       <div class="academy-modal-meta">
@@ -7293,7 +7347,7 @@ const app = {
       ${linksHtml ? `<div class="academy-links">${linksHtml}</div>` : ''}
       ${!isRead ? `<button class="btn-primary academy-read-btn" onclick="app.markAcademyArticleRead('${articleId}')">✅ Marquer comme lu (+${article.xpReward} XP)</button>` : '<p class="academy-already-read">✓ Module complété !</p>'}
     `;
-    document.getElementById('modal').classList.remove('hidden');
+    this.openModal();
   },
 
   markAcademyArticleRead(articleId) {
@@ -7329,7 +7383,7 @@ const app = {
     this.saveData();
 
     // Close modal and re-render
-    document.getElementById('modal').classList.add('hidden');
+    this.closeModal();
     this.showToast(`📚 Module lu ! +${article.xpReward} XP`);
     this.renderFinanceAcademie();
   },
