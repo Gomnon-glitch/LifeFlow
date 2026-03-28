@@ -62,6 +62,10 @@
           <span class="tab-icon">💰</span>
           <span class="tab-label">Finance</span>
         </li>
+        <li class="nav-tab" data-tab="training" id="tab-training">
+          <span class="tab-icon">🏋️</span>
+          <span class="tab-label">Entraînement</span>
+        </li>
       </ul>
 
       <div class="nav-actions">
@@ -620,6 +624,11 @@
           <button class="finance-pill" data-subtab="academie" onclick="app.switchFinanceTab('academie')">📚 Académie</button>
         </div>
         <div id="financeContent"><!-- Rendered by app.renderFinanceTab() --></div>
+      </section>
+
+      <!-- ========== TRAINING TAB ========== -->
+      <section class="tab-content" id="content-training">
+        <div id="trainingContent"><!-- Rendered by app.renderTrainingTab() --></div>
       </section>
 
       <!-- ========== HERO TAB ========== -->

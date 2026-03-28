@@ -3684,3 +3684,532 @@ body.theme-winter .now-banner::before { background: radial-gradient(circle, rgba
 .fhp-title { font-size: 0.72rem; font-weight: 700; color: #fbbf24; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem; }
 .fhp-row { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.6; }
 .fhp-row strong { color: var(--text-primary); }
+
+/* ═══════════════════════════════════════════════════
+   TRAINING TAB — Dashboard
+   ═══════════════════════════════════════════════════ */
+
+.training-strava-alert {
+  background: rgba(251, 146, 60, 0.12);
+  border: 1px solid rgba(251, 146, 60, 0.35);
+  border-radius: 10px;
+  padding: 0.65rem 1rem;
+  margin-bottom: var(--space-md);
+  font-size: 0.84rem;
+  color: #fb923c;
+}
+
+.training-header {
+  margin-bottom: var(--space-md);
+}
+
+.training-weekly-bar {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.training-weekly-title {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.training-weekly-title strong {
+  color: var(--text-primary);
+}
+
+.training-balance {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.training-balance-item {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 99px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--text-muted);
+}
+
+.training-balance-item.done {
+  background: rgba(52, 211, 153, 0.12);
+  border-color: rgba(52, 211, 153, 0.3);
+  color: #34d399;
+}
+
+.training-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-md);
+}
+
+.training-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  position: relative;
+  transition: border-color 0.2s, transform 0.15s;
+}
+
+.training-card:hover {
+  border-color: rgba(96, 165, 250, 0.3);
+  transform: translateY(-1px);
+}
+
+.training-card.recommended {
+  border-color: rgba(251, 191, 36, 0.45);
+  background: linear-gradient(135deg, var(--card-bg), rgba(251, 191, 36, 0.04));
+}
+
+.training-recommended-badge {
+  position: absolute;
+  top: -1px;
+  right: 12px;
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.72rem;
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.training-buff-active {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  font-size: 0.7rem;
+  color: #a78bfa;
+  background: rgba(167, 139, 250, 0.12);
+  border: 1px solid rgba(167, 139, 250, 0.25);
+  border-radius: 6px;
+  padding: 0.1rem 0.45rem;
+}
+
+.training-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.2rem;
+}
+
+.training-card-emoji {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.training-card-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.training-card-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.1rem;
+}
+
+.training-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.training-tag {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 99px;
+  background: rgba(96, 165, 250, 0.1);
+  border: 1px solid rgba(96, 165, 250, 0.2);
+  color: #93c5fd;
+}
+
+.training-card-buff {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.training-card-last {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.training-card-last.old {
+  color: #fb923c;
+}
+
+.training-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.training-btn-start {
+  flex: 1;
+  background: rgba(96, 165, 250, 0.15);
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  color: #93c5fd;
+  border-radius: 8px;
+  padding: 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s;
+}
+
+.training-btn-start:hover { background: rgba(96, 165, 250, 0.25); }
+
+.training-btn-express {
+  background: rgba(167, 139, 250, 0.12);
+  border: 1px solid rgba(167, 139, 250, 0.3);
+  color: #c4b5fd;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.18s;
+}
+
+.training-btn-express:hover { background: rgba(167, 139, 250, 0.22); }
+
+/* ═══════════════════════════════════════════════════
+   TRAINING — Workout Player Modal
+   ═══════════════════════════════════════════════════ */
+
+.workout-player-modal {
+  width: 100% !important;
+  max-width: 480px !important;
+  padding: 0 !important;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 92vh;
+}
+
+.wp-header {
+  padding: 1rem 1.2rem 0.6rem;
+}
+
+.wp-progress-bar {
+  height: 4px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.wp-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #60a5fa, #a78bfa);
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+
+.wp-progress-label {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.wp-body {
+  padding: 0.75rem 1.2rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.wp-body.wp-rest {
+  background: rgba(96, 165, 250, 0.04);
+  justify-content: center;
+}
+
+.wp-svg-wrap {
+  width: 100%;
+  max-width: 220px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 10px;
+  padding: 0.5rem;
+  position: relative;
+}
+
+.wp-svg-wrap svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.wp-svg-wrap.has-demo {
+  cursor: pointer;
+}
+
+.wp-svg-wrap.has-demo:hover .wp-demo-hint { opacity: 1; }
+
+.wp-demo-hint {
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  font-size: 0.65rem;
+  color: #60a5fa;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+.wp-ex-name {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.wp-ex-cue {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  text-align: center;
+  font-style: italic;
+  max-width: 300px;
+}
+
+.wp-side-label {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.1);
+  border-radius: 8px;
+  padding: 0.3rem 0.9rem;
+}
+
+/* Timer circle */
+.wp-timer-zone {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0.5rem 0;
+}
+
+.wp-timer-circle-wrap {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wp-timer-circle-svg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.wp-timer-num {
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  position: relative;
+  z-index: 1;
+}
+
+/* Rest zone */
+.wp-rest-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.5rem 0;
+}
+
+.wp-rest-label {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.wp-timer-big {
+  font-size: 3rem;
+  font-weight: 900;
+  color: #60a5fa;
+  font-variant-numeric: tabular-nums;
+}
+
+.wp-skip-btn {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--text-secondary);
+  border-radius: 8px;
+  padding: 0.4rem 1rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+/* Reps zone */
+.wp-reps-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.5rem 0;
+}
+
+.wp-reps-count {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.wp-rep-btn {
+  background: rgba(52, 211, 153, 0.15);
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  color: #34d399;
+  border-radius: 10px;
+  padding: 0.65rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  width: 100%;
+  max-width: 240px;
+}
+
+.wp-rep-btn:active { transform: scale(0.96); background: rgba(52, 211, 153, 0.25); }
+
+.wp-set-done-btn {
+  background: rgba(96, 165, 250, 0.12);
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  color: #93c5fd;
+  border-radius: 8px;
+  padding: 0.45rem 1.2rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Controls bar */
+.wp-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.wp-ctrl-btn {
+  flex: 1;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-secondary);
+  border-radius: 8px;
+  padding: 0.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.wp-ctrl-btn:hover { background: rgba(255,255,255,0.1); }
+
+.wp-quit-btn {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #f87171;
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.wp-quit-btn:hover { background: rgba(239, 68, 68, 0.2); }
+
+/* Done screen */
+.wp-done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 2rem 1.5rem;
+  text-align: center;
+}
+
+.wp-done-emoji { font-size: 3.5rem; line-height: 1; }
+
+.wp-done-title {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: var(--text-primary);
+}
+
+.wp-done-subtitle {
+  font-size: 1rem;
+  color: var(--text-secondary);
+}
+
+.wp-done-stats {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.04);
+  border-radius: 8px;
+  padding: 0.4rem 0.9rem;
+}
+
+.wp-done-buff {
+  font-size: 0.88rem;
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.wp-done-feeling-label {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+}
+
+.wp-done-feelings {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.wp-feeling-btn {
+  flex: 1;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-secondary);
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.wp-feeling-btn:hover { background: rgba(255,255,255,0.1); }
+
+.wp-feeling-easy {
+  background: rgba(52, 211, 153, 0.1);
+  border-color: rgba(52, 211, 153, 0.3);
+  color: #34d399;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 480px) {
+  .training-grid { grid-template-columns: 1fr; }
+  .workout-player-modal { max-height: 100vh; border-radius: 0; }
+}

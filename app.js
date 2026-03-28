@@ -1869,6 +1869,20 @@ const app = {
       // ── Finance — Migration Phase 3 ──
       if (this.state.finance.krachBoss === undefined) this.state.finance.krachBoss = null;
       if (this.state.finance.artefacts === undefined) this.state.finance.artefacts = {};
+      // ── Training — Migration Phase 1 ──
+      if (!this.state.training) {
+        this.state.training = {
+          history: [],
+          streaks: {},
+          totalSessions: 0,
+          weekSessions: 0,
+          lastWeekReset: '',
+          rpgBuffs: { mobility: null, stability: null, core: null, knees: null, hips: null, cardio: null, recovery: null },
+          progressionOverrides: {},
+        };
+      }
+      if (!this.state.training.rpgBuffs) this.state.training.rpgBuffs = { mobility: null, stability: null, core: null, knees: null, hips: null, cardio: null, recovery: null };
+      if (!this.state.training.progressionOverrides) this.state.training.progressionOverrides = {};
     } catch (e) {
       console.warn('Could not load saved data:', e);
     }
@@ -2144,6 +2158,8 @@ const app = {
     }
     // Finance tab
     if (tabName === 'finance') this.renderFinanceTab();
+    // Training tab
+    if (tabName === 'training') this.renderTrainingTab();
   },
 
   // ============================================
@@ -3309,6 +3325,15 @@ const app = {
       speedBonus += b.speed || 0;
       luckBonus  += b.luck  || 0;
     });
+    // Training buffs
+    const tBuff = this.state.training?.rpgBuffs || {};
+    const now = Date.now();
+    if (tBuff.stability?.expiresAt > now) defBonus   += tBuff.stability.defBonus   || 0;
+    if (tBuff.core?.expiresAt      > now) hpBonus    += tBuff.core.hpBonus         || 0;
+    if (tBuff.knees?.expiresAt     > now) speedBonus += tBuff.knees.speedBonus     || 0;
+    if (tBuff.hips?.expiresAt      > now) atkBonus   += tBuff.hips.atkBonus        || 0;
+    if (tBuff.cardio?.expiresAt    > now) { atkBonus += tBuff.cardio.atkBonus || 0; speedBonus += tBuff.cardio.speedBonus || 0; }
+    if (tBuff.mobility?.expiresAt  > now) speedBonus += tBuff.mobility.speedBonus  || 0;
     // hpPct bonus from skill tree
     const hpPct = this.getSkillBonus('hpPct');
     const hpPctBonus = Math.round((hero.hpMax || 100) * hpPct);
@@ -4868,6 +4893,24 @@ const app = {
     grant('finance-sage',           (this.state.finance?.sagesseTalents || 0) >= 5);
     this.checkFinanceArtefacts();
 
+    // ── Badges Entraînement ──
+    const trainingHistory = this.state.training?.history || [];
+    const totalTrainSessions = trainingHistory.length;
+    const trainingWorkoutTypes = new Set(trainingHistory.map(h => h.workoutId));
+    const stabilityCount = trainingHistory.filter(h => h.workoutId === 'stability').length;
+    const kneesCount     = trainingHistory.filter(h => h.workoutId === 'knees').length;
+    const hiitCount      = trainingHistory.filter(h => h.workoutId === 'hiit').length;
+    const mobilityCount  = trainingHistory.filter(h => h.workoutId === 'mobility').length;
+    const recoveryCount  = trainingHistory.filter(h => h.workoutId === 'recovery').length;
+    grant('training-first',     totalTrainSessions >= 1);
+    grant('training-10',        totalTrainSessions >= 10);
+    grant('stability-master',   stabilityCount >= 10);
+    grant('knees-master',       kneesCount >= 10);
+    grant('cardio-master',      hiitCount >= 10);
+    grant('morning-routine',    mobilityCount >= 10);
+    grant('recovery-habit',     recoveryCount >= 5);
+    grant('full-stack',         trainingWorkoutTypes.size >= 7);
+
     // ── Badges Planning ──
     grant('planner-1',       this.state.planningStreak >= 1);
     grant('planner-5',       this.state.planningStreak >= 5);
@@ -6130,6 +6173,182 @@ const app = {
   // ============================================
   // FINANCE — ARTEFACTS LÉGENDAIRES
   // ============================================
+  // ============================================
+  // TRAINING — Workout Definitions
+  // ============================================
+  WORKOUTS: [
+    {
+      id: 'mobility', title: 'Mobilité Matinale', emoji: '🌅', duration: '8 min',
+      tags: ['Mobilité', 'Quotidien', 'Trail'], type: 'timed', workTime: 45, restTime: 0, rounds: 1,
+      xpReward: 60, xpType: 'mobility',
+      buff: { type: 'mobility', label: '⚡ +0.2 Vitesse 12h', duration: 43200000, speedBonus: 0.2 },
+      exercises: [
+        { name: 'Rotations Thoraciques', cue: 'Maximise l\'amplitude de rotation', type: 'timed', duration: 45, bilateral: true, svgKey: 'thoracic-rotation', demoUrl: 'https://muscles.wiki/exercise/thoracic-rotation' },
+        { name: 'Cercles de Hanches', cue: 'Cercles lents et amples en quadrupédie', type: 'timed', duration: 45, bilateral: true, svgKey: 'hip-circles', demoUrl: 'https://muscles.wiki/exercise/hip-circles' },
+        { name: 'Mobilisation des Chevilles', cue: 'Grands cercles avec la pointe du pied', type: 'timed', duration: 45, bilateral: true, svgKey: 'ankle-circles', demoUrl: 'https://muscles.wiki/exercise/ankle-circles' },
+        { name: 'Cat-Cow', cue: 'Synchronise avec la respiration', type: 'timed', duration: 45, bilateral: false, svgKey: 'cat-cow', demoUrl: 'https://muscles.wiki/exercise/cat-cow' },
+        { name: "World's Greatest Stretch", cue: 'Rotation maximale du buste vers le plafond', type: 'timed', duration: 45, bilateral: true, svgKey: 'worlds-greatest-stretch', demoUrl: 'https://muscles.wiki/exercise/worlds-greatest-stretch' },
+        { name: 'Hip 90/90 Stretch', cue: 'Penche le buste en avant, hanches au sol', type: 'stretch', duration: 45, sets: 1, bilateral: true, svgKey: 'hip-9090', demoUrl: 'https://muscles.wiki/exercise/hip-90-90' },
+      ]
+    },
+    {
+      id: 'stability', title: 'Stabilité & Longévité', emoji: '🧘', duration: '20 min',
+      tags: ['Stabilité', 'Trail', 'Blessure'], type: 'reps', restBetweenSets: 60,
+      xpReward: 120, xpType: 'stability',
+      buff: { type: 'stability', label: '🛡️ +5 DEF 24h', duration: 86400000, defBonus: 5 },
+      exercises: [
+        { name: 'Single-Leg Stand', cue: 'Regard fixe devant, cheville active', type: 'timed', duration: 60, sets: 3, bilateral: true, restBetweenSets: 60, svgKey: 'single-leg-stand', demoUrl: 'https://muscles.wiki/exercise/single-leg-balance' },
+        { name: 'Bird Dog', cue: 'Le bassin reste horizontal — ne tourne pas', type: 'reps', sets: 3, reps: '10', bilateral: true, restBetweenSets: 60, svgKey: 'bird-dog', demoUrl: 'https://muscles.wiki/exercise/bird-dog' },
+        { name: 'Single-Leg RDL', cue: 'Descends lentement, remonte à la force du fessier', type: 'reps', sets: 3, reps: '10', bilateral: true, restBetweenSets: 60, svgKey: 'single-leg-rdl', demoUrl: 'https://muscles.wiki/exercise/single-leg-rdl' },
+        { name: 'Step-Up Lent', cue: 'Freine la descente — excentrique contrôlé', type: 'reps', sets: 3, reps: '12', bilateral: true, restBetweenSets: 60, svgKey: 'step-up', demoUrl: 'https://muscles.wiki/exercise/step-up' },
+        { name: 'Planche Classique', cue: 'Corps en ligne droite, gainage maximal', type: 'timed', duration: 60, sets: 3, bilateral: false, restBetweenSets: 60, svgKey: 'plank', demoUrl: 'https://muscles.wiki/exercise/plank' },
+      ]
+    },
+    {
+      id: 'core-trail', title: 'Gainage & Core Trail', emoji: '🏔️', duration: '15 min',
+      tags: ['Core', 'Trail', 'Circuit'], type: 'circuit', workTime: 40, restTime: 20, rounds: 3,
+      xpReward: 130, xpType: 'core',
+      buff: { type: 'core', label: '❤️ +15 HP max 24h', duration: 86400000, hpBonus: 15 },
+      exercises: [
+        { name: 'Dead Bug', cue: 'Les lombaires ne décollent JAMAIS du sol', type: 'timed', duration: 40, bilateral: false, svgKey: 'dead-bug', demoUrl: 'https://muscles.wiki/exercise/dead-bug' },
+        { name: 'Mountain Climbers', cue: 'Hanche basse, rythme contrôlé', type: 'timed', duration: 40, bilateral: false, svgKey: 'mountain-climber', demoUrl: 'https://muscles.wiki/exercise/mountain-climber' },
+        { name: 'Planche Latérale Gauche', cue: 'Hanches alignées, ne tombe pas', type: 'timed', duration: 40, bilateral: false, side: 'left', svgKey: 'side-plank', demoUrl: 'https://muscles.wiki/exercise/side-plank' },
+        { name: 'Planche Latérale Droite', cue: 'Hanches alignées, ne tombe pas', type: 'timed', duration: 40, bilateral: false, side: 'right', svgKey: 'side-plank', demoUrl: 'https://muscles.wiki/exercise/side-plank' },
+        { name: 'Superman', cue: 'Contraction fessiers + lombaires au sommet', type: 'timed', duration: 40, bilateral: false, svgKey: 'superman', demoUrl: 'https://muscles.wiki/exercise/superman' },
+      ]
+    },
+    {
+      id: 'knees', title: 'Bulletproof Genoux & Chevilles', emoji: '🦵', duration: '20 min',
+      tags: ['Genoux', 'Trail', 'ATG'], type: 'reps', restBetweenSets: 60,
+      xpReward: 140, xpType: 'stability',
+      buff: { type: 'knees', label: '⚡ +0.3 Vitesse 24h', duration: 86400000, speedBonus: 0.3 },
+      exercises: [
+        { name: 'Tibialis Raises', cue: 'Ramène les pointes vers toi, contrôle la descente', type: 'reps', sets: 3, reps: '20', bilateral: false, svgKey: 'tibialis-raises', demoUrl: 'https://muscles.wiki/exercise/tibialis-raises' },
+        { name: 'Poliquin Step-Up', cue: 'Talon surélevé, genou très en avant', type: 'reps', sets: 3, reps: '15', bilateral: true, restBetweenSets: 60, svgKey: 'poliquin-step', demoUrl: 'https://muscles.wiki/exercise/poliquin-step-up' },
+        { name: 'ATG Split Squat', cue: 'Fente profonde, étirement fort du psoas arrière', type: 'reps', sets: 3, reps: '10', bilateral: true, restBetweenSets: 60, svgKey: 'atg-split-squat', demoUrl: 'https://muscles.wiki/exercise/atg-split-squat' },
+        { name: 'Élévations Mollets', cue: 'Contrôle l\'étirement en bas', type: 'reps', sets: 3, reps: '15', bilateral: true, restBetweenSets: 60, svgKey: 'calf-raises', demoUrl: 'https://muscles.wiki/exercise/calf-raises' },
+        { name: 'Marche Arrière', cue: 'Pas contrôlés, repousse la tension rotulienne', type: 'timed', duration: 60, sets: 3, bilateral: false, restBetweenSets: 30, svgKey: 'reverse-walk', demoUrl: 'https://muscles.wiki/exercise/reverse-walking' },
+        { name: 'Couch Stretch', cue: 'Genou contre le mur, redresse-toi pour débloquer les hanches', type: 'stretch', duration: 60, sets: 2, bilateral: true, restBetweenSets: 15, svgKey: 'couch-stretch', demoUrl: 'https://muscles.wiki/exercise/couch-stretch' },
+      ]
+    },
+    {
+      id: 'hips', title: 'Puissance Hanches & Fessiers', emoji: '🏋️', duration: '18 min',
+      tags: ['Fessiers', 'Trail', 'Montée'], type: 'reps', restBetweenSets: 60,
+      xpReward: 140, xpType: 'strength',
+      buff: { type: 'hips', label: '⚔️ +5 ATK 24h', duration: 86400000, atkBonus: 5 },
+      exercises: [
+        { name: 'Glute Bridge', cue: 'Contraction intense 2s en position haute', type: 'reps', sets: 3, reps: '15', bilateral: false, svgKey: 'glute-bridge', demoUrl: 'https://muscles.wiki/exercise/glute-bridge' },
+        { name: 'Fentes Inversées', cue: 'Genou arrière proche du sol, reste droit', type: 'reps', sets: 3, reps: '12', bilateral: true, restBetweenSets: 60, svgKey: 'reverse-lunge', demoUrl: 'https://muscles.wiki/exercise/reverse-lunge' },
+        { name: 'Clamshells', cue: 'Rotation de hanche, pied ancré au sol', type: 'reps', sets: 3, reps: '15', bilateral: true, restBetweenSets: 60, svgKey: 'clamshell', demoUrl: 'https://muscles.wiki/exercise/clamshell' },
+        { name: 'Step-Up Latéral Explosif', cue: 'Poussée avec la jambe de travail uniquement', type: 'reps', sets: 3, reps: '10', bilateral: true, restBetweenSets: 60, svgKey: 'lateral-step-up', demoUrl: 'https://muscles.wiki/exercise/lateral-step-up' },
+        { name: 'Couch Stretch', cue: 'Psoas/quadriceps — tiens 60 secondes', type: 'stretch', duration: 60, sets: 2, bilateral: true, restBetweenSets: 15, svgKey: 'couch-stretch', demoUrl: 'https://muscles.wiki/exercise/couch-stretch' },
+      ]
+    },
+    {
+      id: 'hiit', title: 'HIIT Trail-Spécifique', emoji: '🔥', duration: '15 min',
+      tags: ['Cardio', 'HIIT', 'VO2max'], type: 'circuit', workTime: 30, restTime: 15, rounds: 4,
+      xpReward: 150, xpType: 'cardio',
+      buff: { type: 'cardio', label: '🔥 +5 ATK +0.2 Vitesse 24h', duration: 86400000, atkBonus: 5, speedBonus: 0.2 },
+      exercises: [
+        { name: 'Burpees', cue: 'Poussée explosive vers le haut, atterris souple', type: 'timed', duration: 30, bilateral: false, svgKey: 'burpee', demoUrl: 'https://muscles.wiki/exercise/burpee' },
+        { name: 'Lateral Bounds', cue: 'Atterrissage stable sur une jambe', type: 'timed', duration: 30, bilateral: false, svgKey: 'lateral-bound', demoUrl: 'https://muscles.wiki/exercise/lateral-bound' },
+        { name: 'High Knees', cue: 'Genoux à hauteur des hanches, bras actifs', type: 'timed', duration: 30, bilateral: false, svgKey: 'high-knees', demoUrl: 'https://muscles.wiki/exercise/high-knees' },
+        { name: 'Box Jump', cue: 'Poussée avec les deux jambes, atterris fléchi', type: 'timed', duration: 30, bilateral: false, svgKey: 'box-jump', demoUrl: 'https://muscles.wiki/exercise/box-jump' },
+        { name: 'Bear Crawl', cue: '4 pas avant, 4 pas arrière — genoux à 2cm du sol', type: 'timed', duration: 30, bilateral: false, svgKey: 'bear-crawl', demoUrl: 'https://muscles.wiki/exercise/bear-crawl' },
+      ]
+    },
+    {
+      id: 'recovery', title: 'Récupération Active', emoji: '💚', duration: '10 min',
+      tags: ['Récupération', 'Étirement', 'Post-Run'], type: 'timed', workTime: 60, restTime: 0, rounds: 1,
+      xpReward: 80, xpType: 'recovery',
+      buff: { type: 'recovery', label: '💚 Soigne 20 HP + retire debuffs', duration: 0, healHp: 20, clearsDebuffs: true },
+      exercises: [
+        { name: 'Foam Rolling Quadriceps', cue: 'Pression lente sur les zones douloureuses', type: 'timed', duration: 60, bilateral: true, svgKey: 'foam-roll-quad', demoUrl: 'https://muscles.wiki/exercise/foam-rolling' },
+        { name: 'Foam Rolling Mollets', cue: 'Pression lente, cherche les points sensibles', type: 'timed', duration: 60, bilateral: true, svgKey: 'foam-roll-calf', demoUrl: 'https://muscles.wiki/exercise/foam-rolling' },
+        { name: 'Étirement Ischio-jambiers', cue: 'Jambe tendue, attire-toi vers la cheville', type: 'stretch', duration: 60, sets: 1, bilateral: true, svgKey: 'hamstring-stretch', demoUrl: 'https://muscles.wiki/exercise/hamstring-stretch' },
+        { name: 'Pigeon Pose', cue: 'Hanche avant à 90°, relâche progressivement', type: 'stretch', duration: 60, sets: 1, bilateral: true, svgKey: 'pigeon-pose', demoUrl: 'https://muscles.wiki/exercise/pigeon-pose' },
+        { name: 'Couch Stretch', cue: 'Psoas/quadriceps — respire et relâche', type: 'stretch', duration: 60, sets: 1, bilateral: true, svgKey: 'couch-stretch', demoUrl: 'https://muscles.wiki/exercise/couch-stretch' },
+        { name: 'Respiration Diaphragmatique', cue: 'Inspiration 4s, expiration 6s — main sur le ventre', type: 'timed', duration: 60, bilateral: false, svgKey: 'breathing', demoUrl: 'https://muscles.wiki/exercise/diaphragmatic-breathing' },
+      ]
+    },
+  ],
+
+  // ============================================
+  // TRAINING — SVG Stick Figures
+  // viewBox 200x80 — figure 1 at x≈38, figure 2 at x≈158, arrow at center
+  // ============================================
+  WORKOUT_SVG: {
+    'thoracic-rotation': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="15" cy="38" r="5" fill="#94a3b8" stroke="none"/><line x1="20" y1="38" x2="68" y2="38" stroke-width="3"/><line x1="36" y1="38" x2="30" y2="28" stroke-width="2.5"/><line x1="36" y1="38" x2="30" y2="48" stroke-width="2.5"/><line x1="54" y1="38" x2="48" y2="28" stroke-width="2.5"/><line x1="54" y1="38" x2="48" y2="48" stroke-width="2.5"/></g><line x1="78" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="125" cy="38" r="5" fill="#94a3b8" stroke="none"/><line x1="130" y1="38" x2="178" y2="38" stroke-width="3"/><line x1="146" y1="38" x2="140" y2="48" stroke-width="2.5"/><line x1="164" y1="38" x2="158" y2="48" stroke-width="2.5"/></g><line x1="146" y1="38" x2="155" y2="20" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"/><line x1="164" y1="38" x2="178" y2="20" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"/></svg>`,
+
+    'hip-circles': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="22" cy="28" r="5" fill="#94a3b8" stroke="none"/><line x1="22" y1="33" x2="22" y2="45" stroke-width="2.5"/><line x1="22" y1="45" x2="65" y2="45" stroke-width="3"/><line x1="22" y1="45" x2="17" y2="62" stroke-width="2.5"/><line x1="22" y1="45" x2="27" y2="62" stroke-width="2.5"/><line x1="65" y1="45" x2="60" y2="62" stroke-width="2.5"/><line x1="65" y1="45" x2="70" y2="62" stroke-width="2.5"/></g><line x1="78" y1="42" x2="100" y2="42" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,38 108,42 98,46" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="132" cy="28" r="5" fill="#94a3b8" stroke="none"/><line x1="132" y1="33" x2="132" y2="45" stroke-width="2.5"/><line x1="132" y1="45" x2="175" y2="45" stroke-width="3"/><line x1="132" y1="45" x2="127" y2="62" stroke-width="2.5"/><line x1="132" y1="45" x2="137" y2="62" stroke-width="2.5"/><line x1="175" y1="45" x2="170" y2="62" stroke-width="2.5"/></g><line x1="175" y1="45" x2="188" y2="32" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"/><circle cx="182" cy="55" r="8" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="3 2"/></svg>`,
+
+    'ankle-circles': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="20" cy="18" r="5" fill="#94a3b8" stroke="none"/><line x1="20" y1="23" x2="20" y2="42" stroke-width="2.5"/><line x1="20" y1="30" x2="10" y2="40" stroke-width="2"/><line x1="20" y1="30" x2="30" y2="40" stroke-width="2"/><line x1="20" y1="42" x2="15" y2="55" stroke-width="2.5"/><line x1="20" y1="42" x2="40" y2="55" stroke-width="2.5"/><line x1="40" y1="55" x2="65" y2="55" stroke-width="2.5"/></g><circle cx="62" cy="58" r="7" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="3 2"/><line x1="75" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="130" cy="18" r="5" fill="#94a3b8" stroke="none"/><line x1="130" y1="23" x2="130" y2="42" stroke-width="2.5"/><line x1="130" y1="30" x2="120" y2="40" stroke-width="2"/><line x1="130" y1="30" x2="140" y2="40" stroke-width="2"/><line x1="130" y1="42" x2="125" y2="55" stroke-width="2.5"/><line x1="130" y1="42" x2="150" y2="55" stroke-width="2.5"/><line x1="150" y1="55" x2="178" y2="48" stroke-width="2.5"/></g><circle cx="178" cy="48" r="5" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="2 2"/></svg>`,
+
+    'cat-cow': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="20" cy="32" r="5" fill="#94a3b8" stroke="none"/><line x1="25" y1="35" x2="30" y2="42" stroke-width="2.5"/><path d="M30 42 Q47 35 65 42" stroke-width="3" fill="none"/><line x1="30" y1="42" x2="25" y2="58" stroke-width="2.5"/><line x1="30" y1="42" x2="35" y2="58" stroke-width="2.5"/><line x1="65" y1="42" x2="60" y2="58" stroke-width="2.5"/><line x1="65" y1="42" x2="70" y2="58" stroke-width="2.5"/></g><line x1="78" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="130" cy="48" r="5" fill="#94a3b8" stroke="none"/><line x1="135" y1="46" x2="140" y2="40" stroke-width="2.5"/><path d="M140 40 Q157 50 175 40" stroke-width="3" fill="none"/><line x1="140" y1="40" x2="135" y2="56" stroke-width="2.5"/><line x1="140" y1="40" x2="145" y2="56" stroke-width="2.5"/><line x1="175" y1="40" x2="170" y2="56" stroke-width="2.5"/><line x1="175" y1="40" x2="180" y2="56" stroke-width="2.5"/></g></svg>`,
+
+    'worlds-greatest-stretch': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="32" cy="18" r="5" fill="#94a3b8" stroke="none"/><line x1="32" y1="23" x2="32" y2="38" stroke-width="2.5"/><line x1="32" y1="28" x2="22" y2="38" stroke-width="2"/><line x1="32" y1="28" x2="42" y2="38" stroke-width="2"/><line x1="32" y1="38" x2="18" y2="58" stroke-width="2.5"/><line x1="32" y1="38" x2="50" y2="52" stroke-width="2.5"/><line x1="50" y1="52" x2="50" y2="65" stroke-width="2"/><line x1="18" y1="58" x2="18" y2="65" stroke-width="2"/></g><line x1="75" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="142" cy="22" r="5" fill="#94a3b8" stroke="none"/><line x1="142" y1="27" x2="142" y2="42" stroke-width="2.5"/><line x1="142" y1="32" x2="130" y2="42" stroke-width="2"/><line x1="142" y1="38" x2="158" y2="52" stroke-width="2.5"/><line x1="158" y1="52" x2="158" y2="65" stroke-width="2"/><line x1="128" y1="58" x2="128" y2="65" stroke-width="2"/><line x1="142" y1="36" x2="128" y2="55" stroke-width="2.5"/></g><line x1="142" y1="32" x2="156" y2="16" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"/></svg>`,
+
+    'hip-9090': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="22" cy="22" r="5" fill="#94a3b8" stroke="none"/><line x1="22" y1="27" x2="22" y2="45" stroke-width="2.5"/><line x1="22" y1="33" x2="12" y2="40" stroke-width="2"/><line x1="22" y1="33" x2="32" y2="40" stroke-width="2"/><line x1="22" y1="45" x2="8" y2="45" stroke-width="2.5"/><line x1="8" y1="45" x2="8" y2="62" stroke-width="2.5"/><line x1="22" y1="45" x2="38" y2="45" stroke-width="2.5"/><line x1="38" y1="45" x2="55" y2="60" stroke-width="2.5"/></g><line x1="75" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="132" cy="32" r="5" fill="#94a3b8" stroke="none"/><line x1="132" y1="37" x2="132" y2="52" stroke-width="2.5"/><line x1="132" y1="42" x2="120" y2="48" stroke-width="2"/><line x1="132" y1="42" x2="144" y2="48" stroke-width="2"/><line x1="132" y1="52" x2="118" y2="52" stroke-width="2.5"/><line x1="118" y1="52" x2="118" y2="68" stroke-width="2.5"/><line x1="132" y1="52" x2="148" y2="52" stroke-width="2.5"/><line x1="148" y1="52" x2="165" y2="65" stroke-width="2.5"/></g><line x1="132" y1="37" x2="145" y2="48" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-dasharray="3 2"/></svg>`,
+
+    'single-leg-stand': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="38" cy="12" r="6" fill="#94a3b8" stroke="none"/><line x1="38" y1="18" x2="38" y2="45" stroke-width="2.5"/><line x1="38" y1="26" x2="26" y2="38" stroke-width="2"/><line x1="38" y1="26" x2="50" y2="38" stroke-width="2"/><line x1="38" y1="45" x2="30" y2="65" stroke-width="2.5"/><line x1="38" y1="45" x2="46" y2="65" stroke-width="2.5"/></g><line x1="78" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="158" cy="12" r="6" fill="#94a3b8" stroke="none"/><line x1="158" y1="18" x2="158" y2="45" stroke-width="2.5"/><line x1="158" y1="26" x2="146" y2="38" stroke-width="2"/><line x1="158" y1="26" x2="170" y2="38" stroke-width="2"/><line x1="158" y1="45" x2="150" y2="65" stroke-width="2.5"/></g><line x1="158" y1="45" x2="165" y2="32" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"/><line x1="165" y1="32" x2="168" y2="45" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"/></svg>`,
+
+    'bird-dog': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="20" cy="28" r="5" fill="#94a3b8" stroke="none"/><line x1="20" y1="33" x2="25" y2="42" stroke-width="2.5"/><line x1="25" y1="42" x2="62" y2="42" stroke-width="3"/><line x1="25" y1="42" x2="20" y2="58" stroke-width="2.5"/><line x1="25" y1="42" x2="30" y2="58" stroke-width="2.5"/><line x1="62" y1="42" x2="57" y2="58" stroke-width="2.5"/><line x1="62" y1="42" x2="67" y2="58" stroke-width="2.5"/></g><line x1="78" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="130" cy="28" r="5" fill="#94a3b8" stroke="none"/><line x1="130" y1="33" x2="135" y2="42" stroke-width="2.5"/><line x1="135" y1="42" x2="172" y2="42" stroke-width="3"/><line x1="172" y1="42" x2="167" y2="58" stroke-width="2.5"/></g><line x1="135" y1="42" x2="130" y2="58" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round"/><line x1="115" y1="42" x2="130" y2="42" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"/><line x1="172" y1="42" x2="188" y2="42" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"/></svg>`,
+
+    'single-leg-rdl': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="38" cy="12" r="6" fill="#94a3b8" stroke="none"/><line x1="38" y1="18" x2="38" y2="45" stroke-width="2.5"/><line x1="38" y1="26" x2="26" y2="38" stroke-width="2"/><line x1="38" y1="26" x2="50" y2="38" stroke-width="2"/><line x1="38" y1="45" x2="30" y2="65" stroke-width="2.5"/><line x1="38" y1="45" x2="46" y2="65" stroke-width="2.5"/></g><line x1="78" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="138" cy="40" r="6" fill="#94a3b8" stroke="none"/><line x1="138" y1="46" x2="158" y2="55" stroke-width="2.5"/><line x1="144" y1="44" x2="152" y2="38" stroke-width="2"/><line x1="152" y1="38" x2="162" y2="44" stroke-width="2"/><line x1="158" y1="55" x2="162" y2="68" stroke-width="2.5"/></g><line x1="158" y1="55" x2="180" y2="48" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"/></svg>`,
+
+    'step-up': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="45" y="52" width="30" height="14" rx="2" fill="rgba(96,165,250,0.15)" stroke="#60a5fa" stroke-width="1"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="35" cy="14" r="6" fill="#94a3b8" stroke="none"/><line x1="35" y1="20" x2="35" y2="45" stroke-width="2.5"/><line x1="35" y1="28" x2="23" y2="40" stroke-width="2"/><line x1="35" y1="28" x2="47" y2="40" stroke-width="2"/><line x1="35" y1="45" x2="25" y2="66" stroke-width="2.5"/><line x1="35" y1="45" x2="43" y2="66" stroke-width="2.5"/></g><line x1="78" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><rect x="145" y="52" width="30" height="14" rx="2" fill="rgba(96,165,250,0.15)" stroke="#60a5fa" stroke-width="1"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="158" cy="14" r="6" fill="#94a3b8" stroke="none"/><line x1="158" y1="20" x2="158" y2="42" stroke-width="2.5"/><line x1="158" y1="28" x2="146" y2="40" stroke-width="2"/><line x1="158" y1="28" x2="170" y2="40" stroke-width="2"/><line x1="158" y1="42" x2="152" y2="52" stroke-width="2.5"/><line x1="152" y1="52" x2="148" y2="66" stroke-width="2.5"/><line x1="158" y1="42" x2="165" y2="60" stroke-width="2.5"/></g></svg>`,
+
+    'plank': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="15" cy="35" r="5" fill="#94a3b8" stroke="none"/><line x1="20" y1="37" x2="70" y2="40" stroke-width="3"/><line x1="25" y1="38" x2="20" y2="52" stroke-width="2.5"/><line x1="25" y1="38" x2="28" y2="52" stroke-width="2.5"/><line x1="65" y1="40" x2="60" y2="55" stroke-width="2.5"/><line x1="65" y1="40" x2="70" y2="55" stroke-width="2.5"/></g><line x1="78" y1="42" x2="100" y2="42" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,38 108,42 98,46" fill="#60a5fa"/><g stroke="#60a5fa" stroke-linecap="round"><circle cx="125" cy="35" r="5" fill="#94a3b8" stroke="none"/><line x1="130" y1="37" x2="180" y2="40" stroke-width="3" stroke="#94a3b8"/><line x1="135" y1="38" x2="130" y2="52" stroke-width="2.5" stroke="#94a3b8"/><line x1="135" y1="38" x2="138" y2="52" stroke-width="2.5" stroke="#94a3b8"/><line x1="175" y1="40" x2="170" y2="55" stroke-width="2.5" stroke="#94a3b8"/><line x1="175" y1="40" x2="180" y2="55" stroke-width="2.5" stroke="#94a3b8"/></g><line x1="128" y1="35" x2="178" y2="38" stroke="#60a5fa" stroke-width="1" stroke-dasharray="3 2"/></svg>`,
+
+    'dead-bug': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="38" cy="50" r="6" fill="#94a3b8" stroke="none"/><line x1="38" y1="44" x2="38" y2="25" stroke-width="2.5"/><line x1="38" y1="35" x2="24" y2="22" stroke-width="2"/><line x1="38" y1="35" x2="52" y2="22" stroke-width="2"/><line x1="38" y1="25" x2="26" y2="15" stroke-width="2.5"/><line x1="38" y1="25" x2="50" y2="15" stroke-width="2.5"/></g><line x1="78" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="158" cy="50" r="6" fill="#94a3b8" stroke="none"/><line x1="158" y1="44" x2="158" y2="25" stroke-width="2.5"/><line x1="158" y1="35" x2="172" y2="22" stroke-width="2"/><line x1="158" y1="25" x2="170" y2="15" stroke-width="2.5"/></g><line x1="158" y1="35" x2="142" y2="22" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"/><line x1="158" y1="25" x2="144" y2="60" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"/></svg>`,
+
+    'mountain-climber': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="15" cy="28" r="5" fill="#94a3b8" stroke="none"/><line x1="20" y1="30" x2="62" y2="40" stroke-width="3"/><line x1="25" y1="32" x2="20" y2="50" stroke-width="2.5"/><line x1="25" y1="32" x2="30" y2="50" stroke-width="2.5"/><line x1="62" y1="40" x2="55" y2="58" stroke-width="2.5"/><line x1="62" y1="40" x2="68" y2="58" stroke-width="2.5"/></g><line x1="78" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="125" cy="28" r="5" fill="#94a3b8" stroke="none"/><line x1="130" y1="30" x2="172" y2="40" stroke-width="3"/><line x1="135" y1="32" x2="130" y2="50" stroke-width="2.5"/><line x1="172" y1="40" x2="178" y2="58" stroke-width="2.5"/></g><line x1="172" y1="40" x2="162" y2="50" stroke-width="2.5" stroke="#94a3b8" stroke-linecap="round"/><line x1="162" y1="50" x2="155" y2="32" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"/></svg>`,
+
+    'side-plank': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="18" cy="30" r="5" fill="#94a3b8" stroke="none"/><line x1="22" y1="33" x2="60" y2="52" stroke-width="3"/><line x1="22" y1="33" x2="16" y2="48" stroke-width="2.5"/><line x1="60" y1="52" x2="52" y2="60" stroke-width="2.5"/><line x1="60" y1="52" x2="68" y2="60" stroke-width="2.5"/></g><line x1="78" y1="42" x2="100" y2="42" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,38 108,42 98,46" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="128" cy="30" r="5" fill="#94a3b8" stroke="none"/><line x1="132" y1="33" x2="170" y2="52" stroke-width="3"/><line x1="170" y1="52" x2="162" y2="60" stroke-width="2.5"/><line x1="170" y1="52" x2="178" y2="60" stroke-width="2.5"/></g><line x1="132" y1="33" x2="132" y2="15" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"/></svg>`,
+
+    'superman': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="15" cy="42" r="5" fill="#94a3b8" stroke="none"/><line x1="20" y1="42" x2="68" y2="42" stroke-width="3"/><line x1="30" y1="42" x2="24" y2="50" stroke-width="2.5"/><line x1="30" y1="42" x2="24" y2="34" stroke-width="2.5"/><line x1="55" y1="42" x2="48" y2="50" stroke-width="2.5"/><line x1="55" y1="42" x2="48" y2="34" stroke-width="2.5"/></g><line x1="78" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><g stroke="#60a5fa" stroke-linecap="round"><circle cx="125" cy="42" r="5" fill="#94a3b8" stroke="none"/><line x1="130" y1="42" x2="178" y2="42" stroke-width="3" stroke="#94a3b8"/><line x1="140" y1="42" x2="128" y2="30" stroke-width="2.5"/><line x1="168" y1="42" x2="180" y2="30" stroke-width="2.5"/></g></svg>`,
+
+    'tibialis-raises': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="10" width="4" height="60" rx="2" fill="rgba(148,163,184,0.3)" stroke="#64748b" stroke-width="1"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="32" cy="18" r="6" fill="#94a3b8" stroke="none"/><line x1="32" y1="24" x2="32" y2="48" stroke-width="2.5"/><line x1="32" y1="32" x2="18" y2="38" stroke-width="2"/><line x1="32" y1="32" x2="44" y2="38" stroke-width="2"/><line x1="32" y1="48" x2="22" y2="68" stroke-width="2.5"/><line x1="32" y1="48" x2="42" y2="68" stroke-width="2.5"/></g><line x1="78" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><rect x="112" y="10" width="4" height="60" rx="2" fill="rgba(148,163,184,0.3)" stroke="#64748b" stroke-width="1"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="142" cy="18" r="6" fill="#94a3b8" stroke="none"/><line x1="142" y1="24" x2="142" y2="48" stroke-width="2.5"/><line x1="142" y1="32" x2="128" y2="38" stroke-width="2"/><line x1="142" y1="32" x2="154" y2="38" stroke-width="2"/><line x1="142" y1="48" x2="132" y2="65" stroke-width="2.5"/><line x1="142" y1="48" x2="152" y2="65" stroke-width="2.5"/></g><line x1="132" y1="65" x2="132" y2="55" stroke="#60a5fa" stroke-width="3" stroke-linecap="round"/><line x1="152" y1="65" x2="152" y2="55" stroke="#60a5fa" stroke-width="3" stroke-linecap="round"/></svg>`,
+
+    'poliquin-step': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="28" y="58" width="22" height="8" rx="1" fill="rgba(96,165,250,0.15)" stroke="#60a5fa" stroke-width="1"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="36" cy="14" r="6" fill="#94a3b8" stroke="none"/><line x1="36" y1="20" x2="36" y2="42" stroke-width="2.5"/><line x1="36" y1="28" x2="24" y2="38" stroke-width="2"/><line x1="36" y1="28" x2="48" y2="38" stroke-width="2"/><line x1="36" y1="42" x2="28" y2="58" stroke-width="2.5"/><line x1="36" y1="42" x2="44" y2="66" stroke-width="2.5"/></g><line x1="76" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><rect x="138" y="58" width="22" height="8" rx="1" fill="rgba(96,165,250,0.15)" stroke="#60a5fa" stroke-width="1"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="155" cy="12" r="6" fill="#94a3b8" stroke="none"/><line x1="155" y1="18" x2="155" y2="40" stroke-width="2.5"/><line x1="155" y1="26" x2="143" y2="36" stroke-width="2"/><line x1="155" y1="26" x2="167" y2="36" stroke-width="2"/><line x1="155" y1="40" x2="148" y2="58" stroke-width="2.5"/><line x1="155" y1="40" x2="165" y2="55" stroke-width="2.5"/></g><line x1="148" y1="58" x2="140" y2="45" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-dasharray="3 2"/></svg>`,
+
+    'atg-split-squat': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="35" cy="14" r="6" fill="#94a3b8" stroke="none"/><line x1="35" y1="20" x2="35" y2="42" stroke-width="2.5"/><line x1="35" y1="28" x2="23" y2="38" stroke-width="2"/><line x1="35" y1="28" x2="47" y2="38" stroke-width="2"/><line x1="35" y1="42" x2="20" y2="65" stroke-width="2.5"/><line x1="35" y1="42" x2="50" y2="55" stroke-width="2.5"/><line x1="50" y1="55" x2="55" y2="70" stroke-width="2"/></g><line x1="76" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="155" cy="16" r="6" fill="#94a3b8" stroke="none"/><line x1="155" y1="22" x2="155" y2="40" stroke-width="2.5"/><line x1="155" y1="30" x2="143" y2="40" stroke-width="2"/><line x1="155" y1="30" x2="167" y2="40" stroke-width="2"/><line x1="155" y1="40" x2="140" y2="65" stroke-width="2.5"/><line x1="155" y1="40" x2="168" y2="52" stroke-width="2.5"/><line x1="168" y1="52" x2="172" y2="68" stroke-width="2"/></g><line x1="140" y1="65" x2="130" y2="50" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-dasharray="3 2"/></svg>`,
+
+    'calf-raises': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="38" cy="18" r="6" fill="#94a3b8" stroke="none"/><line x1="38" y1="24" x2="38" y2="48" stroke-width="2.5"/><line x1="38" y1="32" x2="26" y2="42" stroke-width="2"/><line x1="38" y1="32" x2="50" y2="42" stroke-width="2"/><line x1="38" y1="48" x2="30" y2="68" stroke-width="2.5"/><line x1="38" y1="48" x2="46" y2="68" stroke-width="2.5"/></g><line x1="78" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="158" cy="12" r="6" fill="#94a3b8" stroke="none"/><line x1="158" y1="18" x2="158" y2="42" stroke-width="2.5"/><line x1="158" y1="26" x2="146" y2="36" stroke-width="2"/><line x1="158" y1="26" x2="170" y2="36" stroke-width="2"/><line x1="158" y1="42" x2="150" y2="58" stroke-width="2.5"/><line x1="158" y1="42" x2="166" y2="58" stroke-width="2.5"/></g><line x1="150" y1="58" x2="150" y2="68" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round"/><line x1="166" y1="58" x2="166" y2="62" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round"/><circle cx="150" cy="56" r="3" fill="#60a5fa"/><circle cx="166" cy="56" r="3" fill="#60a5fa"/></svg>`,
+
+    'reverse-walk': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="55" cy="14" r="6" fill="#94a3b8" stroke="none"/><line x1="55" y1="20" x2="55" y2="44" stroke-width="2.5"/><line x1="55" y1="28" x2="43" y2="40" stroke-width="2"/><line x1="55" y1="28" x2="67" y2="40" stroke-width="2"/><line x1="55" y1="44" x2="40" y2="65" stroke-width="2.5"/><line x1="55" y1="44" x2="62" y2="62" stroke-width="2.5"/></g><line x1="40" y1="40" x2="18" y2="40" stroke="#60a5fa" stroke-width="2"/><polygon points="20,36 10,40 20,44" fill="#60a5fa"/><line x1="78" y1="40" x2="100" y2="40" stroke="#64748b" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#64748b"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="165" cy="14" r="6" fill="#94a3b8" stroke="none"/><line x1="165" y1="20" x2="165" y2="44" stroke-width="2.5"/><line x1="165" y1="28" x2="153" y2="40" stroke-width="2"/><line x1="165" y1="28" x2="177" y2="40" stroke-width="2"/><line x1="165" y1="44" x2="172" y2="65" stroke-width="2.5"/><line x1="165" y1="44" x2="152" y2="60" stroke-width="2.5"/></g></svg>`,
+
+    'couch-stretch': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="60" y="8" width="4" height="40" rx="2" fill="rgba(148,163,184,0.3)" stroke="#64748b" stroke-width="1"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="35" cy="16" r="6" fill="#94a3b8" stroke="none"/><line x1="35" y1="22" x2="35" y2="44" stroke-width="2.5"/><line x1="35" y1="30" x2="23" y2="40" stroke-width="2"/><line x1="35" y1="30" x2="47" y2="40" stroke-width="2"/><line x1="35" y1="44" x2="20" y2="65" stroke-width="2.5"/><line x1="35" y1="44" x2="48" y2="55" stroke-width="2.5"/><line x1="48" y1="55" x2="60" y2="50" stroke-width="2.5"/></g><line x1="76" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><rect x="170" y="8" width="4" height="40" rx="2" fill="rgba(148,163,184,0.3)" stroke="#64748b" stroke-width="1"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="145" cy="12" r="6" fill="#94a3b8" stroke="none"/><line x1="145" y1="18" x2="145" y2="40" stroke-width="2.5"/><line x1="145" y1="26" x2="133" y2="36" stroke-width="2"/><line x1="145" y1="26" x2="157" y2="36" stroke-width="2"/><line x1="145" y1="40" x2="128" y2="62" stroke-width="2.5"/><line x1="145" y1="40" x2="160" y2="50" stroke-width="2.5"/><line x1="160" y1="50" x2="172" y2="45" stroke-width="2.5"/></g><line x1="128" y1="62" x2="118" y2="45" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-dasharray="3 2"/></svg>`,
+
+    'glute-bridge': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="15" cy="50" r="5" fill="#94a3b8" stroke="none"/><line x1="20" y1="50" x2="40" y2="50" stroke-width="2.5"/><line x1="30" y1="50" x2="26" y2="40" stroke-width="2"/><line x1="30" y1="50" x2="34" y2="40" stroke-width="2"/><line x1="40" y1="50" x2="38" y2="38" stroke-width="2.5"/><line x1="38" y1="38" x2="32" y2="26" stroke-width="2.5"/><line x1="40" y1="50" x2="55" y2="62" stroke-width="2.5"/><line x1="55" y1="62" x2="65" y2="62" stroke-width="2"/></g><line x1="78" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="125" cy="52" r="5" fill="#94a3b8" stroke="none"/><line x1="130" y1="52" x2="150" y2="52" stroke-width="2.5"/><line x1="140" y1="52" x2="136" y2="42" stroke-width="2"/><line x1="140" y1="52" x2="144" y2="42" stroke-width="2"/><line x1="150" y1="52" x2="152" y2="35" stroke-width="2.5"/><line x1="152" y1="35" x2="160" y2="22" stroke-width="2.5"/><line x1="150" y1="52" x2="165" y2="62" stroke-width="2.5"/><line x1="165" y1="62" x2="175" y2="62" stroke-width="2"/></g><line x1="148" y1="35" x2="165" y2="35" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"/></svg>`,
+
+    'reverse-lunge': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="35" cy="14" r="6" fill="#94a3b8" stroke="none"/><line x1="35" y1="20" x2="35" y2="42" stroke-width="2.5"/><line x1="35" y1="28" x2="23" y2="38" stroke-width="2"/><line x1="35" y1="28" x2="47" y2="38" stroke-width="2"/><line x1="35" y1="42" x2="28" y2="65" stroke-width="2.5"/><line x1="35" y1="42" x2="42" y2="65" stroke-width="2.5"/></g><line x1="76" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="155" cy="12" r="6" fill="#94a3b8" stroke="none"/><line x1="155" y1="18" x2="155" y2="40" stroke-width="2.5"/><line x1="155" y1="26" x2="143" y2="36" stroke-width="2"/><line x1="155" y1="26" x2="167" y2="36" stroke-width="2"/><line x1="155" y1="40" x2="162" y2="62" stroke-width="2.5"/><line x1="155" y1="40" x2="138" y2="55" stroke-width="2.5"/><line x1="138" y1="55" x2="132" y2="68" stroke-width="2.5"/></g><line x1="162" y1="62" x2="170" y2="62" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/></svg>`,
+
+    'clamshell': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="18" cy="32" r="5" fill="#94a3b8" stroke="none"/><line x1="22" y1="34" x2="55" y2="44" stroke-width="2.5"/><line x1="30" y1="36" x2="28" y2="28" stroke-width="2"/><line x1="30" y1="36" x2="36" y2="30" stroke-width="2"/><line x1="55" y1="44" x2="44" y2="56" stroke-width="2.5"/><line x1="55" y1="44" x2="66" y2="56" stroke-width="2.5"/><line x1="44" y1="56" x2="50" y2="68" stroke-width="2"/><line x1="66" y1="56" x2="72" y2="68" stroke-width="2"/></g><line x1="80" y1="42" x2="100" y2="42" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,38 108,42 98,46" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="128" cy="32" r="5" fill="#94a3b8" stroke="none"/><line x1="132" y1="34" x2="165" y2="44" stroke-width="2.5"/><line x1="140" y1="36" x2="138" y2="28" stroke-width="2"/><line x1="165" y1="44" x2="154" y2="56" stroke-width="2.5"/><line x1="165" y1="44" x2="176" y2="58" stroke-width="2.5"/><line x1="154" y1="56" x2="160" y2="68" stroke-width="2"/><line x1="176" y1="58" x2="182" y2="68" stroke-width="2"/></g><line x1="140" y1="36" x2="152" y2="22" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"/></svg>`,
+
+    'lateral-step-up': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="48" y="52" width="25" height="14" rx="2" fill="rgba(96,165,250,0.15)" stroke="#60a5fa" stroke-width="1"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="35" cy="14" r="6" fill="#94a3b8" stroke="none"/><line x1="35" y1="20" x2="35" y2="44" stroke-width="2.5"/><line x1="35" y1="28" x2="23" y2="40" stroke-width="2"/><line x1="35" y1="28" x2="47" y2="40" stroke-width="2"/><line x1="35" y1="44" x2="28" y2="66" stroke-width="2.5"/><line x1="35" y1="44" x2="42" y2="66" stroke-width="2.5"/></g><line x1="78" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><rect x="138" y="52" width="25" height="14" rx="2" fill="rgba(96,165,250,0.15)" stroke="#60a5fa" stroke-width="1"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="158" cy="12" r="6" fill="#94a3b8" stroke="none"/><line x1="158" y1="18" x2="158" y2="40" stroke-width="2.5"/><line x1="158" y1="26" x2="146" y2="38" stroke-width="2"/><line x1="158" y1="26" x2="170" y2="38" stroke-width="2"/><line x1="158" y1="40" x2="150" y2="52" stroke-width="2.5"/><line x1="158" y1="40" x2="165" y2="62" stroke-width="2.5"/></g></svg>`,
+
+    'burpee': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="35" cy="12" r="6" fill="#94a3b8" stroke="none"/><line x1="35" y1="18" x2="35" y2="42" stroke-width="2.5"/><line x1="35" y1="26" x2="23" y2="38" stroke-width="2"/><line x1="35" y1="26" x2="47" y2="38" stroke-width="2"/><line x1="35" y1="42" x2="27" y2="62" stroke-width="2.5"/><line x1="35" y1="42" x2="43" y2="62" stroke-width="2.5"/></g><line x1="78" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="125" cy="30" r="5" fill="#94a3b8" stroke="none"/><line x1="130" y1="32" x2="172" y2="42" stroke-width="3"/><line x1="135" y1="33" x2="130" y2="52" stroke-width="2.5"/><line x1="135" y1="33" x2="140" y2="52" stroke-width="2.5"/><line x1="172" y1="42" x2="167" y2="58" stroke-width="2.5"/><line x1="172" y1="42" x2="178" y2="58" stroke-width="2.5"/></g></svg>`,
+
+    'lateral-bound': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="30" cy="18" r="6" fill="#94a3b8" stroke="none"/><line x1="30" y1="24" x2="30" y2="46" stroke-width="2.5"/><line x1="30" y1="32" x2="18" y2="42" stroke-width="2"/><line x1="30" y1="32" x2="42" y2="42" stroke-width="2"/><line x1="30" y1="46" x2="22" y2="65" stroke-width="2.5"/><line x1="30" y1="46" x2="38" y2="55" stroke-width="2.5"/></g><line x1="62" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="2"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="165" cy="18" r="6" fill="#94a3b8" stroke="none"/><line x1="165" y1="24" x2="165" y2="46" stroke-width="2.5"/><line x1="165" y1="32" x2="153" y2="42" stroke-width="2"/><line x1="165" y1="32" x2="177" y2="42" stroke-width="2"/><line x1="165" y1="46" x2="172" y2="65" stroke-width="2.5"/><line x1="165" y1="46" x2="158" y2="55" stroke-width="2.5"/></g></svg>`,
+
+    'high-knees': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="35" cy="12" r="6" fill="#94a3b8" stroke="none"/><line x1="35" y1="18" x2="35" y2="40" stroke-width="2.5"/><line x1="35" y1="26" x2="23" y2="36" stroke-width="2"/><line x1="35" y1="26" x2="47" y2="36" stroke-width="2"/><line x1="35" y1="40" x2="25" y2="62" stroke-width="2.5"/><line x1="35" y1="40" x2="42" y2="28" stroke-width="2.5"/><line x1="42" y1="28" x2="48" y2="40" stroke-width="2.5"/></g><line x1="78" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="158" cy="12" r="6" fill="#94a3b8" stroke="none"/><line x1="158" y1="18" x2="158" y2="40" stroke-width="2.5"/><line x1="158" y1="26" x2="146" y2="36" stroke-width="2"/><line x1="158" y1="26" x2="170" y2="36" stroke-width="2"/><line x1="158" y1="40" x2="168" y2="62" stroke-width="2.5"/><line x1="158" y1="40" x2="150" y2="28" stroke-width="2.5"/></g><line x1="150" y1="28" x2="144" y2="40" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"/></svg>`,
+
+    'box-jump': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="28" y="48" width="24" height="18" rx="2" fill="rgba(96,165,250,0.1)" stroke="#64748b" stroke-width="1"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="38" cy="20" r="6" fill="#94a3b8" stroke="none"/><line x1="38" y1="26" x2="38" y2="44" stroke-width="2.5"/><line x1="38" y1="34" x2="26" y2="42" stroke-width="2"/><line x1="38" y1="34" x2="50" y2="42" stroke-width="2"/><line x1="38" y1="44" x2="30" y2="58" stroke-width="2.5"/><line x1="38" y1="44" x2="46" y2="58" stroke-width="2.5"/></g><line x1="80" y1="38" x2="100" y2="38" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,34 108,38 98,42" fill="#60a5fa"/><rect x="138" y="48" width="24" height="18" rx="2" fill="rgba(96,165,250,0.15)" stroke="#60a5fa" stroke-width="1"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="158" cy="12" r="6" fill="#94a3b8" stroke="none"/><line x1="158" y1="18" x2="158" y2="38" stroke-width="2.5"/><line x1="158" y1="26" x2="146" y2="36" stroke-width="2"/><line x1="158" y1="26" x2="170" y2="36" stroke-width="2"/><line x1="158" y1="38" x2="150" y2="48" stroke-width="2.5"/><line x1="158" y1="38" x2="166" y2="48" stroke-width="2.5"/></g></svg>`,
+
+    'bear-crawl': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="20" cy="30" r="5" fill="#94a3b8" stroke="none"/><line x1="20" y1="35" x2="25" y2="44" stroke-width="2.5"/><line x1="25" y1="44" x2="62" y2="44" stroke-width="3"/><line x1="25" y1="44" x2="20" y2="58" stroke-width="2.5"/><line x1="25" y1="44" x2="30" y2="58" stroke-width="2.5"/><line x1="62" y1="44" x2="57" y2="58" stroke-width="2.5"/><line x1="62" y1="44" x2="67" y2="58" stroke-width="2.5"/></g><line x1="78" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="130" cy="30" r="5" fill="#94a3b8" stroke="none"/><line x1="130" y1="35" x2="135" y2="44" stroke-width="2.5"/><line x1="135" y1="44" x2="172" y2="44" stroke-width="3"/><line x1="135" y1="44" x2="130" y2="58" stroke-width="2.5"/><line x1="172" y1="44" x2="178" y2="58" stroke-width="2.5"/></g><line x1="172" y1="44" x2="167" y2="56" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round"/><line x1="135" y1="44" x2="148" y2="58" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"/></svg>`,
+
+    'foam-roll-quad': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="12" cy="40" r="5" fill="#94a3b8" stroke="none"/><line x1="17" y1="40" x2="62" y2="40" stroke-width="2.5"/><line x1="30" y1="40" x2="25" y2="30" stroke-width="2"/><line x1="30" y1="40" x2="36" y2="30" stroke-width="2"/><line x1="55" y1="40" x2="48" y2="50" stroke-width="2.5"/><line x1="55" y1="40" x2="62" y2="50" stroke-width="2.5"/></g><rect x="25" y="42" width="20" height="6" rx="3" fill="#60a5fa" opacity="0.7"/><line x1="78" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="122" cy="40" r="5" fill="#94a3b8" stroke="none"/><line x1="127" y1="40" x2="172" y2="40" stroke-width="2.5"/><line x1="140" y1="40" x2="135" y2="30" stroke-width="2"/><line x1="140" y1="40" x2="146" y2="30" stroke-width="2"/><line x1="165" y1="40" x2="158" y2="50" stroke-width="2.5"/><line x1="165" y1="40" x2="172" y2="50" stroke-width="2.5"/></g><rect x="148" y="42" width="20" height="6" rx="3" fill="#60a5fa" opacity="0.9"/><line x1="148" y1="38" x2="168" y2="38" stroke="#60a5fa" stroke-width="1" stroke-dasharray="2 2"/></svg>`,
+
+    'foam-roll-calf': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="18" cy="20" r="5" fill="#94a3b8" stroke="none"/><line x1="18" y1="25" x2="18" y2="44" stroke-width="2.5"/><line x1="18" y1="32" x2="8" y2="40" stroke-width="2"/><line x1="18" y1="32" x2="28" y2="40" stroke-width="2"/><line x1="18" y1="44" x2="12" y2="56" stroke-width="2.5"/><line x1="18" y1="44" x2="36" y2="55" stroke-width="2.5"/><line x1="36" y1="55" x2="65" y2="55" stroke-width="2.5"/></g><line x1="78" y1="42" x2="100" y2="42" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,38 108,42 98,46" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="128" cy="20" r="5" fill="#94a3b8" stroke="none"/><line x1="128" y1="25" x2="128" y2="44" stroke-width="2.5"/><line x1="128" y1="32" x2="118" y2="40" stroke-width="2"/><line x1="128" y1="32" x2="138" y2="40" stroke-width="2"/><line x1="128" y1="44" x2="122" y2="56" stroke-width="2.5"/><line x1="128" y1="44" x2="146" y2="55" stroke-width="2.5"/><line x1="146" y1="55" x2="175" y2="55" stroke-width="2.5"/></g><rect x="152" y="52" width="16" height="6" rx="3" fill="#60a5fa" opacity="0.8"/></svg>`,
+
+    'hamstring-stretch': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="18" cy="28" r="5" fill="#94a3b8" stroke="none"/><line x1="18" y1="33" x2="18" y2="50" stroke-width="2.5"/><line x1="18" y1="40" x2="8" y2="47" stroke-width="2"/><line x1="18" y1="40" x2="28" y2="47" stroke-width="2"/><line x1="18" y1="50" x2="5" y2="50" stroke-width="2.5"/><line x1="5" y1="50" x2="5" y2="68" stroke-width="2.5"/><line x1="18" y1="50" x2="55" y2="50" stroke-width="2.5"/><line x1="55" y1="50" x2="62" y2="68" stroke-width="2"/></g><line x1="78" y1="45" x2="100" y2="45" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,41 108,45 98,49" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="128" cy="36" r="5" fill="#94a3b8" stroke="none"/><line x1="128" y1="41" x2="143" y2="52" stroke-width="2.5"/><line x1="133" y1="44" x2="120" y2="50" stroke-width="2"/><line x1="143" y1="52" x2="130" y2="52" stroke-width="2.5"/><line x1="130" y1="52" x2="125" y2="68" stroke-width="2.5"/><line x1="143" y1="52" x2="178" y2="52" stroke-width="2.5"/><line x1="178" y1="52" x2="183" y2="68" stroke-width="2"/></g><line x1="133" y1="44" x2="155" y2="40" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"/></svg>`,
+
+    'pigeon-pose': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="25" cy="18" r="6" fill="#94a3b8" stroke="none"/><line x1="25" y1="24" x2="25" y2="44" stroke-width="2.5"/><line x1="25" y1="32" x2="15" y2="40" stroke-width="2"/><line x1="25" y1="32" x2="35" y2="40" stroke-width="2"/><line x1="25" y1="44" x2="12" y2="60" stroke-width="2.5"/><line x1="25" y1="44" x2="40" y2="55" stroke-width="2.5"/><line x1="40" y1="55" x2="55" y2="60" stroke-width="2.5"/></g><line x1="78" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="135" cy="32" r="6" fill="#94a3b8" stroke="none"/><line x1="135" y1="38" x2="150" y2="52" stroke-width="2.5"/><line x1="140" y1="42" x2="126" y2="46" stroke-width="2"/><line x1="140" y1="42" x2="152" y2="44" stroke-width="2"/><line x1="150" y1="52" x2="130" y2="55" stroke-width="2.5"/><line x1="130" y1="55" x2="118" y2="68" stroke-width="2.5"/><line x1="150" y1="52" x2="175" y2="60" stroke-width="2.5"/></g><line x1="128" y1="52" x2="135" y2="38" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="3 2"/></svg>`,
+
+    'breathing': `<svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="#94a3b8" stroke-linecap="round"><circle cx="15" cy="38" r="5" fill="#94a3b8" stroke="none"/><line x1="20" y1="38" x2="68" y2="38" stroke-width="3"/><line x1="35" y1="38" x2="30" y2="28" stroke-width="2"/><line x1="35" y1="38" x2="30" y2="48" stroke-width="2"/><line x1="55" y1="38" x2="48" y2="28" stroke-width="2.5"/><line x1="55" y1="38" x2="48" y2="48" stroke-width="2.5"/></g><text x="50" y="25" text-anchor="middle" fill="#60a5fa" font-size="9" font-family="sans-serif">4s ↑</text><line x1="78" y1="40" x2="100" y2="40" stroke="#60a5fa" stroke-width="1.5"/><polygon points="98,36 108,40 98,44" fill="#60a5fa"/><g stroke="#94a3b8" stroke-linecap="round"><circle cx="125" cy="38" r="5" fill="#94a3b8" stroke="none"/><line x1="130" y1="38" x2="178" y2="38" stroke-width="3"/><line x1="145" y1="38" x2="140" y2="28" stroke-width="2"/><line x1="145" y1="38" x2="140" y2="48" stroke-width="2"/><line x1="163" y1="38" x2="155" y2="28" stroke-width="2.5"/><line x1="163" y1="38" x2="155" y2="48" stroke-width="2.5"/></g><circle cx="160" cy="34" r="6" fill="none" stroke="#60a5fa" stroke-width="1.5" opacity="0.6"/><text x="160" y="22" text-anchor="middle" fill="#60a5fa" font-size="9" font-family="sans-serif">6s ↓</text></svg>`,
+  },
+
   FINANCE_ARTEFACTS: [
     {
       id: 'artefact_coffre_midas',
@@ -7410,8 +7629,18 @@ const app = {
       }
     }
 
+    // ============================================
+    // TRAINING — Rendering & Player (inserted before notification logic)
+    // ============================================
+
+    // ============================================
+    // TRAINING — Dashboard
+    // ============================================
+    // (methods defined below, this comment just anchors insertion point)
+
     // Finance weekly reminder — dimanche à 18h00
     if (now.getDay() === 0 && hours === 18 && minutes === 0) {
+
       const weekKey = this.getWeekKey(now);
       const snapshotWeeks = new Set((this.state.finance?.snapshots || []).map(s => s.weekKey));
       if (!snapshotWeeks.has(weekKey)) {
@@ -7425,6 +7654,477 @@ const app = {
       }
     }
   },
+  // ============================================
+  // TRAINING — Dashboard
+  // ============================================
+  renderTrainingTab() {
+    const el = document.getElementById('trainingContent');
+    if (!el) return;
+    this._trainingWeekReset();
+    const training = this.state.training || {};
+    const history = training.history || [];
+    const weekStart = this._getWeekStartDate();
+    const weekHistory = history.filter(h => h.date >= weekStart);
+    const weekSessions = weekHistory.length;
+    const weekKm = this.getWeekLogs().reduce((s, l) => s + (l?.km || 0), 0);
+    const stravaAlert = weekKm > 60
+      ? `<div class="training-strava-alert">⚠️ Volume élevé cette semaine (${weekKm.toFixed(0)} km) — privilégie Stabilité ou Récupération Active</div>`
+      : '';
+    const weekTypesDone = new Set(weekHistory.map(h => {
+      const w = this.WORKOUTS.find(wk => wk.id === h.workoutId);
+      return w?.xpType;
+    }));
+    const balanceMap = [
+      { label: 'Mobilité',  type: 'mobility',  emoji: '🌅' },
+      { label: 'Stabilité', type: 'stability', emoji: '🧘' },
+      { label: 'Core',      type: 'core',       emoji: '🏔️' },
+      { label: 'Cardio',    type: 'cardio',     emoji: '🔥' },
+      { label: 'Force',     type: 'strength',   emoji: '🏋️' },
+      { label: 'Récup',     type: 'recovery',   emoji: '💚' },
+    ];
+    const balanceHtml = balanceMap.map(b =>
+      `<span class="training-balance-item ${weekTypesDone.has(b.type) ? 'done' : ''}">${b.emoji} ${b.label}</span>`
+    ).join('');
+    const recommended = this._getRecommendedWorkout();
+    const cardsHtml = this.WORKOUTS.map(w => {
+      const lastSession = history.filter(h => h.workoutId === w.id).sort((a, b) => b.date.localeCompare(a.date))[0];
+      const lastLabel = lastSession ? this._daysSinceLabel(lastSession.date) : 'Jamais fait';
+      const daysSince = lastSession ? this._daysSince(lastSession.date) : 999;
+      const isRecommended = recommended === w.id;
+      const buffState = training.rpgBuffs?.[w.buff.type];
+      const buffActive = buffState && buffState.expiresAt > Date.now();
+      return `
+        <div class="training-card ${isRecommended ? 'recommended' : ''}">
+          ${isRecommended ? '<div class="training-recommended-badge">⭐ Recommandé</div>' : ''}
+          ${buffActive ? '<div class="training-buff-active">✨ Buff actif</div>' : ''}
+          <div class="training-card-header">
+            <span class="training-card-emoji">${w.emoji}</span>
+            <div>
+              <div class="training-card-title">${w.title}</div>
+              <div class="training-card-meta">${w.duration} · ${w.type === 'circuit' ? 'Circuit' : w.type === 'reps' ? 'Reps' : 'Timer'} · ${w.exercises.length} exos</div>
+            </div>
+          </div>
+          <div class="training-card-tags">${w.tags.map(t => `<span class="training-tag">${t}</span>`).join('')}</div>
+          <div class="training-card-buff">💡 ${w.buff.label}</div>
+          <div class="training-card-last ${daysSince >= 3 ? 'old' : ''}">⏰ ${lastLabel}</div>
+          <div class="training-card-actions">
+            <button class="btn training-btn-start" onclick="app.openWorkoutPlayer('${w.id}', 'full')">▶ Démarrer</button>
+            <button class="btn training-btn-express" onclick="app.openWorkoutPlayer('${w.id}', 'express')">⚡ Express</button>
+          </div>
+        </div>`;
+    }).join('');
+    el.innerHTML = `
+      ${stravaAlert}
+      <div class="training-header">
+        <div class="training-weekly-bar">
+          <div class="training-weekly-title">📅 Cette semaine : <strong>${weekSessions} séance${weekSessions !== 1 ? 's' : ''}</strong></div>
+          <div class="training-balance">${balanceHtml}</div>
+        </div>
+      </div>
+      <div class="training-grid">${cardsHtml}</div>`;
+  },
+
+  _getWeekStartDate() {
+    const now = new Date();
+    const day = now.getDay();
+    const diff = day === 0 ? 6 : day - 1;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - diff);
+    return this.getDateKey(monday);
+  },
+
+  _daysSince(dateStr) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(dateStr);
+    return Math.floor((today - target) / 86400000);
+  },
+
+  _daysSinceLabel(dateStr) {
+    const d = this._daysSince(dateStr);
+    if (d === 0) return 'Aujourd\'hui';
+    if (d === 1) return 'Hier';
+    return `Il y a ${d} jour${d > 1 ? 's' : ''}`;
+  },
+
+  _getRecommendedWorkout() {
+    const history = this.state.training?.history || [];
+    const weekStart = this._getWeekStartDate();
+    const weekHistory = history.filter(h => h.date >= weekStart);
+    const weekKm = this.getWeekLogs().reduce((s, l) => s + (l?.km || 0), 0);
+    const yesterday = this.getDateKey(new Date(Date.now() - 86400000));
+    const yesterdayLog = this.state.logs?.[yesterday];
+    if (yesterdayLog?.km > 15) return 'recovery';
+    if (weekHistory.length === 0) return 'mobility';
+    if (weekKm > 60) {
+      return weekHistory.find(h => h.workoutId === 'stability') ? 'knees' : 'stability';
+    }
+    const lastDone = {};
+    history.forEach(h => {
+      if (!lastDone[h.workoutId] || h.date > lastDone[h.workoutId]) lastDone[h.workoutId] = h.date;
+    });
+    return this.WORKOUTS
+      .map(w => ({ id: w.id, last: lastDone[w.id] || '2000-01-01' }))
+      .sort((a, b) => a.last.localeCompare(b.last))[0].id;
+  },
+
+  _trainingWeekReset() {
+    const training = this.state.training;
+    if (!training) return;
+    const weekStart = this._getWeekStartDate();
+    if (training.lastWeekReset !== weekStart) {
+      training.weekSessions = (training.history || []).filter(h => h.date >= weekStart).length;
+      training.lastWeekReset = weekStart;
+    }
+  },
+
+  // ============================================
+  // TRAINING — Workout Player
+  // ============================================
+  _wpState: null,
+  _wpTimer: null,
+
+  openWorkoutPlayer(workoutId, mode = 'full') {
+    const workout = this.WORKOUTS.find(w => w.id === workoutId);
+    if (!workout) return;
+    if (this._wpTimer) { clearInterval(this._wpTimer); this._wpTimer = null; }
+    const steps = this._buildWorkoutSteps(workout, mode);
+    this._wpState = { workoutId, mode, workout, steps, stepIdx: 0, paused: false, timeLeft: 0, repsDone: 0, startTime: Date.now() };
+    const modal = document.getElementById('modalOverlay');
+    const box = document.getElementById('modalBox');
+    if (!modal || !box) return;
+    box.className = 'modal-box workout-player-modal';
+    modal.classList.add('active');
+    this._wpAdvanceToStep(0);
+  },
+
+  _buildWorkoutSteps(workout, mode) {
+    const steps = [];
+    const expressMode = mode === 'express';
+    if (workout.type === 'timed' || workout.type === 'circuit' && false) {
+      workout.exercises.forEach(ex => {
+        const dur = ex.duration || workout.workTime;
+        if (ex.bilateral) {
+          steps.push({ type: 'exercise', exIdx: workout.exercises.indexOf(ex), side: 'left', duration: dur });
+          steps.push({ type: 'exercise', exIdx: workout.exercises.indexOf(ex), side: 'right', duration: dur });
+        } else {
+          steps.push({ type: 'exercise', exIdx: workout.exercises.indexOf(ex), side: null, duration: dur });
+        }
+      });
+    } else if (workout.type === 'circuit') {
+      const rounds = expressMode ? 1 : workout.rounds;
+      for (let r = 0; r < rounds; r++) {
+        workout.exercises.forEach((_ex, exIdx) => {
+          steps.push({ type: 'exercise', exIdx, side: null, roundIdx: r, duration: workout.workTime });
+          const isLast = exIdx === workout.exercises.length - 1 && r === rounds - 1;
+          if (!isLast) steps.push({ type: 'rest', duration: workout.restTime });
+        });
+      }
+    } else if (workout.type === 'reps') {
+      workout.exercises.forEach((ex, exIdx) => {
+        const numSets = expressMode ? 1 : (ex.sets || 3);
+        for (let s = 0; s < numSets; s++) {
+          if (ex.type === 'reps') {
+            if (ex.bilateral) {
+              steps.push({ type: 'reps', exIdx, setIdx: s, side: 'left', reps: ex.reps });
+              steps.push({ type: 'reps', exIdx, setIdx: s, side: 'right', reps: ex.reps });
+            } else {
+              steps.push({ type: 'reps', exIdx, setIdx: s, side: null, reps: ex.reps });
+            }
+          } else {
+            const dur = ex.duration || 60;
+            if (ex.bilateral) {
+              steps.push({ type: 'exercise', exIdx, setIdx: s, side: 'left', duration: dur });
+              steps.push({ type: 'exercise', exIdx, setIdx: s, side: 'right', duration: dur });
+            } else {
+              steps.push({ type: 'exercise', exIdx, setIdx: s, side: null, duration: dur });
+            }
+          }
+          const isLastSet = s === numSets - 1;
+          const isLastEx = exIdx === workout.exercises.length - 1;
+          if (!isLastSet || !isLastEx) {
+            steps.push({ type: 'rest', duration: ex.restBetweenSets || workout.restBetweenSets || 60 });
+          }
+        }
+      });
+    }
+    steps.push({ type: 'done' });
+    return steps;
+  },
+
+  _wpAdvanceToStep(idx) {
+    if (this._wpTimer) { clearInterval(this._wpTimer); this._wpTimer = null; }
+    const state = this._wpState;
+    if (!state) return;
+    state.stepIdx = idx;
+    state.repsDone = 0;
+    const step = state.steps[idx];
+    if (!step || step.type === 'done') { this._wpComplete(); return; }
+    if (step.type === 'reps') {
+      state.timeLeft = 0;
+      this._wpRender();
+      const ex = state.workout.exercises[step.exIdx];
+      const sideText = step.side === 'left' ? ', côté gauche' : step.side === 'right' ? ', côté droit' : '';
+      this._speak(`${ex.name}${sideText}, ${step.reps} répétitions`);
+      return;
+    }
+    state.timeLeft = step.duration || 0;
+    this._wpRender();
+    if (step.type === 'rest') {
+      const nextEx = state.steps.slice(idx + 1).find(s => s.type !== 'rest' && s.type !== 'done');
+      if (nextEx) this._speak(`Repos. Prochain : ${state.workout.exercises[nextEx.exIdx]?.name || ''}`);
+    } else {
+      const ex = state.workout.exercises[step.exIdx];
+      const sideText = step.side === 'left' ? ', côté gauche' : step.side === 'right' ? ', côté droit' : '';
+      this._speak(`${ex.name}${sideText}`);
+    }
+    if (state.timeLeft > 0) this._wpTimer = setInterval(() => this._wpTick(), 1000);
+  },
+
+  _wpTick() {
+    const state = this._wpState;
+    if (!state || state.paused) return;
+    state.timeLeft = Math.max(0, state.timeLeft - 1);
+    if (state.timeLeft <= 3 && state.timeLeft > 0) this._playBeep(440, 80);
+    this._wpRender();
+    if (state.timeLeft === 0) {
+      clearInterval(this._wpTimer); this._wpTimer = null;
+      this._playLongBeep();
+      setTimeout(() => this._wpAdvanceToStep(state.stepIdx + 1), 500);
+    }
+  },
+
+  _wpRender() {
+    const box = document.getElementById('modalBox');
+    if (!box) return;
+    box.innerHTML = this._buildWPHtml();
+  },
+
+  _buildWPHtml() {
+    const state = this._wpState;
+    if (!state) return '';
+    const { workout, steps, stepIdx, timeLeft, repsDone, paused } = state;
+    const step = steps[stepIdx];
+    if (!step || step.type === 'done') return this._buildWPDoneHtml();
+    const totalExSteps = steps.filter(s => s.type !== 'rest' && s.type !== 'done').length;
+    const doneExSteps = steps.slice(0, stepIdx).filter(s => s.type !== 'rest' && s.type !== 'done').length;
+    const progressPct = totalExSteps > 0 ? Math.round((doneExSteps / totalExSteps) * 100) : 0;
+    const isRest = step.type === 'rest';
+    const ex = !isRest ? workout.exercises[step.exIdx] : null;
+    const svgHtml = ex ? (this.WORKOUT_SVG[ex.svgKey] || '') : '';
+    const demoUrl = ex?.demoUrl || null;
+    const sideLabel = step.side === 'left' ? '← Côté GAUCHE' : step.side === 'right' ? '→ Côté DROIT' : '';
+    const setLabel = step.setIdx !== undefined ? ` · Série ${step.setIdx + 1}/${state.mode === 'express' ? 1 : (ex?.sets || 3)}` : '';
+    const roundLabel = step.roundIdx !== undefined && workout.rounds > 1 && state.mode !== 'express'
+      ? ` · Tour ${step.roundIdx + 1}/${workout.rounds}` : '';
+    let controlHtml = '';
+    if (isRest) {
+      controlHtml = `<div class="wp-rest-zone">
+        <div class="wp-rest-label">😮‍💨 Repos</div>
+        <div class="wp-timer-big">${timeLeft}s</div>
+        <button class="btn wp-skip-btn" onclick="app._wpSkipRest()">⏭ Passer</button>
+      </div>`;
+    } else if (step.type === 'reps') {
+      controlHtml = `<div class="wp-reps-zone">
+        <div class="wp-reps-count">${repsDone} / ${step.reps} reps</div>
+        <button class="btn wp-rep-btn" onclick="app._wpAddRep()">+ Rep</button>
+        <button class="btn wp-set-done-btn" onclick="app._wpAdvanceToStep(${stepIdx + 1})">✅ Série terminée</button>
+      </div>`;
+    } else {
+      const totalDur = ex ? (ex.duration || workout.workTime || 60) : (step.duration || 60);
+      const pct = totalDur > 0 ? Math.round((1 - timeLeft / totalDur) * 100) : 100;
+      const r = 36, circ = 2 * Math.PI * r;
+      controlHtml = `<div class="wp-timer-zone">
+        <div class="wp-timer-circle-wrap">
+          <svg viewBox="0 0 80 80" class="wp-timer-circle-svg">
+            <circle cx="40" cy="40" r="${r}" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="6"/>
+            <circle cx="40" cy="40" r="${r}" fill="none" stroke="#60a5fa" stroke-width="6"
+              stroke-dasharray="${circ.toFixed(1)}"
+              stroke-dashoffset="${(circ * (1 - pct / 100)).toFixed(1)}"
+              stroke-linecap="round" transform="rotate(-90 40 40)"/>
+          </svg>
+          <div class="wp-timer-num">${timeLeft}</div>
+        </div>
+      </div>`;
+    }
+    return `
+      <div class="wp-header">
+        <div class="wp-progress-bar"><div class="wp-progress-fill" style="width:${progressPct}%"></div></div>
+        <div class="wp-progress-label">${workout.emoji} ${workout.title}${roundLabel}${setLabel}</div>
+      </div>
+      <div class="wp-body${isRest ? ' wp-rest' : ''}">
+        ${!isRest ? `
+          <div class="wp-svg-wrap${demoUrl ? ' has-demo' : ''}" ${demoUrl ? `onclick="window.open('${demoUrl}','_blank')"` : ''}>${svgHtml}${demoUrl ? '<div class="wp-demo-hint">▶ Voir démo</div>' : ''}</div>
+          <div class="wp-ex-name">${ex?.name || ''}</div>
+          <div class="wp-ex-cue">${ex?.cue || ''}</div>
+          ${sideLabel ? `<div class="wp-side-label">${sideLabel}</div>` : ''}
+        ` : ''}
+        ${controlHtml}
+      </div>
+      <div class="wp-controls">
+        <button class="btn wp-ctrl-btn" onclick="app._wpGoBack()" title="Précédent">⏮</button>
+        <button class="btn wp-ctrl-btn" onclick="app._wpTogglePause()">${paused ? '▶' : '⏸'}</button>
+        <button class="btn wp-ctrl-btn" onclick="app._wpAdvanceToStep(${stepIdx + 1})" title="Suivant">⏭</button>
+        <button class="btn wp-quit-btn" onclick="app._wpQuit()">✖ Quitter</button>
+      </div>`;
+  },
+
+  _buildWPDoneHtml() {
+    const state = this._wpState;
+    if (!state) return '';
+    const { workout, startTime } = state;
+    const durationMin = Math.round((Date.now() - startTime) / 60000);
+    return `
+      <div class="wp-done">
+        <div class="wp-done-emoji">${workout.emoji}</div>
+        <div class="wp-done-title">Séance terminée !</div>
+        <div class="wp-done-subtitle">${workout.title}</div>
+        <div class="wp-done-stats">⏱ ${durationMin} min · +${workout.xpReward} XP · +${Math.round(workout.xpReward * 0.5)} 🪙</div>
+        <div class="wp-done-buff">${workout.buff.label}</div>
+        <div class="wp-done-feeling-label">Comment tu te sens ?</div>
+        <div class="wp-done-feelings">
+          <button class="btn wp-feeling-btn" onclick="app._wpSaveFinal('hard')">😫 Dur</button>
+          <button class="btn wp-feeling-btn" onclick="app._wpSaveFinal('ok')">😐 Ok</button>
+          <button class="btn wp-feeling-btn wp-feeling-easy" onclick="app._wpSaveFinal('easy')">💪 Facile</button>
+        </div>
+      </div>`;
+  },
+
+  _wpComplete() {
+    if (this._wpTimer) { clearInterval(this._wpTimer); this._wpTimer = null; }
+    this._speak('Séance terminée ! Excellent travail !');
+    this._wpRender();
+  },
+
+  _wpGoBack() {
+    const state = this._wpState;
+    if (!state || state.stepIdx <= 0) return;
+    this._wpAdvanceToStep(state.stepIdx - 1);
+  },
+
+  _wpTogglePause() {
+    const state = this._wpState;
+    if (!state) return;
+    state.paused = !state.paused;
+    this._wpRender();
+  },
+
+  _wpSkipRest() {
+    if (this._wpTimer) { clearInterval(this._wpTimer); this._wpTimer = null; }
+    const state = this._wpState;
+    if (state) this._wpAdvanceToStep(state.stepIdx + 1);
+  },
+
+  _wpAddRep() {
+    const state = this._wpState;
+    if (!state) return;
+    state.repsDone++;
+    const step = state.steps[state.stepIdx];
+    if (state.repsDone >= parseInt(step.reps || '99')) {
+      this._playLongBeep();
+      setTimeout(() => this._wpAdvanceToStep(state.stepIdx + 1), 300);
+      return;
+    }
+    this._wpRender();
+  },
+
+  _wpQuit() {
+    if (this._wpTimer) { clearInterval(this._wpTimer); this._wpTimer = null; }
+    this._wpState = null;
+    const modal = document.getElementById('modalOverlay');
+    const box = document.getElementById('modalBox');
+    if (modal) modal.classList.remove('active');
+    if (box) box.className = 'modal-box';
+  },
+
+  _wpSaveFinal(feeling) {
+    const state = this._wpState;
+    if (!state) return;
+    const durationSec = Math.round((Date.now() - state.startTime) / 1000);
+    this.completeWorkout(state.workoutId, durationSec, state.mode, feeling);
+    this._wpState = null;
+    const modal = document.getElementById('modalOverlay');
+    const box = document.getElementById('modalBox');
+    if (modal) modal.classList.remove('active');
+    if (box) box.className = 'modal-box';
+  },
+
+  // ============================================
+  // TRAINING — Complete & Save
+  // ============================================
+  completeWorkout(workoutId, durationSec, mode = 'full', feeling = 'ok') {
+    const workout = this.WORKOUTS.find(w => w.id === workoutId);
+    if (!workout) return;
+    if (!this.state.training) this.state.training = { history: [], streaks: {}, totalSessions: 0, weekSessions: 0, lastWeekReset: '', rpgBuffs: {}, progressionOverrides: {} };
+    const training = this.state.training;
+    const today = this.getDateKey(new Date());
+    training.history.push({ date: today, workoutId, durationSec, mode, feeling });
+    training.totalSessions = (training.totalSessions || 0) + 1;
+    // Apply RPG buff
+    if (!training.rpgBuffs) training.rpgBuffs = {};
+    const b = workout.buff;
+    const nowMs = Date.now();
+    if (b.type === 'recovery') {
+      const stats = this.getHeroStats();
+      if (stats && this.state.rpg?.hero) {
+        this.state.rpg.hero.hp = Math.min(stats.hpMax, (this.state.rpg.hero.hp || 100) + (b.healHp || 20));
+      }
+      if (Array.isArray(this.state.rpg?.activeBuffs)) {
+        this.state.rpg.activeBuffs = this.state.rpg.activeBuffs.filter(buf => !buf.isDebuff);
+      }
+      training.rpgBuffs.recovery = { expiresAt: nowMs + 3600000 };
+    } else {
+      training.rpgBuffs[b.type] = {
+        expiresAt: nowMs + b.duration,
+        defBonus:   b.defBonus   || 0,
+        hpBonus:    b.hpBonus    || 0,
+        atkBonus:   b.atkBonus   || 0,
+        speedBonus: b.speedBonus || 0,
+      };
+    }
+    // XP & Gold
+    this.addXP(workout.xpType, workout.xpReward);
+    if (this.state.rpg?.hero) {
+      this.state.rpg.hero.gold = (this.state.rpg.hero.gold || 0) + Math.round(workout.xpReward * 0.5);
+    }
+    this.showToast(`${workout.emoji} ${workout.title} complété ! +${workout.xpReward} XP · ${workout.buff.label}`);
+    this.checkAllBadges();
+    this.saveData();
+    if (this.state.currentTab === 'training') this.renderTrainingTab();
+  },
+
+  // ============================================
+  // TRAINING — Audio Helpers
+  // ============================================
+  _playBeep(frequency = 880, duration = 100, type = 'sine') {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = frequency;
+      osc.type = type;
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration / 1000);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + duration / 1000);
+      setTimeout(() => ctx.close(), duration + 100);
+    } catch (e) {}
+  },
+
+  _playLongBeep() {
+    this._playBeep(660, 400);
+    try { navigator.vibrate?.(300); } catch (e) {}
+  },
+
+  _speak(text) {
+    if (!window.speechSynthesis) return;
+    const utt = new SpeechSynthesisUtterance(text);
+    utt.lang = 'fr-FR'; utt.rate = 1.1; utt.volume = 0.8;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utt);
+  },
+
 };
 
 // ============================================
