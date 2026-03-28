@@ -7927,7 +7927,7 @@ const app = {
     const isRest = step.type === 'rest';
     const ex = !isRest ? workout.exercises[step.exIdx] : null;
     const svgHtml = ex ? (this.WORKOUT_SVG[ex.svgKey] || '') : '';
-    const demoUrl = ex?.demoUrl || null;
+    const demoUrl = ex ? `https://www.youtube.com/results?search_query=${encodeURIComponent(ex.name + ' exercice technique')}` : null;
     const sideLabel = step.side === 'left' ? '← Côté GAUCHE' : step.side === 'right' ? '→ Côté DROIT' : '';
     const setLabel = step.setIdx !== undefined ? ` · Série ${step.setIdx + 1}/${state.mode === 'express' ? 1 : (ex?.sets || 3)}` : '';
     const roundLabel = step.roundIdx !== undefined && workout.rounds > 1 && state.mode !== 'express'
